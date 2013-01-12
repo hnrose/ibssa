@@ -31,13 +31,11 @@
  *
  */
 
-#if HAVE_CONFIG_H
-#  include <config.h>
-#endif				/* HAVE_CONFIG_H */
 #include <pthread.h>
 
 #include <complib/cl_qmap.h>
 #include <complib/cl_passivelock.h>
+#include <opensm/osm_config.h>
 #include <opensm/osm_version.h>
 #include <opensm/osm_opensm.h>
 #include <opensm/osm_log.h>
