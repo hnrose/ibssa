@@ -515,7 +515,7 @@ static void report(void *_ssa, osm_epi_event_id_t event_id, void *event_data)
 		break;
 	case OSM_EVENT_ID_SUBNET_UP:
 		/* For now, ignore SUBNET UP events when there is subnet init error */
-		if (&ssa->p_osm->subn.subnet_initialization_error)
+		if (ssa->p_osm->subn.subnet_initialization_error)
 			break;
 
 		fprintf_log(ssa->log_file, "Subnet up event\n");
