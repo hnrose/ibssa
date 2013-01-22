@@ -551,7 +551,7 @@ fprintf_log(ssa->log_file, "Now dumping OSM db\n");
  */
 
 #if OSM_EVENT_PLUGIN_INTERFACE_VER != 2
-#error OpenSM plugin interface version missmatch
+#error OpenSM plugin interface version mismatch
 #endif
 
 osm_event_plugin_t osm_event_plugin = {
