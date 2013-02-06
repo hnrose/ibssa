@@ -50,7 +50,7 @@
 
 BEGIN_C_DECLS
 
-typedef struct ep_guid_to_lid_rec {
+struct ep_guid_to_lid_rec {
 	cl_map_item_t map_item;
 	uint16_t lid;
 	uint8_t lmc;		/* or just fabric lmc ? */
@@ -60,9 +60,9 @@ typedef struct ep_guid_to_lid_rec {
 #else
 	uint8_t pad;		/* ??? */
 #endif
-} ep_guid_to_lid_rec_t;
+};
 
-typedef struct ep_node_rec {
+struct ep_node_rec {
 	cl_map_item_t map_item;
 #if 1
 	/* or just device_id, vendor_id, enh SP0 ? */
@@ -76,9 +76,9 @@ typedef struct ep_node_rec {
 	ib_node_desc_t node_desc;
 	uint8_t is_enhanced_sp0;
 	uint8_t pad[3];
-} ep_node_rec_t;
+};
 
-typedef struct ep_pkey_rec {
+struct ep_pkey_rec {
 	/* port number only needed for switch external ports, not if only end ports */
 	/* actual pkey table blocks or pkeys map ? */
 #if 1
@@ -88,17 +88,17 @@ typedef struct ep_pkey_rec {
 #else
 	cl_map_t pkeys;
 #endif
-} ep_pkey_rec_t;
+};
 
-typedef struct ep_port_rec {
+struct ep_port_rec {
 	/* or just (subnet prefix), cap mask, port state ?, active speeds, active width, and mtu cap ? */
 	ib_port_info_t port_info;
 	uint8_t is_fdr10_active;
 	uint8_t pad[3];
-	ep_pkey_rec_t ep_pkey_rec;
-} ep_port_rec_t;
+	struct ep_pkey_rec ep_pkey_rec;
+};
 
-typedef struct ssa_db {
+struct ssa_db {
 	/* mutex ??? */
 	cl_qmap_t ep_guid_to_lid_tbl;	/* port GUID -> LID */
 	cl_qmap_t ep_node_tbl;		/* node GUID based */
@@ -114,28 +114,28 @@ typedef struct ssa_db {
 	boolean_t enable_quirks;	/* or uint8_t ? */
 	/* boolean_t allow_both_pkeys ? */
 	/* prefix_routes */
-} ssa_db_t;
+};
 
-typedef struct ssa_database {
+struct ssa_database {
 	/* mutex ??? */
-	ssa_db_t *p_current_db;
-	ssa_db_t *p_previous_db;
-	ssa_db_t *p_dump_db;	
-} ssa_database_t;
+	struct ssa_db *p_current_db;
+	struct ssa_db *p_previous_db;
+	struct ssa_db *p_dump_db;	
+};
 
 
-extern ssa_database_t *ssa_db;
+extern struct ssa_database *ssa_db;
 
-ssa_database_t *ssa_database_init();
-void ssa_database_delete(ssa_database_t *p_ssa_db);
-ssa_db_t *ssa_db_init(uint16_t lids);
-void ssa_db_delete(ssa_db_t *p_ssa_db);
-ep_guid_to_lid_rec_t *ep_guid_to_lid_rec_init(osm_port_t *p_port);
-void ep_guid_to_lid_rec_delete(ep_guid_to_lid_rec_t *p_ep_guid_to_lid_rec);
-ep_node_rec_t *ep_node_rec_init(osm_node_t *p_osm_node);
-void ep_node_rec_delete(ep_node_rec_t *p_ep_node_rec);
-ep_port_rec_t *ep_port_rec_init(osm_port_t *p_port);
-void ep_port_rec_delete(ep_port_rec_t *p_ep_port_rec);
+struct ssa_database *ssa_database_init();
+void ssa_database_delete(struct ssa_database *p_ssa_db);
+struct ssa_db *ssa_db_init(uint16_t lids);
+void ssa_db_delete(struct ssa_db *p_ssa_db);
+struct ep_guid_to_lid_rec *ep_guid_to_lid_rec_init(osm_port_t *p_port);
+void ep_guid_to_lid_rec_delete(struct ep_guid_to_lid_rec *p_ep_guid_to_lid_rec);
+struct ep_node_rec *ep_node_rec_init(osm_node_t *p_osm_node);
+void ep_node_rec_delete(struct ep_node_rec *p_ep_node_rec);
+struct ep_port_rec *ep_port_rec_init(osm_port_t *p_port);
+void ep_port_rec_delete(struct ep_port_rec *p_ep_port_rec);
 
 END_C_DECLS
 #endif				/* _SSA_DATABASE_H_ */

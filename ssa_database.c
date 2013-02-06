@@ -35,12 +35,12 @@
 #include <ssa_database.h>
 #include <opensm/osm_switch.h>
 
-ssa_database_t *ssa_database_init()
+struct ssa_database *ssa_database_init()
 {
-	return (ssa_database_t *) calloc(1, sizeof(ssa_database_t));
+	return (struct ssa_database *) calloc(1, sizeof(struct ssa_database));
 }
 
-void ssa_database_delete(ssa_database_t *p_ssa_db)
+void ssa_database_delete(struct ssa_database *p_ssa_db)
 {
 	if (p_ssa_db) {
 		ssa_db_delete(p_ssa_db->p_dump_db);
@@ -50,12 +50,12 @@ void ssa_database_delete(ssa_database_t *p_ssa_db)
 	}
 }
 
-ssa_db_t *ssa_db_init(uint16_t lids)
+struct ssa_db *ssa_db_init(uint16_t lids)
 {
-	ssa_db_t *p_ssa_db;
+	struct ssa_db *p_ssa_db;
 	cl_status_t status;
 
-	p_ssa_db = (ssa_db_t *) calloc(1, sizeof(*p_ssa_db));
+	p_ssa_db = (struct ssa_db *) calloc(1, sizeof(*p_ssa_db));
 	if (p_ssa_db) {
 		cl_qmap_init(&p_ssa_db->ep_guid_to_lid_tbl);
 		cl_qmap_init(&p_ssa_db->ep_node_tbl);
@@ -75,7 +75,7 @@ ssa_db_t *ssa_db_init(uint16_t lids)
 	return p_ssa_db;
 }
 
-void ssa_db_delete(ssa_db_t *p_ssa_db)
+void ssa_db_delete(struct ssa_db *p_ssa_db)
 {
 	if (p_ssa_db) {
 		/* change removals once memory allocated!!! */
@@ -87,11 +87,11 @@ void ssa_db_delete(ssa_db_t *p_ssa_db)
 	}
 }
 
-ep_guid_to_lid_rec_t *ep_guid_to_lid_rec_init(osm_port_t *p_port)
+struct ep_guid_to_lid_rec *ep_guid_to_lid_rec_init(osm_port_t *p_port)
 {
-        ep_guid_to_lid_rec_t *p_ep_guid_to_lid_rec;
+        struct ep_guid_to_lid_rec *p_ep_guid_to_lid_rec;
 
-	p_ep_guid_to_lid_rec = (ep_guid_to_lid_rec_t *) malloc(sizeof(*p_ep_guid_to_lid_rec));
+	p_ep_guid_to_lid_rec = (struct ep_guid_to_lid_rec *) malloc(sizeof(*p_ep_guid_to_lid_rec));
 	if (p_ep_guid_to_lid_rec) {
 		p_ep_guid_to_lid_rec->lid =
 			cl_ntoh16(osm_physp_get_base_lid(p_port->p_physp));
@@ -102,16 +102,16 @@ ep_guid_to_lid_rec_t *ep_guid_to_lid_rec_init(osm_port_t *p_port)
 	return p_ep_guid_to_lid_rec;
 }
 
-void ep_guid_to_lid_rec_delete(ep_guid_to_lid_rec_t *p_ep_guid_to_lid_rec)
+void ep_guid_to_lid_rec_delete(struct ep_guid_to_lid_rec *p_ep_guid_to_lid_rec)
 {
 	free(p_ep_guid_to_lid_rec);
 }
 
-ep_node_rec_t *ep_node_rec_init(osm_node_t *p_node)
+struct ep_node_rec *ep_node_rec_init(osm_node_t *p_node)
 {
-	ep_node_rec_t *p_ep_node_rec;
+	struct ep_node_rec *p_ep_node_rec;
 
-	p_ep_node_rec = (ep_node_rec_t *) malloc(sizeof(*p_ep_node_rec));
+	p_ep_node_rec = (struct ep_node_rec *) malloc(sizeof(*p_ep_node_rec));
 	if (p_ep_node_rec) {
 		memcpy(&p_ep_node_rec->node_info, &p_node->node_info,
 		       sizeof(p_ep_node_rec->node_info));
@@ -126,20 +126,20 @@ ep_node_rec_t *ep_node_rec_init(osm_node_t *p_node)
 	return p_ep_node_rec;
 }
 
-void ep_node_rec_delete(ep_node_rec_t *p_ep_node_rec)
+void ep_node_rec_delete(struct ep_node_rec *p_ep_node_rec)
 {
 	free(p_ep_node_rec);
 }
 
-ep_port_rec_t *ep_port_rec_init(osm_port_t *p_port)
+struct ep_port_rec *ep_port_rec_init(osm_port_t *p_port)
 {
-	ep_port_rec_t *p_ep_port_rec;
+	struct ep_port_rec *p_ep_port_rec;
 	ib_pkey_table_t *pkey_tbl;
 	uint16_t used_blocks = p_port->p_physp->pkeys.used_blocks;
 	uint16_t block_index;
 
-	p_ep_port_rec = (ep_port_rec_t *) malloc(sizeof(*p_ep_port_rec) +
-						 sizeof(p_ep_port_rec->ep_pkey_rec.pkey_tbl[0]) * used_blocks);
+	p_ep_port_rec = (struct ep_port_rec *) malloc(sizeof(*p_ep_port_rec) +
+						      sizeof(p_ep_port_rec->ep_pkey_rec.pkey_tbl[0]) * used_blocks);
 	if (p_ep_port_rec) {
 		memcpy(&p_ep_port_rec->port_info, &p_port->p_physp->port_info,
 		       sizeof(p_ep_port_rec->port_info));
@@ -164,7 +164,7 @@ ep_port_rec_t *ep_port_rec_init(osm_port_t *p_port)
 	return p_ep_port_rec;
 }
 
-void ep_port_rec_delete(ep_port_rec_t *p_ep_port_rec)
+void ep_port_rec_delete(struct ep_port_rec *p_ep_port_rec)
 {
 	free(p_ep_port_rec);
 }

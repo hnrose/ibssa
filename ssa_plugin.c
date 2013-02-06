@@ -41,7 +41,7 @@
 #include <opensm/osm_log.h>
 #include <ssa_database.h>
 
-ssa_database_t *ssa_db = NULL;
+struct ssa_database *ssa_db = NULL;
 
 static const char *month_str[] = {
 	"Jan",
@@ -69,11 +69,11 @@ static const char *port_state_str[] = {
 /** =========================================================================
  */
 #define SSA_PLUGIN_OUTPUT_FILE "ssa_plugin.log"
-typedef struct ssa_events {
+struct ssa_events {
 	FILE *log_file;
 	osm_log_t *osmlog;
 	osm_opensm_t *p_osm;
-} ssa_events_t;
+};
 
 /** =========================================================================
  */
@@ -120,7 +120,7 @@ static void *construct(osm_opensm_t *osm)
 {
 	char buffer[64];
 
-	ssa_events_t *ssa = (ssa_events_t *) malloc(sizeof(*ssa));
+	struct ssa_events *ssa = (struct ssa_events *) malloc(sizeof(*ssa));
 	if (!ssa)
 		return (NULL);
 
@@ -155,7 +155,7 @@ static void *construct(osm_opensm_t *osm)
  */
 static void destroy(void *_ssa)
 {
-	ssa_events_t *ssa = (ssa_events_t *) _ssa;
+	struct ssa_events *ssa = (struct ssa_events *) _ssa;
 
 	fprintf_log(ssa->log_file, "SSA Plugin stopped\n");
 	ssa_database_delete(ssa_db);
@@ -165,7 +165,7 @@ static void destroy(void *_ssa)
 
 /** =========================================================================
  */
-static void handle_trap_event(ssa_events_t *ssa, ib_mad_notice_attr_t *p_ntc)
+static void handle_trap_event(struct ssa_events *ssa, ib_mad_notice_attr_t *p_ntc)
 {
 	char buffer[128];
 
@@ -187,9 +187,9 @@ static void handle_trap_event(ssa_events_t *ssa, ib_mad_notice_attr_t *p_ntc)
 
 /** =========================================================================
  */
-static ssa_db_t *dump_osm_db(ssa_events_t *ssa)
+static struct ssa_db *dump_osm_db(struct ssa_events *ssa)
 {
-	ssa_db_t *p_ssa;
+	struct ssa_db *p_ssa;
 	osm_subn_t *p_subn = &ssa->p_osm->subn;
 	osm_node_t *p_node, *p_next_node;
 	osm_port_t *p_port, *p_next_port;
@@ -201,9 +201,9 @@ static ssa_db_t *dump_osm_db(ssa_events_t *ssa)
 #else
 	uint16_t lids;
 #endif
-	ep_node_rec_t *p_node_rec;
-	ep_guid_to_lid_rec_t *p_guid_to_lid_rec;
-	ep_port_rec_t *p_port_rec;
+	struct ep_node_rec *p_node_rec;
+	struct ep_guid_to_lid_rec *p_guid_to_lid_rec;
+	struct ep_port_rec *p_port_rec;
 	char buffer[64];
 #ifdef SSA_PLUGIN_VERBOSE_LOGGING
 	uint8_t is_fdr10_active;
@@ -357,11 +357,11 @@ _exit:
 
 /** =========================================================================
  */
-static void validate_dump_db(ssa_events_t *ssa, ssa_db_t *p_dump_db)
+static void validate_dump_db(struct ssa_events *ssa, struct ssa_db *p_dump_db)
 {
-	ep_node_rec_t *p_node, *p_next_node;
-	ep_guid_to_lid_rec_t *p_port, *p_next_port;
-	ep_port_rec_t *p_port_rec;
+	struct ep_node_rec *p_node, *p_next_node;
+	struct ep_guid_to_lid_rec *p_port, *p_next_port;
+	struct ep_port_rec *p_port_rec;
 	const ib_pkey_table_t *block;
 	uint16_t lid, block_index, pkey_idx;
 	ib_net16_t pkey;
@@ -382,11 +382,11 @@ static void validate_dump_db(ssa_events_t *ssa, ssa_db_t *p_dump_db)
 		p_dump_db->fabric_mtu, p_dump_db->fabric_rate);
 	fprintf_log(ssa->log_file, buffer);
 
-	p_next_node = (ep_node_rec_t *)cl_qmap_head(&p_dump_db->ep_node_tbl);
+	p_next_node = (struct ep_node_rec *)cl_qmap_head(&p_dump_db->ep_node_tbl);
 	while (p_next_node !=
-	       (ep_node_rec_t *)cl_qmap_end(&p_dump_db->ep_node_tbl)) {
+	       (struct ep_node_rec *)cl_qmap_end(&p_dump_db->ep_node_tbl)) {
 		p_node = p_next_node;
-		p_next_node = (ep_node_rec_t *)cl_qmap_next(&p_node->map_item);
+		p_next_node = (struct ep_node_rec *)cl_qmap_next(&p_node->map_item);
 		sprintf(buffer, "Node GUID 0x%" PRIx64 " Type %d%s",
 			cl_ntoh64(p_node->node_info.node_guid),
 			p_node->node_info.node_type,
@@ -397,11 +397,11 @@ static void validate_dump_db(ssa_events_t *ssa, ssa_db_t *p_dump_db)
 				p_node->is_enhanced_sp0 ? "Enhanced" : "Base");
 	}
 
-	p_next_port = (ep_guid_to_lid_rec_t *)cl_qmap_head(&p_dump_db->ep_guid_to_lid_tbl);
+	p_next_port = (struct ep_guid_to_lid_rec *)cl_qmap_head(&p_dump_db->ep_guid_to_lid_tbl);
 	while (p_next_port !=
-	       (ep_guid_to_lid_rec_t *)cl_qmap_end(&p_dump_db->ep_guid_to_lid_tbl)) {
+	       (struct ep_guid_to_lid_rec *)cl_qmap_end(&p_dump_db->ep_guid_to_lid_tbl)) {
 		p_port = p_next_port;
-		p_next_port = (ep_guid_to_lid_rec_t *)cl_qmap_next(&p_port->map_item);
+		p_next_port = (struct ep_guid_to_lid_rec *)cl_qmap_next(&p_port->map_item);
 		sprintf(buffer, "Port GUID 0x%" PRIx64 " LID %u LMC %u is_switch %d\n",
 			cl_ntoh64(cl_map_key((cl_map_iterator_t) p_port)),
 			p_port->lid, p_port->lmc, p_port->is_switch);
@@ -411,7 +411,7 @@ static void validate_dump_db(ssa_events_t *ssa, ssa_db_t *p_dump_db)
 	for (lid = 1;
 	     lid < (uint16_t) cl_ptr_vector_get_size(&p_dump_db->ep_port_tbl);
 	     lid++) {		/* increment LID by LMC ??? */
-		p_port_rec = (ep_port_rec_t *) cl_ptr_vector_get(&p_dump_db->ep_port_tbl, lid);
+		p_port_rec = (struct ep_port_rec *) cl_ptr_vector_get(&p_dump_db->ep_port_tbl, lid);
 		if (p_port_rec) {
 			sprintf(buffer, "Port LID %u LMC %u Port state %d (%s)\n",
 				cl_ntoh16(p_port_rec->port_info.base_lid),
@@ -456,11 +456,11 @@ static void validate_dump_db(ssa_events_t *ssa, ssa_db_t *p_dump_db)
 
 /** =========================================================================
  */
-static void remove_dump_db(ssa_events_t *ssa, ssa_db_t *p_dump_db)
+static void remove_dump_db(struct ssa_events *ssa, struct ssa_db *p_dump_db)
 {
-	ep_port_rec_t *p_port_rec;
-	ep_guid_to_lid_rec_t *p_port, *p_next_port;
-	ep_node_rec_t *p_node, *p_next_node;
+	struct ep_port_rec *p_port_rec;
+	struct ep_guid_to_lid_rec *p_port, *p_next_port;
+	struct ep_node_rec *p_node, *p_next_node;
 	uint16_t lid;
 	char buffer[64];
 
@@ -473,26 +473,26 @@ static void remove_dump_db(ssa_events_t *ssa, ssa_db_t *p_dump_db)
 	for (lid = 1;
 	     lid < (uint16_t) cl_ptr_vector_get_size(&p_dump_db->ep_port_tbl);
 	     lid++) {		/* increment LID by LMC ??? */
-		p_port_rec = (ep_port_rec_t *) cl_ptr_vector_get(&p_dump_db->ep_port_tbl, lid);
+		p_port_rec = (struct ep_port_rec *) cl_ptr_vector_get(&p_dump_db->ep_port_tbl, lid);
 		ep_port_rec_delete(p_port_rec);
 		cl_ptr_vector_set(&p_dump_db->ep_port_tbl, lid, NULL);	/* overkill ??? */
 	}
 
-	p_next_port = (ep_guid_to_lid_rec_t *)cl_qmap_head(&p_dump_db->ep_guid_to_lid_tbl);
+	p_next_port = (struct ep_guid_to_lid_rec *)cl_qmap_head(&p_dump_db->ep_guid_to_lid_tbl);
 	while (p_next_port !=
-	       (ep_guid_to_lid_rec_t *)cl_qmap_end(&p_dump_db->ep_guid_to_lid_tbl)) {
+	       (struct ep_guid_to_lid_rec *)cl_qmap_end(&p_dump_db->ep_guid_to_lid_tbl)) {
 		p_port = p_next_port;
-		p_next_port = (ep_guid_to_lid_rec_t *)cl_qmap_next(&p_port->map_item);
+		p_next_port = (struct ep_guid_to_lid_rec *)cl_qmap_next(&p_port->map_item);
 		cl_qmap_remove_item(&p_dump_db->ep_guid_to_lid_tbl,
 				    &p_port->map_item);
 		ep_guid_to_lid_rec_delete(p_port);
 	}
 
-	p_next_node = (ep_node_rec_t *)cl_qmap_head(&p_dump_db->ep_node_tbl);
+	p_next_node = (struct ep_node_rec *)cl_qmap_head(&p_dump_db->ep_node_tbl);
 	while (p_next_node !=
-	       (ep_node_rec_t *)cl_qmap_end(&p_dump_db->ep_node_tbl)) {
+	       (struct ep_node_rec *)cl_qmap_end(&p_dump_db->ep_node_tbl)) {
 		p_node = p_next_node;
-		p_next_node = (ep_node_rec_t *)cl_qmap_next(&p_node->map_item);
+		p_next_node = (struct ep_node_rec *)cl_qmap_next(&p_node->map_item);
 		cl_qmap_remove_item(&p_dump_db->ep_node_tbl,
 				    &p_node->map_item);
 		ep_node_rec_delete(p_node);
@@ -506,7 +506,7 @@ static void remove_dump_db(ssa_events_t *ssa, ssa_db_t *p_dump_db)
  */
 static void report(void *_ssa, osm_epi_event_id_t event_id, void *event_data)
 {
-	ssa_events_t *ssa = (ssa_events_t *) _ssa;
+	struct ssa_events *ssa = (struct ssa_events *) _ssa;
 	char buffer[48];
 
 	switch (event_id) {
