@@ -176,6 +176,23 @@ static void handle_trap_event(struct ssa_events *ssa, ib_mad_notice_attr_t *p_nt
 	fprintf_log(ssa->log_file, buffer);
 }
 
+/** =========================================================================
+ */
+static struct ssa_db *init_ssa_db(struct ssa_events *ssa)
+{
+	osm_subn_t *p_subn = &ssa->p_osm->subn;
+	struct ssa_db *p_ssa;
+	char buffer[64];
+	uint16_t lids = (uint16_t)
+			cl_ptr_vector_get_size(&p_subn->port_lid_tbl);
+	p_ssa = ssa_db_init(lids);
+	if (!p_ssa) {
+		sprintf(buffer, "init_ssa_db: ssa_db_init failed\n");
+		fprintf_log(ssa->log_file, buffer);
+	}
+
+	return p_ssa;
+}
 
 /** =========================================================================
  */
@@ -379,6 +396,7 @@ static struct ssa_db *dump_osm_db(struct ssa_events *ssa)
 
 	}
 
+	p_ssa->initialized = 1;
 _exit:
 	sprintf(buffer, "Exiting dump_osm_db\n");
 	fprintf_log(ssa->log_file, buffer);
@@ -398,7 +416,7 @@ static void validate_dump_db(struct ssa_events *ssa, struct ssa_db *p_dump_db)
 	ib_net16_t pkey;
 	char buffer[64];
 
-	if (!p_dump_db)
+	if (!p_dump_db || !p_dump_db->initialized)
 		return;
 
 	sprintf(buffer, "validate_dump_db\n");
@@ -498,7 +516,7 @@ static void remove_dump_db(struct ssa_events *ssa, struct ssa_db *p_dump_db)
 	uint16_t lid;
 	char buffer[64];
 
-	if (!p_dump_db)
+	if (!p_dump_db || !p_dump_db->initialized)
 		return;
 
 	sprintf(buffer, "remove_dump_db\n");
@@ -532,7 +550,33 @@ static void remove_dump_db(struct ssa_events *ssa, struct ssa_db *p_dump_db)
 		ep_node_rec_delete(p_node);
 	}
 
+	p_dump_db->initialized = 0;
 	sprintf(buffer, "Exiting remove_dump_db\n");
+	fprintf_log(ssa->log_file, buffer);
+}
+
+/* TODO:: Add meaningfull return value */
+void update_ssa_db(IN struct ssa_events *ssa,
+		   IN struct ssa_database *ssa_db)
+{
+	char buffer[48];
+
+	sprintf(buffer, "Updating SMDB versions\n");
+	fprintf_log(ssa->log_file, buffer);
+
+        if (!ssa_db || !ssa_db->p_previous_db || !ssa_db->p_current_db) {
+                /* error handling */
+                return;
+        }
+
+	if (ssa_db->p_current_db->initialized) {
+		remove_dump_db(ssa, ssa_db->p_previous_db);
+		ssa_db->p_previous_db = ssa_db->p_current_db;
+		ssa_db->p_current_db = init_ssa_db(ssa);
+	}
+	ssa_db_copy(ssa_db->p_current_db, ssa_db->p_dump_db);
+
+	sprintf(buffer, "Finished updating SMDB versions\n");
 	fprintf_log(ssa->log_file, buffer);
 }
 
@@ -553,6 +597,11 @@ static void report(void *_ssa, osm_epi_event_id_t event_id, void *event_data)
 			break;
 
 		fprintf_log(ssa->log_file, "Subnet up event\n");
+		if (!ssa_db->p_previous_db)
+			ssa_db->p_previous_db = init_ssa_db(ssa);
+		if (!ssa_db->p_current_db)
+			ssa_db->p_current_db = init_ssa_db(ssa);
+
 if (ssa_db->p_dump_db)
 fprintf_log(ssa->log_file, "First removing existing SSA dump db\n");
 		remove_dump_db(ssa, ssa_db->p_dump_db);
@@ -560,6 +609,10 @@ fprintf_log(ssa->log_file, "Now dumping OSM db\n");
 		ssa_db->p_dump_db = dump_osm_db(ssa);
 		/* For verification */
 		validate_dump_db(ssa, ssa_db->p_dump_db);
+
+		/* Updating SMDB versions */
+		update_ssa_db(ssa, ssa_db);
+
 		break;
 	case OSM_EVENT_ID_STATE_CHANGE:
 		sprintf(buffer, "SM state (%u: %s) change event\n",

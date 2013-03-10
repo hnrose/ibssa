@@ -116,6 +116,7 @@ struct ssa_db {
 	boolean_t allow_both_pkeys;
 	/* boolean_t qos; */
 	/* prefix_routes */
+	uint8_t initialized;
 };
 
 struct ssa_database {
@@ -131,12 +132,16 @@ extern struct ssa_database *ssa_db;
 struct ssa_database *ssa_database_init();
 void ssa_database_delete(struct ssa_database *p_ssa_db);
 struct ssa_db *ssa_db_init(uint16_t lids);
+void ssa_db_copy(struct ssa_db *p_dest_db, struct ssa_db *p_src_db);
 void ssa_db_delete(struct ssa_db *p_ssa_db);
 struct ep_guid_to_lid_rec *ep_guid_to_lid_rec_init(osm_port_t *p_port);
+void ep_guid_to_lid_rec_copy(struct ep_guid_to_lid_rec *p_dest_rec, struct ep_guid_to_lid_rec *p_src_rec);
 void ep_guid_to_lid_rec_delete(struct ep_guid_to_lid_rec *p_ep_guid_to_lid_rec);
 struct ep_node_rec *ep_node_rec_init(osm_node_t *p_osm_node);
+void ep_node_rec_copy(struct ep_node_rec *p_dest_rec, struct ep_node_rec *p_src_rec);
 void ep_node_rec_delete(struct ep_node_rec *p_ep_node_rec);
 struct ep_port_rec *ep_port_rec_init(osm_port_t *p_port);
+void ep_port_rec_copy(struct ep_port_rec *p_dest_rec, struct ep_port_rec *p_src_rec);
 void ep_port_rec_delete(struct ep_port_rec *p_ep_port_rec);
 
 END_C_DECLS
