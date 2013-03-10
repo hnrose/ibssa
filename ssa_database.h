@@ -96,6 +96,7 @@ struct ep_port_rec {
 	uint8_t is_fdr10_active;
 	uint8_t pad[3];
 	struct ep_pkey_rec ep_pkey_rec;
+	cl_ptr_vector_t slvl_by_port;	/* the length is different for switch or host port */
 };
 
 struct ssa_db {

@@ -79,6 +79,7 @@ void ssa_db_delete(struct ssa_db *p_ssa_db)
 {
 	if (p_ssa_db) {
 		/* change removals once memory allocated!!! */
+		/* TODO: slvl vector elements for each port_rec have to be freed */
 		cl_ptr_vector_destroy(&p_ssa_db->ep_port_tbl);
 		/* See ssa_plugin.c:remove_dump_db !!! */
 		cl_qmap_remove_all(&p_ssa_db->ep_node_tbl);
@@ -135,14 +136,36 @@ struct ep_port_rec *ep_port_rec_init(osm_port_t *p_port)
 {
 	struct ep_port_rec *p_ep_port_rec;
 	ib_pkey_table_t *pkey_tbl;
+	ib_slvl_table_t *p_slvl_tbl, *p_slvl_tbl_new;
+	cl_status_t status;
 	uint16_t used_blocks = p_port->p_physp->pkeys.used_blocks;
 	uint16_t block_index;
+	uint8_t slvl_rec = cl_ptr_vector_get_size(&p_port->p_physp->slvl_by_port);
+	uint8_t i;
 
 	p_ep_port_rec = (struct ep_port_rec *) malloc(sizeof(*p_ep_port_rec) +
 						      sizeof(p_ep_port_rec->ep_pkey_rec.pkey_tbl[0]) * used_blocks);
 	if (p_ep_port_rec) {
 		memcpy(&p_ep_port_rec->port_info, &p_port->p_physp->port_info,
 		       sizeof(p_ep_port_rec->port_info));
+
+		/* slvl tables vector initialization */
+		status = cl_ptr_vector_init(&p_ep_port_rec->slvl_by_port, slvl_rec, 1);
+		if (status != CL_SUCCESS) {
+			/* handle failure !!! */
+		}
+		for (i = 0; i < slvl_rec; i++) {
+			cl_ptr_vector_at(&p_port->p_physp->slvl_by_port, i, (void*)&p_slvl_tbl);
+			if (!p_slvl_tbl)
+				continue;
+			p_slvl_tbl_new = (ib_slvl_table_t *) malloc(sizeof(*p_slvl_tbl_new));
+			if (!p_slvl_tbl_new) {
+				/* handle failure !!! */
+			}
+			memcpy(p_slvl_tbl_new, p_slvl_tbl, sizeof(*p_slvl_tbl_new));
+			cl_ptr_vector_set(&p_ep_port_rec->slvl_by_port, i, p_slvl_tbl_new);
+		}
+
 		p_ep_port_rec->is_fdr10_active =
 			p_port->p_physp->ext_port_info.link_speed_active & FDR10;
 		p_ep_port_rec->ep_pkey_rec.max_pkeys =
@@ -166,5 +189,13 @@ struct ep_port_rec *ep_port_rec_init(osm_port_t *p_port)
 
 void ep_port_rec_delete(struct ep_port_rec *p_ep_port_rec)
 {
+	size_t i, num_slvl;
+	if (!p_ep_port_rec)
+		return;
+
+	num_slvl = cl_ptr_vector_get_size(&p_ep_port_rec->slvl_by_port);
+	for (i = 0; i < num_slvl; i++)
+		free(cl_ptr_vector_get(&p_ep_port_rec->slvl_by_port, i));
+	cl_ptr_vector_destroy(&p_ep_port_rec->slvl_by_port);
 	free(p_ep_port_rec);
 }

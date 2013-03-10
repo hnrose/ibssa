@@ -196,8 +196,14 @@ static struct ssa_db *dump_osm_db(struct ssa_events *ssa)
 #ifdef SSA_PLUGIN_VERBOSE_LOGGING
 	const osm_pkey_tbl_t *p_pkey_tbl;
 	const ib_pkey_table_t *block;
-	uint16_t lids, block_index, pkey_idx, max_pkeys;
+	char slvl_buffer[128];
+	char *header_line =    "#in out : 0  1  2  3  4  5  6  7  8  9  10 11 12 13 14 15";
+	char *separator_line = "#--------------------------------------------------------";
+	ib_slvl_table_t *p_tbl;
 	ib_net16_t pkey;
+	uint16_t lids, block_index, pkey_idx, max_pkeys;
+	uint8_t out_port, in_port, num_ports;
+	uint8_t i, n;
 #else
 	uint16_t lids;
 #endif
@@ -282,6 +288,38 @@ static struct ssa_db *dump_osm_db(struct ssa_events *ssa)
 #endif
 
 #ifdef SSA_PLUGIN_VERBOSE_LOGGING
+		sprintf(slvl_buffer, "\t\t\tSLVL tables\n");
+		fprintf_log(ssa->log_file, slvl_buffer);
+		sprintf(slvl_buffer, "%s\n", header_line);
+		fprintf_log(ssa->log_file, slvl_buffer);
+		sprintf(slvl_buffer, "%s\n", separator_line);
+		fprintf_log(ssa->log_file, slvl_buffer);
+
+		out_port = p_port->p_physp->port_num;
+		num_ports = p_port->p_physp->p_node->node_info.num_ports;
+		if (osm_node_get_type(p_port->p_physp->p_node) == IB_NODE_TYPE_SWITCH) {
+			/* no need to print SL2VL table for port that is down */
+			/* TODO:: not sure if it is needed */
+			/*if (!p_port->p_physp->p_remote_physp)
+				continue; */
+
+			for (in_port = 0; in_port <= num_ports; in_port++) {
+				p_tbl = osm_physp_get_slvl_tbl(p_port->p_physp, in_port);
+				for (i = 0, n = 0; i < 16; i++)
+					n += sprintf(buffer + n, " %-2d",
+						ib_slvl_table_get(p_tbl, i));
+					sprintf(slvl_buffer, "%-3d %-3d :%s\n", in_port, out_port, buffer);
+				fprintf_log(ssa->log_file, slvl_buffer);
+			}
+		} else {
+			p_tbl = osm_physp_get_slvl_tbl(p_port->p_physp, 0);
+			for (i = 0, n = 0; i < 16; i++)
+				n += sprintf(buffer + n, " %-2d",
+						ib_slvl_table_get(p_tbl, i));
+				sprintf(slvl_buffer, "%-3d %-3d :%s\n", out_port, out_port, buffer);
+			fprintf_log(ssa->log_file, slvl_buffer);
+		}
+
 		max_pkeys = cl_ntoh16(p_port->p_node->node_info.partition_cap);
 		sprintf(buffer, "PartitionCap %u\n", max_pkeys);
 		fprintf_log(ssa->log_file, buffer);
@@ -424,6 +462,8 @@ static void validate_dump_db(struct ssa_events *ssa, struct ssa_db *p_dump_db)
 			sprintf(buffer, "FDR10 %s active\n",
 				p_port_rec->is_fdr10_active ? "" : "not");
 			fprintf_log(ssa->log_file, buffer);
+
+			/* TODO: add SLVL tables dump */
 
 			sprintf(buffer, "PartitionCap %u\n",
 				p_port_rec->ep_pkey_rec.max_pkeys);
