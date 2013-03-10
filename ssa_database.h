@@ -91,6 +91,7 @@ struct ep_pkey_rec {
 };
 
 struct ep_port_rec {
+	cl_map_item_t map_item;
 	/* or just (subnet prefix), cap mask, port state ?, active speeds, active width, and mtu cap ? */
 	ib_port_info_t port_info;
 	uint8_t is_fdr10_active;
@@ -142,17 +143,21 @@ void ssa_db_delete(struct ssa_db *p_ssa_db);
 struct ep_guid_to_lid_rec *ep_guid_to_lid_rec_init(osm_port_t *p_port);
 void ep_guid_to_lid_rec_copy(struct ep_guid_to_lid_rec *p_dest_rec, struct ep_guid_to_lid_rec *p_src_rec);
 void ep_guid_to_lid_rec_delete(struct ep_guid_to_lid_rec *p_ep_guid_to_lid_rec);
+void ep_guid_to_lid_rec_delete_pfn(cl_map_item_t *p_map_item);
 
 /**********************NODE records**************************************/
 struct ep_node_rec *ep_node_rec_init(osm_node_t *p_osm_node);
 void ep_node_rec_copy(struct ep_node_rec *p_dest_rec, struct ep_node_rec *p_src_rec);
 void ep_node_rec_delete(struct ep_node_rec *p_ep_node_rec);
+void ep_node_rec_delete_pfn(cl_map_item_t *p_map_item);
 
 /**********************PORT records**************************************/
 struct ep_port_rec *ep_port_rec_init(osm_port_t *p_port);
 void ep_port_rec_copy(struct ep_port_rec *p_dest_rec, struct ep_port_rec *p_src_rec);
 void ep_port_rec_delete(struct ep_port_rec *p_ep_port_rec);
+void ep_port_rec_delete_pfn(cl_map_item_t *p_map_item);
 /***********************************************************************/
 
+void ssa_qmap_apply_func(cl_qmap_t *p_qmap, void (*destroy_pfn)(cl_map_item_t *));
 END_C_DECLS
 #endif				/* _SSA_DATABASE_H_ */

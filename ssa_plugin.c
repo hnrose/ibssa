@@ -41,6 +41,7 @@
 #include <opensm/osm_log.h>
 #include <ssa_database.h>
 #include <ssa_plugin.h>
+#include <ssa_comparison.h>
 
 struct ssa_database *ssa_db = NULL;
 
@@ -59,7 +60,7 @@ static const char *month_str[] = {
 	"Dec"
 };
 
-static const char *port_state_str[] = {
+const char *port_state_str[] = {
 	"No change",
 	"Down",
 	"Initialize",
@@ -585,6 +586,7 @@ void update_ssa_db(IN struct ssa_events *ssa,
 static void report(void *_ssa, osm_epi_event_id_t event_id, void *event_data)
 {
 	struct ssa_events *ssa = (struct ssa_events *) _ssa;
+	struct ssa_db_diff *p_ssa_db_diff;
 	char buffer[48];
 
 	switch (event_id) {
@@ -612,6 +614,16 @@ fprintf_log(ssa->log_file, "Now dumping OSM db\n");
 
 		/* Updating SMDB versions */
 		update_ssa_db(ssa, ssa_db);
+
+		/* Getting SMDB changes from the last dump */
+		p_ssa_db_diff =
+			ssa_db_compare(ssa, ssa_db->p_previous_db, ssa_db->p_current_db);
+		if (p_ssa_db_diff) {
+			sprintf(buffer, "SMDB was changed. Pushing the changes...\n");
+			fprintf_log(ssa->log_file, buffer);
+			/* TODO: Here the changes are pushed down through ditribution tree */
+			ssa_db_diff_destroy(p_ssa_db_diff);
+		}
 
 		break;
 	case OSM_EVENT_ID_STATE_CHANGE:

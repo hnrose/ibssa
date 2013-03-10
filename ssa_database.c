@@ -116,6 +116,14 @@ void ep_guid_to_lid_rec_delete(struct ep_guid_to_lid_rec *p_ep_guid_to_lid_rec)
 	free(p_ep_guid_to_lid_rec);
 }
 
+void ep_guid_to_lid_rec_delete_pfn(cl_map_item_t * p_map_item)
+{
+	struct ep_guid_to_lid_rec *p_guid_to_lid_rec;
+
+	p_guid_to_lid_rec = (struct ep_guid_to_lid_rec *) p_map_item;
+	ep_guid_to_lid_rec_delete(p_guid_to_lid_rec);
+}
+
 struct ep_node_rec *ep_node_rec_init(osm_node_t *p_node)
 {
 	struct ep_node_rec *p_ep_node_rec;
@@ -145,6 +153,14 @@ void ep_node_rec_copy(OUT struct ep_node_rec *p_dest_rec,
 void ep_node_rec_delete(struct ep_node_rec *p_ep_node_rec)
 {
 	free(p_ep_node_rec);
+}
+
+void ep_node_rec_delete_pfn(cl_map_item_t * p_map_item)
+{
+	struct ep_node_rec *p_node_rec;
+
+	p_node_rec = (struct ep_node_rec *) p_map_item;
+	ep_node_rec_delete(p_node_rec);
 }
 
 struct ep_port_rec *ep_port_rec_init(osm_port_t *p_port)
@@ -243,6 +259,25 @@ void ep_port_rec_delete(struct ep_port_rec *p_ep_port_rec)
 		free(cl_ptr_vector_get(&p_ep_port_rec->slvl_by_port, i));
 	cl_ptr_vector_destroy(&p_ep_port_rec->slvl_by_port);
 	free(p_ep_port_rec);
+}
+
+void ep_port_rec_delete_pfn(cl_map_item_t * p_map_item)
+{
+	struct ep_port_rec *p_port_rec;
+
+	p_port_rec = (struct ep_port_rec *) p_map_item;
+	ep_port_rec_delete(p_port_rec);
+}
+
+void ssa_qmap_apply_func(cl_qmap_t *p_qmap, void (*pfn_func)(cl_map_item_t *))
+{
+	cl_map_item_t *p_map_item, *p_map_item_next;
+        p_map_item_next = cl_qmap_head(p_qmap);
+        while (p_map_item_next != cl_qmap_end(p_qmap)) {
+		p_map_item = p_map_item_next;
+		p_map_item_next = cl_qmap_next(p_map_item);
+                pfn_func(p_map_item);
+        }
 }
 
 void ssa_db_copy(IN struct ssa_db *p_dest_db,
