@@ -40,6 +40,7 @@
 #include <opensm/osm_opensm.h>
 #include <opensm/osm_log.h>
 #include <ssa_database.h>
+#include <ssa_plugin.h>
 
 struct ssa_database *ssa_db = NULL;
 
@@ -68,16 +69,7 @@ static const char *port_state_str[] = {
 
 /** =========================================================================
  */
-#define SSA_PLUGIN_OUTPUT_FILE "ssa_plugin.log"
-struct ssa_events {
-	FILE *log_file;
-	osm_log_t *osmlog;
-	osm_opensm_t *p_osm;
-};
-
-/** =========================================================================
- */
-static void fprintf_log(FILE *log_file, const char *buffer)
+void fprintf_log(FILE *log_file, const char *buffer)
 {
 	pid_t pid = 0;
 	time_t tim;
