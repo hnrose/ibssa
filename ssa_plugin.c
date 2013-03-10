@@ -224,10 +224,11 @@ static struct ssa_db *dump_osm_db(struct ssa_events *ssa)
 	p_ssa->sm_state = p_subn->sm_state;
 	p_ssa->lmc = p_subn->opt.lmc;
 	p_ssa->subnet_timeout = p_subn->opt.subnet_timeout;
-	p_ssa->enable_quirks = p_subn->opt.enable_quirks;
 	/* Determine fabric_mtu/rate by looking at switch external ports with peer switch external ports in LinkUp state !!! */
 	p_ssa->fabric_mtu = IB_MTU_LEN_4096;
 	p_ssa->fabric_rate = IB_PATH_RECORD_RATE_56_GBS;	/* assume 4x FDR for now */
+	p_ssa->enable_quirks = (uint8_t) p_subn->opt.enable_quirks;
+	p_ssa->allow_both_pkeys = (uint8_t) p_subn->opt.allow_both_pkeys;
 
 	p_next_node = (osm_node_t *)cl_qmap_head(&p_subn->node_guid_tbl);
 	while (p_next_node !=
@@ -376,10 +377,11 @@ static void validate_dump_db(struct ssa_events *ssa, struct ssa_db *p_dump_db)
 	/* First, most Fabric/SM related parameters */
 	sprintf(buffer, "Subnet prefix 0x%" PRIx64 "\n", p_dump_db->subnet_prefix);
 	fprintf_log(ssa->log_file, buffer);
-	sprintf(buffer, "LMC %u Subnet timeout %u Quirks %sabled MTU %d Rate %d\n",
+	sprintf(buffer, "LMC %u Subnet timeout %u Quirks %sabled MTU %d Rate %d Both Pkeys %sabled\n",
 		p_dump_db->lmc, p_dump_db->subnet_timeout,
 		p_dump_db->enable_quirks ? "en" : "dis",
-		p_dump_db->fabric_mtu, p_dump_db->fabric_rate);
+		p_dump_db->fabric_mtu, p_dump_db->fabric_rate,
+		p_dump_db->allow_both_pkeys ? "en" : "dis");
 	fprintf_log(ssa->log_file, buffer);
 
 	p_next_node = (struct ep_node_rec *)cl_qmap_head(&p_dump_db->ep_node_tbl);
