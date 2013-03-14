@@ -202,6 +202,7 @@ static struct ssa_db *dump_osm_db(struct ssa_events *ssa)
 	struct ssa_db *p_ssa;
 	osm_subn_t *p_subn = &ssa->p_osm->subn;
 	osm_node_t *p_node, *p_next_node;
+	osm_physp_t *p_physp;
 	osm_port_t *p_port, *p_next_port;
 #ifdef SSA_PLUGIN_VERBOSE_LOGGING
 	const osm_pkey_tbl_t *p_pkey_tbl;
@@ -213,14 +214,17 @@ static struct ssa_db *dump_osm_db(struct ssa_events *ssa)
 	ib_net16_t pkey;
 	uint16_t lids, block_index, pkey_idx, max_pkeys;
 	uint8_t out_port, in_port, num_ports;
-	uint8_t i, n;
+	uint8_t n;
 #else
 	uint16_t lids;
 #endif
 	struct ep_node_rec *p_node_rec;
 	struct ep_guid_to_lid_rec *p_guid_to_lid_rec;
 	struct ep_port_rec *p_port_rec;
+	struct ep_link_rec *p_link_rec;
 	char buffer[64];
+	uint64_t link_rec_key;
+	uint8_t i;
 #ifdef SSA_PLUGIN_VERBOSE_LOGGING
 	uint8_t is_fdr10_active;
 #endif
@@ -395,6 +399,40 @@ static struct ssa_db *dump_osm_db(struct ssa_events *ssa)
 			fprintf_log(ssa->log_file, buffer);
 		}
 
+		/* TODO:: adding all physical port objects to the port map - by LID and port_num or GUID ??? */
+
+		/* add all physical ports to link table (ep_link_tbl) */
+		/* TODO:: add log info ??? */
+		p_node = p_port->p_physp->p_node;
+		if (osm_node_get_type(p_node) ==
+					IB_NODE_TYPE_SWITCH) {
+			for (i = 0; i < p_node->physp_tbl_size; i++) {
+				p_physp = osm_node_get_physp_ptr(p_node, i);
+				if (!p_physp)
+					continue;
+
+				p_link_rec = ep_link_rec_init(p_physp);
+				if (p_link_rec) {
+					link_rec_key = ep_link_rec_gen_key(
+							cl_ntoh16(osm_node_get_base_lid(p_node, 0)),
+							osm_physp_get_port_num(p_physp));
+					cl_qmap_insert(&p_ssa->ep_link_tbl,
+						       link_rec_key,
+						       &p_link_rec->map_item);
+				}
+			}
+		} else {
+			p_physp = p_port->p_physp;
+			p_link_rec = ep_link_rec_init(p_physp);
+			if (p_link_rec) {
+				link_rec_key = ep_link_rec_gen_key(
+						cl_ntoh16(osm_physp_get_base_lid(p_physp)),
+						osm_physp_get_port_num(p_physp));
+				cl_qmap_insert(&p_ssa->ep_link_tbl,
+					       link_rec_key,
+					       &p_link_rec->map_item);
+			}
+		}
 	}
 
 	p_ssa->initialized = 1;
@@ -412,6 +450,7 @@ static void validate_dump_db(struct ssa_events *ssa, struct ssa_db *p_dump_db)
 	struct ep_node_rec *p_node, *p_next_node;
 	struct ep_guid_to_lid_rec *p_port, *p_next_port;
 	struct ep_port_rec *p_port_rec;
+	struct ep_link_rec *p_link, *p_next_link;
 	const ib_pkey_table_t *block;
 	uint16_t lid, block_index, pkey_idx;
 	ib_net16_t pkey;
@@ -503,6 +542,17 @@ static void validate_dump_db(struct ssa_events *ssa, struct ssa_db *p_dump_db)
 		}
 	}
 
+	p_next_link = (struct ep_link_rec *)cl_qmap_head(&p_dump_db->ep_link_tbl);
+	while (p_next_link !=
+	       (struct ep_link_rec *)cl_qmap_end(&p_dump_db->ep_link_tbl)) {
+		p_link = p_next_link;
+		p_next_link = (struct ep_link_rec *)cl_qmap_next(&p_link->map_item);
+		sprintf(buffer, "Link Record: from LID %u port %u to LID %u port %u\n",
+			cl_ntoh16(p_link->link_rec.from_lid), p_link->link_rec.from_port_num,
+			cl_ntoh16(p_link->link_rec.to_lid), p_link->link_rec.to_port_num);
+		fprintf_log(ssa->log_file, buffer);
+	}
+
 	sprintf(buffer, "Exiting validate_dump_db\n");
 	fprintf_log(ssa->log_file, buffer);
 }
@@ -514,6 +564,7 @@ static void remove_dump_db(struct ssa_events *ssa, struct ssa_db *p_dump_db)
 	struct ep_port_rec *p_port_rec;
 	struct ep_guid_to_lid_rec *p_port, *p_next_port;
 	struct ep_node_rec *p_node, *p_next_node;
+	struct ep_link_rec *p_link, *p_next_link;
 	uint16_t lid;
 	char buffer[64];
 
@@ -549,6 +600,16 @@ static void remove_dump_db(struct ssa_events *ssa, struct ssa_db *p_dump_db)
 		cl_qmap_remove_item(&p_dump_db->ep_node_tbl,
 				    &p_node->map_item);
 		ep_node_rec_delete(p_node);
+	}
+
+	p_next_link = (struct ep_link_rec *) cl_qmap_head(&p_dump_db->ep_link_tbl);
+	while (p_next_link !=
+	       (struct ep_link_rec *) cl_qmap_end(&p_dump_db->ep_link_tbl)) {
+		p_link = p_next_link;
+		p_next_link = (struct ep_link_rec *) cl_qmap_next(&p_link->map_item);
+		cl_qmap_remove_item(&p_dump_db->ep_link_tbl,
+				    &p_link->map_item);
+		ep_link_rec_delete(p_link);
 	}
 
 	p_dump_db->initialized = 0;

@@ -100,11 +100,18 @@ struct ep_port_rec {
 	struct ep_pkey_rec ep_pkey_rec;
 };
 
+struct ep_link_rec {
+	cl_map_item_t map_item;
+	ib_link_record_t link_rec;
+};
+
 struct ssa_db {
 	/* mutex ??? */
 	cl_qmap_t ep_guid_to_lid_tbl;	/* port GUID -> LID */
 	cl_qmap_t ep_node_tbl;		/* node GUID based */
 	cl_ptr_vector_t ep_port_tbl;	/* LID based */
+	/* maybe worth using fleximap for shorter key */
+	cl_qmap_t ep_link_tbl;		/* LID + port_num based */
 
 	/* Fabric/SM related */
 	uint64_t subnet_prefix;		/* even if full PortInfo used */
@@ -150,6 +157,13 @@ struct ep_node_rec *ep_node_rec_init(osm_node_t *p_osm_node);
 void ep_node_rec_copy(struct ep_node_rec *p_dest_rec, struct ep_node_rec *p_src_rec);
 void ep_node_rec_delete(struct ep_node_rec *p_ep_node_rec);
 void ep_node_rec_delete_pfn(cl_map_item_t *p_map_item);
+
+/**********************LINK records**************************************/
+struct ep_link_rec *ep_link_rec_init(osm_physp_t *p_physp);
+uint64_t ep_link_rec_gen_key(uint16_t lid, uint8_t port_num);
+void ep_link_rec_copy(struct ep_link_rec *p_dest_rec, struct ep_link_rec *p_src_rec);
+void ep_link_rec_delete(struct ep_link_rec *p_ep_link_rec);
+void ep_link_rec_delete_pfn(cl_map_item_t *p_map_item);
 
 /**********************PORT records**************************************/
 struct ep_port_rec *ep_port_rec_init(osm_port_t *p_port);

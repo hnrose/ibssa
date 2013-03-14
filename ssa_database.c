@@ -72,6 +72,7 @@ struct ssa_db *ssa_db_init(uint16_t lids)
 			return NULL;
 		}
 		cl_ptr_vector_set(&p_ssa_db->ep_port_tbl, 0, NULL);
+		cl_qmap_init(&p_ssa_db->ep_link_tbl);
 	}
 	return p_ssa_db;
 }
@@ -85,6 +86,7 @@ void ssa_db_delete(struct ssa_db *p_ssa_db)
 		/* See ssa_plugin.c:remove_dump_db !!! */
 		cl_qmap_remove_all(&p_ssa_db->ep_node_tbl);
 		cl_qmap_remove_all(&p_ssa_db->ep_guid_to_lid_tbl);
+		cl_qmap_remove_all(&p_ssa_db->ep_link_tbl);
 		free(p_ssa_db);
 	}
 }
@@ -161,6 +163,74 @@ void ep_node_rec_delete_pfn(cl_map_item_t * p_map_item)
 
 	p_node_rec = (struct ep_node_rec *) p_map_item;
 	ep_node_rec_delete(p_node_rec);
+}
+
+struct ep_link_rec *ep_link_rec_init(osm_physp_t * p_physp)
+{
+	struct ep_link_rec *p_ep_link_rec;
+	osm_physp_t *p_remote_physp;
+
+	p_ep_link_rec = (struct ep_link_rec *) malloc(sizeof(*p_ep_link_rec));
+	if (p_ep_link_rec) {
+		if (osm_node_get_type(p_physp->p_node) == IB_NODE_TYPE_SWITCH) {
+			p_ep_link_rec->link_rec.from_lid =
+				osm_node_get_base_lid(p_physp->p_node, 0);
+			p_ep_link_rec->link_rec.from_port_num =
+				osm_physp_get_port_num(p_physp);
+		} else {
+			p_ep_link_rec->link_rec.from_lid =
+				osm_physp_get_base_lid(p_physp);
+			p_ep_link_rec->link_rec.from_port_num = 0;
+		}
+
+		p_remote_physp = osm_physp_get_remote(p_physp);
+		if (!p_remote_physp) {
+			/* TODO: add handling for remote port missing */
+			free(p_ep_link_rec);
+			return NULL;
+		}
+
+		if (osm_node_get_type(p_remote_physp->p_node) ==
+							IB_NODE_TYPE_SWITCH) {
+			p_ep_link_rec->link_rec.to_lid =
+				osm_node_get_base_lid(p_remote_physp->p_node, 0);
+			p_ep_link_rec->link_rec.to_port_num =
+				osm_physp_get_port_num(p_remote_physp);
+		} else {
+			p_ep_link_rec->link_rec.to_lid =
+				osm_physp_get_base_lid(p_remote_physp);
+			p_ep_link_rec->link_rec.to_port_num = 0;
+		}
+	}
+	return p_ep_link_rec;
+}
+
+uint64_t ep_link_rec_gen_key(uint16_t lid, uint8_t port_num)
+{
+	uint64_t key;
+	key = (uint64_t) lid;
+	key |= (uint64_t) port_num << 16;
+	return key;
+}
+
+void ep_link_rec_copy(struct ep_link_rec *p_dest_rec,
+		      struct ep_link_rec *p_src_rec)
+{
+	memcpy(&p_dest_rec->link_rec, &p_src_rec->link_rec,
+	       sizeof(p_dest_rec->link_rec));
+}
+
+void ep_link_rec_delete(struct ep_link_rec *p_ep_link_rec)
+{
+	free(p_ep_link_rec);
+}
+
+void ep_link_rec_delete_pfn(cl_map_item_t *p_map_item)
+{
+	struct ep_link_rec *p_link_rec;
+
+	p_link_rec = (struct ep_link_rec *) p_map_item;
+	ep_link_rec_delete(p_link_rec);
 }
 
 struct ep_port_rec *ep_port_rec_init(osm_port_t *p_port)
@@ -285,6 +355,7 @@ void ssa_db_copy(IN struct ssa_db *p_dest_db,
 {
 	struct ep_port_rec *p_port_rec, *p_tmp_port_rec;
 	struct ep_node_rec *p_node, *p_next_node, *p_tmp_node;
+	struct ep_link_rec *p_link, *p_next_link, *p_tmp_link;
 	struct ep_guid_to_lid_rec *p_port, *p_next_port, *p_tmp_port;
 	uint16_t lid, used_blocks;
 
@@ -338,6 +409,22 @@ void ssa_db_copy(IN struct ssa_db *p_dest_db,
 					  lid, p_tmp_port_rec);
 		}
         }
+
+	/* Copying ep_link records */
+	p_next_link= (struct ep_link_rec *)cl_qmap_head(&p_src_db->ep_link_tbl);
+	while (p_next_link !=
+	       (struct ep_link_rec *)cl_qmap_end(&p_src_db->ep_link_tbl)) {
+		p_link = p_next_link;
+		p_next_link = (struct ep_link_rec *)cl_qmap_next(&p_link->map_item);
+		p_tmp_link = (struct ep_link_rec *) malloc(sizeof(*p_tmp_link));
+		if (!p_tmp_link) {
+			/* handle failure - bad memory allocation */
+		}
+		ep_link_rec_copy(p_tmp_link, p_link);
+		cl_qmap_insert(&p_dest_db->ep_link_tbl,
+			       cl_qmap_key(&p_link->map_item),
+			       &p_tmp_link->map_item);
+	}
 
 	/* Fabric/SM data */
 	p_dest_db->subnet_prefix = p_src_db->subnet_prefix;
