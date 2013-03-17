@@ -71,6 +71,10 @@ struct ssa_db_diff {
 	cl_qmap_t ep_port_tbl_added;
 	cl_qmap_t ep_port_tbl_removed;
 	/*************************************************/
+	/********** link_tbl changes tracking ************/
+	cl_qmap_t ep_link_tbl_added;
+	cl_qmap_t ep_link_tbl_removed;
+	/*************************************************/
 
 	/* change_mask bits point to the changed data fields */
 	uint64_t change_mask;
@@ -94,6 +98,7 @@ struct ssa_db_diff *ssa_db_compare(struct ssa_events * ssa,
 				   struct ssa_db * p_current_db);
 void ep_guid_to_lid_qmap_copy(cl_qmap_t * p_dest_qmap, cl_qmap_t * p_src_qmap);
 void ep_node_qmap_copy(cl_qmap_t * p_dest_qmap, cl_qmap_t * p_src_qmap);
+void ep_link_qmap_copy(cl_qmap_t * p_dest_qmap, cl_qmap_t * p_src_qmap);
 
 END_C_DECLS
 #endif				/* _SSA_COMPARISON_H_ */

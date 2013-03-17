@@ -46,9 +46,11 @@ struct ssa_db_diff *ssa_db_diff_init()
 		cl_qmap_init(&p_ssa_db_diff->ep_guid_to_lid_tbl_added);
 		cl_qmap_init(&p_ssa_db_diff->ep_node_tbl_added);
 		cl_qmap_init(&p_ssa_db_diff->ep_port_tbl_added);
+		cl_qmap_init(&p_ssa_db_diff->ep_link_tbl_added);
 		cl_qmap_init(&p_ssa_db_diff->ep_guid_to_lid_tbl_removed);
 		cl_qmap_init(&p_ssa_db_diff->ep_node_tbl_removed);
 		cl_qmap_init(&p_ssa_db_diff->ep_port_tbl_removed);
+		cl_qmap_init(&p_ssa_db_diff->ep_link_tbl_removed);
 	}
 	return p_ssa_db_diff;
 }
@@ -70,13 +72,19 @@ void ssa_db_diff_destroy(struct ssa_db_diff * p_ssa_db_diff)
 				   ep_port_rec_delete_pfn);
 		ssa_qmap_apply_func(&p_ssa_db_diff->ep_port_tbl_removed,
 				   ep_port_rec_delete_pfn);
+		ssa_qmap_apply_func(&p_ssa_db_diff->ep_link_tbl_added,
+				   ep_link_rec_delete_pfn);
+		ssa_qmap_apply_func(&p_ssa_db_diff->ep_link_tbl_removed,
+				   ep_link_rec_delete_pfn);
 
 		cl_qmap_remove_all(&p_ssa_db_diff->ep_guid_to_lid_tbl_added);
 		cl_qmap_remove_all(&p_ssa_db_diff->ep_node_tbl_added);
 		cl_qmap_remove_all(&p_ssa_db_diff->ep_port_tbl_added);
+		cl_qmap_remove_all(&p_ssa_db_diff->ep_link_tbl_added);
 		cl_qmap_remove_all(&p_ssa_db_diff->ep_guid_to_lid_tbl_removed);
 		cl_qmap_remove_all(&p_ssa_db_diff->ep_node_tbl_removed);
 		cl_qmap_remove_all(&p_ssa_db_diff->ep_port_tbl_removed);
+		cl_qmap_remove_all(&p_ssa_db_diff->ep_link_tbl_removed);
 		free(p_ssa_db_diff);
 	}
 }
@@ -221,6 +229,20 @@ static uint8_t ssa_db_diff_compare_qmap(IN cl_qmap_t * p_qmap_previous,
 
 /** =========================================================================
  */
+static int ssa_db_link_comp(IN const struct ep_link_rec * const p_rec_old,
+			    IN const struct ep_link_rec * const p_rec_new)
+{
+	int res = 0;
+
+	if (memcmp(&p_rec_old->link_rec, &p_rec_new->link_rec,
+		   sizeof(p_rec_new->link_rec)))
+		res = 1;
+
+	return res;
+}
+
+/** =========================================================================
+ */
 static void ssa_db_diff_compare_subnet_nodes(IN struct ssa_db * p_previous_db,
 					     IN struct ssa_db * p_current_db,
 					     OUT struct ssa_db_diff * const p_ssa_db_diff)
@@ -231,12 +253,15 @@ static void ssa_db_diff_compare_subnet_nodes(IN struct ssa_db * p_previous_db,
 	struct ep_node_rec *p_node_rec_new, *p_node_rec_old;
 	struct ep_guid_to_lid_rec *p_guid_to_lid_rec, *p_guid_to_lid_rec_next;
 	struct ep_guid_to_lid_rec *p_guid_to_lid_rec_new, *p_guid_to_lid_rec_old;
+	struct ep_link_rec *p_link_rec, *p_link_rec_next;
+	struct ep_link_rec *p_link_rec_new, *p_link_rec_old;
 	uint64_t key;
 	uint16_t lid, used_blocks;
 	uint8_t dirty = p_ssa_db_diff->dirty;
 
 	/*
-	 * Comparing ep_guid_to_lid_rec / ep_node_rec / ep_port_rec records
+	 * Comparing ep_guid_to_lid_rec / ep_node_rec / ep_port_rec
+	 * 	     ep_link_rec records
 	 *
 	 * For each record in previous SMDB version:
 	 *
@@ -374,6 +399,64 @@ static void ssa_db_diff_compare_subnet_nodes(IN struct ssa_db * p_previous_db,
 	}
 
 	/*
+	 * Comparing ep_link_rec records
+	 */
+	dirty = ssa_db_diff_compare_qmap(&p_previous_db->ep_link_tbl,
+					 &p_current_db->ep_link_tbl,
+					 ep_link_qmap_copy,
+					 ep_link_rec_delete_pfn,
+					 &p_ssa_db_diff->ep_link_tbl_added,
+					 &p_ssa_db_diff->ep_link_tbl_removed);
+
+	p_link_rec_next = (struct ep_link_rec *)
+			cl_qmap_head(&p_previous_db->ep_link_tbl);
+	while (p_link_rec_next != (struct ep_link_rec *)
+			cl_qmap_end(&p_previous_db->ep_link_tbl)) {
+		p_link_rec = p_link_rec_next;
+		p_link_rec_next = (struct ep_link_rec *)
+			cl_qmap_next(&p_link_rec->map_item);
+
+		key = cl_qmap_key(&p_link_rec->map_item);
+		/* checking if the item is already in added or removed sections */
+		if (cl_qmap_get(&p_ssa_db_diff->ep_link_tbl_added, key)
+		    != cl_qmap_end(&p_ssa_db_diff->ep_link_tbl_added))
+			continue;
+		if (cl_qmap_get(&p_ssa_db_diff->ep_link_tbl_removed, key)
+		    != cl_qmap_end(&p_ssa_db_diff->ep_link_tbl_removed))
+			continue;
+
+		p_link_rec_new = (struct ep_link_rec *)
+			cl_qmap_get(&p_current_db->ep_link_tbl, key);
+		if (p_link_rec_new == (struct ep_link_rec *)
+			cl_qmap_end(&p_current_db->ep_link_tbl)) {
+			/* we are not supposed to get here - error occured */
+		}
+
+		p_link_rec_old = p_link_rec;
+		/* comparing 2 ep_link_rec records with the same key */
+		if (ssa_db_link_comp(p_link_rec_old, p_link_rec_new)) {
+			p_link_rec = (struct ep_link_rec *)
+					     malloc(sizeof(*p_link_rec));
+			if (!p_link_rec) {
+				/* handle failure - bad memory allocation */
+			}
+			ep_link_rec_copy(p_link_rec, p_link_rec_old);
+			cl_qmap_insert(&p_ssa_db_diff->ep_link_tbl_removed,
+				       key, &p_link_rec->map_item);
+			p_link_rec = (struct ep_link_rec *)
+					     malloc(sizeof(*p_link_rec));
+			if (!p_link_rec) {
+				/* handle failure - bad memory allocation */
+			}
+			ep_link_rec_copy(p_link_rec, p_link_rec_new);
+			cl_qmap_insert(&p_ssa_db_diff->ep_link_tbl_added,
+				       key, &p_link_rec->map_item);
+			dirty = 1;
+		}
+		/* we get here if the there is no difference between 2 records */
+	}
+
+	/*
 	 * Comparing ep_port_rec records
 	 */
 	/* new port records that had not exist before */
@@ -461,6 +544,7 @@ static void ssa_db_diff_dump(IN struct ssa_events * ssa,
 #ifdef SSA_PLUGIN_VERBOSE_LOGGING
 	struct ep_port_rec *p_port_rec, *p_next_port_rec;
 	struct ep_node_rec *p_node, *p_next_node;
+	struct ep_link_rec *p_link, *p_next_link;
 	struct ep_guid_to_lid_rec *p_port, *p_next_port;
 	const ib_pkey_table_t *block;
 	char buffer[64];
@@ -715,6 +799,42 @@ static void ssa_db_diff_dump(IN struct ssa_events * ssa,
 		is_changed = 0;
 	}
 	fprintf_log(ssa->log_file, "-----------------------------------\n");
+
+	fprintf_log(ssa->log_file, "Link Records:\n");
+	fprintf_log(ssa->log_file, "-----------------------------------\n");
+	fprintf_log(ssa->log_file, "Added records:\n");
+	p_next_link = (struct ep_link_rec *) cl_qmap_head(&p_ssa_db_diff->ep_link_tbl_added);
+	while (p_next_link !=
+	       (struct ep_link_rec *) cl_qmap_end(&p_ssa_db_diff->ep_link_tbl_added)) {
+		p_link = p_next_link;
+		p_next_link = (struct ep_link_rec *) cl_qmap_next(&p_link->map_item);
+		sprintf(buffer, "From LID %u port %u to LID %u port %u\n",
+			cl_ntoh16(p_link->link_rec.from_lid), p_link->link_rec.from_port_num,
+			cl_ntoh16(p_link->link_rec.to_lid), p_link->link_rec.to_port_num);
+		fprintf_log(ssa->log_file, buffer);
+		is_changed = 1;
+	}
+	if (!is_changed) {
+		fprintf_log(ssa->log_file, "No changes\n");
+		is_changed = 0;
+	}
+	fprintf_log(ssa->log_file, "Removed records:\n");
+	p_next_link = (struct ep_link_rec *) cl_qmap_head(&p_ssa_db_diff->ep_link_tbl_removed);
+	while (p_next_link !=
+	       (struct ep_link_rec *) cl_qmap_end(&p_ssa_db_diff->ep_link_tbl_removed)) {
+		p_link = p_next_link;
+		p_next_link = (struct ep_link_rec *) cl_qmap_next(&p_link->map_item);
+		sprintf(buffer, "From LID %u port %u to LID %u port %u\n",
+			cl_ntoh16(p_link->link_rec.from_lid), p_link->link_rec.from_port_num,
+			cl_ntoh16(p_link->link_rec.to_lid), p_link->link_rec.to_port_num);
+		fprintf_log(ssa->log_file, buffer);
+		is_changed = 1;
+	}
+	if (!is_changed) {
+		fprintf_log(ssa->log_file, "No changes\n");
+		is_changed = 0;
+	}
+	fprintf_log(ssa->log_file, "-----------------------------------\n");
 	fprintf_log(ssa->log_file, "===================================\n");
 #endif
 }
@@ -768,6 +888,31 @@ void ep_node_qmap_copy(cl_qmap_t *p_dest_qmap, cl_qmap_t * p_src_qmap)
 		cl_qmap_insert(p_dest_qmap,
 			       cl_qmap_key(&p_node_rec->map_item),
 			       &p_node_rec_new->map_item);
+	}
+}
+
+/** =========================================================================
+ */
+void ep_link_qmap_copy(cl_qmap_t *p_dest_qmap, cl_qmap_t * p_src_qmap)
+{
+	struct ep_link_rec *p_link_rec, *p_link_rec_next;
+	struct ep_link_rec *p_link_rec_new;
+
+	p_link_rec_next = (struct ep_link_rec *) cl_qmap_head(p_src_qmap);
+	while (p_link_rec_next !=
+	       (struct ep_link_rec *) cl_qmap_end(p_src_qmap)) {
+		p_link_rec = p_link_rec_next;
+		p_link_rec_next = (struct ep_link_rec *)
+				   cl_qmap_next(&p_link_rec->map_item);
+		p_link_rec_new = (struct ep_link_rec *)
+				  malloc(sizeof(*p_link_rec_new));
+		if (!p_link_rec_new) {
+			/* handle failure - bad memory allocation */
+		}
+		ep_link_rec_copy(p_link_rec_new, p_link_rec);
+		cl_qmap_insert(p_dest_qmap,
+			       cl_qmap_key(&p_link_rec->map_item),
+			       &p_link_rec_new->map_item);
 	}
 }
 
