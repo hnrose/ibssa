@@ -72,10 +72,7 @@ struct ssa_db_diff {
 	cl_qmap_t ep_port_tbl_removed;
 	/*************************************************/
 
-	/* change_mask bits point to the changed data fields
-	 * (in case of more than 16 fields the type of change_mask
-	 * has to be changed accordingly)
-	 */
+	/* change_mask bits point to the changed data fields */
 	uint64_t change_mask;
 	uint64_t subnet_prefix;
 	uint8_t sm_state;
