@@ -190,6 +190,37 @@ static int ssa_db_port_comp(IN const struct ep_port_rec * const p_rec_old,
 
 /** =========================================================================
  */
+static uint8_t ssa_db_diff_compare_qmap(IN cl_qmap_t * p_qmap_previous,
+					IN cl_qmap_t * p_qmap_current,
+					IN void (*qmap_copy_pfn)(cl_qmap_t *, cl_qmap_t *),
+					IN void (*qmap_delete_pfn)(cl_map_item_t *),
+					OUT cl_qmap_t * p_qmap_added,
+					OUT cl_qmap_t * p_qmap_removed)
+{
+	cl_qmap_t ep_rec_old, ep_rec_new;
+	uint8_t dirty = 0;
+
+	cl_qmap_init(&ep_rec_old);
+	cl_qmap_init(&ep_rec_new);
+
+	qmap_copy_pfn(&ep_rec_old, p_qmap_previous);
+	qmap_copy_pfn(&ep_rec_new, p_qmap_current);
+
+	cl_qmap_delta(&ep_rec_old, &ep_rec_new,
+		      p_qmap_added, p_qmap_removed);
+	if (cl_qmap_head(p_qmap_added) != cl_qmap_end(p_qmap_added))
+		dirty = 1;
+	if (cl_qmap_head(p_qmap_removed) != cl_qmap_end(p_qmap_removed))
+		dirty = 1;
+
+	ssa_qmap_apply_func(&ep_rec_old, qmap_delete_pfn);
+	ssa_qmap_apply_func(&ep_rec_new, qmap_delete_pfn);
+
+	return dirty;
+}
+
+/** =========================================================================
+ */
 static void ssa_db_diff_compare_subnet_nodes(IN struct ssa_db * p_previous_db,
 					     IN struct ssa_db * p_current_db,
 					     OUT struct ssa_db_diff * const p_ssa_db_diff)
@@ -200,7 +231,6 @@ static void ssa_db_diff_compare_subnet_nodes(IN struct ssa_db * p_previous_db,
 	struct ep_node_rec *p_node_rec_new, *p_node_rec_old;
 	struct ep_guid_to_lid_rec *p_guid_to_lid_rec, *p_guid_to_lid_rec_next;
 	struct ep_guid_to_lid_rec *p_guid_to_lid_rec_new, *p_guid_to_lid_rec_old;
-	cl_qmap_t ep_rec_old, ep_rec_new;
 	uint64_t key;
 	uint16_t lid, used_blocks;
 	uint8_t dirty = p_ssa_db_diff->dirty;
@@ -229,24 +259,12 @@ static void ssa_db_diff_compare_subnet_nodes(IN struct ssa_db * p_previous_db,
 	/*
 	 * Comparing ep_guid_to_lid_rec records
 	 */
-	cl_qmap_init(&ep_rec_old);
-	cl_qmap_init(&ep_rec_new);
-	ep_guid_to_lid_qmap_copy(&ep_rec_old, &p_previous_db->ep_guid_to_lid_tbl);
-	ep_guid_to_lid_qmap_copy(&ep_rec_new, &p_current_db->ep_guid_to_lid_tbl);
-
-	cl_qmap_delta(&ep_rec_old,
-		      &ep_rec_new,
-		      &p_ssa_db_diff->ep_guid_to_lid_tbl_added,
-		      &p_ssa_db_diff->ep_guid_to_lid_tbl_removed);
-	if (cl_qmap_head(&p_ssa_db_diff->ep_guid_to_lid_tbl_added)
-			 != cl_qmap_end(&p_ssa_db_diff->ep_guid_to_lid_tbl_added))
-		dirty = 1;
-	if (cl_qmap_head(&p_ssa_db_diff->ep_guid_to_lid_tbl_removed)
-			 != cl_qmap_end(&p_ssa_db_diff->ep_guid_to_lid_tbl_removed))
-		dirty = 1;
-
-	ssa_qmap_apply_func(&ep_rec_old, ep_guid_to_lid_rec_delete_pfn);
-	ssa_qmap_apply_func(&ep_rec_new, ep_guid_to_lid_rec_delete_pfn);
+	dirty = ssa_db_diff_compare_qmap(&p_previous_db->ep_guid_to_lid_tbl,
+					 &p_current_db->ep_guid_to_lid_tbl,
+					 ep_guid_to_lid_qmap_copy,
+					 ep_guid_to_lid_rec_delete_pfn,
+					 &p_ssa_db_diff->ep_guid_to_lid_tbl_added,
+					 &p_ssa_db_diff->ep_guid_to_lid_tbl_removed);
 
 	p_guid_to_lid_rec_next = (struct ep_guid_to_lid_rec *)
 			cl_qmap_head(&p_previous_db->ep_guid_to_lid_tbl);
@@ -300,24 +318,12 @@ static void ssa_db_diff_compare_subnet_nodes(IN struct ssa_db * p_previous_db,
 	/*
 	 * Comparing ep_node_rec records
 	 */
-	cl_qmap_init(&ep_rec_old);
-	cl_qmap_init(&ep_rec_new);
-	ep_node_qmap_copy(&ep_rec_old, &p_previous_db->ep_node_tbl);
-	ep_node_qmap_copy(&ep_rec_new, &p_current_db->ep_node_tbl);
-
-	cl_qmap_delta(&ep_rec_old,
-		      &ep_rec_new,
-		      &p_ssa_db_diff->ep_node_tbl_added,
-		      &p_ssa_db_diff->ep_node_tbl_removed);
-	if (cl_qmap_head(&p_ssa_db_diff->ep_node_tbl_added)
-			 != cl_qmap_end(&p_ssa_db_diff->ep_node_tbl_added))
-		dirty = 1;
-	if (cl_qmap_head(&p_ssa_db_diff->ep_node_tbl_removed)
-			 != cl_qmap_end(&p_ssa_db_diff->ep_node_tbl_removed))
-		dirty = 1;
-
-	ssa_qmap_apply_func(&ep_rec_old, ep_node_rec_delete_pfn);
-	ssa_qmap_apply_func(&ep_rec_new, ep_node_rec_delete_pfn);
+	dirty = ssa_db_diff_compare_qmap(&p_previous_db->ep_node_tbl,
+					 &p_current_db->ep_node_tbl,
+					 ep_node_qmap_copy,
+					 ep_node_rec_delete_pfn,
+					 &p_ssa_db_diff->ep_node_tbl_added,
+					 &p_ssa_db_diff->ep_node_tbl_removed);
 
 	p_node_rec_next = (struct ep_node_rec *)
 			cl_qmap_head(&p_previous_db->ep_node_tbl);
