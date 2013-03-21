@@ -538,25 +538,13 @@ static void ssa_db_diff_compare_subnet_nodes(IN struct ssa_db * p_previous_db,
 
 /** =========================================================================
  */
-static void ssa_db_diff_dump(IN struct ssa_events * ssa,
-		      IN struct ssa_db_diff * p_ssa_db_diff)
-{
 #ifdef SSA_PLUGIN_VERBOSE_LOGGING
-	struct ep_port_rec *p_port_rec, *p_next_port_rec;
-	struct ep_node_rec *p_node, *p_next_node;
-	struct ep_link_rec *p_link, *p_next_link;
-	struct ep_guid_to_lid_rec *p_port, *p_next_port;
-	const ib_pkey_table_t *block;
+static void ssa_db_diff_dump_fabric_params(IN struct ssa_events * ssa,
+					   IN struct ssa_db_diff * p_ssa_db_diff)
+{
 	char buffer[64];
-	ib_net16_t pkey;
-	uint16_t block_index, pkey_idx;
 	uint8_t is_changed = 0;
 
-	if (!ssa || !p_ssa_db_diff)
-		return;
-
-	fprintf_log(ssa->log_file, "Dumping SMDB changes\n");
-	fprintf_log(ssa->log_file, "===================================\n");
 	fprintf_log(ssa->log_file, "Fabric parameters:\n");
 
 	if (p_ssa_db_diff->change_mask & SSA_DB_CHANGEMASK_SUBNET_PREFIX) {
@@ -608,236 +596,196 @@ static void ssa_db_diff_dump(IN struct ssa_events * ssa,
 		is_changed = 1;
 	}
 
-	if (!is_changed) {
+	if (!is_changed)
 		fprintf_log(ssa->log_file, "No changes\n");
-		is_changed = 0;
+}
+
+/** =========================================================================
+ */
+static void ssa_db_diff_dump_node_rec(IN struct ssa_events * ssa,
+				      IN cl_map_item_t * p_item)
+{
+	struct ep_node_rec *p_node_rec = (struct ep_node_rec *) p_item;
+	char buffer[64];
+
+	if (p_node_rec) {
+		sprintf(buffer, "Node GUID 0x%" PRIx64 " Type %d%s",
+			cl_ntoh64(p_node_rec->node_info.node_guid),
+			p_node_rec->node_info.node_type,
+			(p_node_rec->node_info.node_type == IB_NODE_TYPE_SWITCH) ? " " : "\n");
+		fprintf_log(ssa->log_file, buffer);
+		if (p_node_rec->node_info.node_type == IB_NODE_TYPE_SWITCH)
+			fprintf(ssa->log_file, "with %s Switch Port 0\n",
+				p_node_rec->is_enhanced_sp0 ? "Enhanced" : "Base");
+	}
+}
+
+/** =========================================================================
+ */
+static void ssa_db_diff_dump_guid_to_lid_rec(IN struct ssa_events * ssa,
+					     IN cl_map_item_t * p_item)
+{
+	struct ep_guid_to_lid_rec *p_guid_to_lid_rec = (struct ep_guid_to_lid_rec *) p_item;
+	char buffer[64];
+
+	if (p_guid_to_lid_rec) {
+		sprintf(buffer, "Port GUID 0x%" PRIx64 " LID %u LMC %u is_switch %d\n",
+			cl_ntoh64(cl_map_key((cl_map_iterator_t) p_guid_to_lid_rec)),
+			p_guid_to_lid_rec->lid,
+			p_guid_to_lid_rec->lmc,
+			p_guid_to_lid_rec->is_switch);
+		fprintf_log(ssa->log_file, buffer);
+	}
+}
+
+/** =========================================================================
+ */
+static void ssa_db_diff_dump_port_rec(IN struct ssa_events * ssa,
+					  IN cl_map_item_t * p_item)
+{
+	struct ep_port_rec *p_port_rec = (struct ep_port_rec *) p_item;
+	const ib_pkey_table_t *block;
+	char buffer[64];
+	ib_net16_t pkey;
+	uint16_t block_index, pkey_idx;
+
+	if (p_port_rec) {
+		fprintf_log(ssa->log_file, "-------------------\n");
+		sprintf(buffer, "Port LID %u LMC %u Port state %d (%s)\n",
+			cl_ntoh16(p_port_rec->port_info.base_lid),
+			ib_port_info_get_lmc(&p_port_rec->port_info),
+			ib_port_info_get_port_state(&p_port_rec->port_info),
+			(ib_port_info_get_port_state(&p_port_rec->port_info) < 5
+			 ? port_state_str[ib_port_info_get_port_state
+			 (&p_port_rec->port_info)] : "???"));
+		fprintf_log(ssa->log_file, buffer);
+		sprintf(buffer, "FDR10 %s active\n",
+			p_port_rec->is_fdr10_active ? "" : "not");
+		fprintf_log(ssa->log_file, buffer);
+
+		/* TODO: add SLVL tables dump */
+
+		sprintf(buffer, "PartitionCap %u\n",
+			p_port_rec->ep_pkey_rec.max_pkeys);
+		fprintf_log(ssa->log_file, buffer);
+		sprintf(buffer, "PKey Table %u used blocks\n",
+			p_port_rec->ep_pkey_rec.used_blocks);
+		fprintf_log(ssa->log_file, buffer);
+
+		for (block_index = 0;
+		     block_index < p_port_rec->ep_pkey_rec.used_blocks;
+		     block_index++) {
+			block = &p_port_rec->ep_pkey_rec.pkey_tbl[block_index];
+			for (pkey_idx = 0;
+			     pkey_idx < IB_NUM_PKEY_ELEMENTS_IN_BLOCK;
+			     pkey_idx++) {
+				pkey = block->pkey_entry[pkey_idx];
+				if (ib_pkey_is_invalid(pkey))
+					continue;
+				sprintf(buffer,
+					"PKey 0x%04x at block %u index %u\n",
+					cl_ntoh16(pkey), block_index,
+					pkey_idx);
+				fprintf_log(ssa->log_file, buffer);
+			}
+		}
+	}
+}
+
+/** =========================================================================
+ */
+static void ssa_db_diff_dump_link_rec(IN struct ssa_events * ssa,
+				      IN cl_map_item_t * p_item)
+{
+	struct ep_link_rec *p_link_rec = (struct ep_link_rec *) p_item;
+	char buffer[64];
+
+	if (p_link_rec) {
+		sprintf(buffer, "From LID %u port %u to LID %u port %u\n",
+			cl_ntoh16(p_link_rec->link_rec.from_lid),
+			p_link_rec->link_rec.from_port_num,
+			cl_ntoh16(p_link_rec->link_rec.to_lid),
+			p_link_rec->link_rec.to_port_num);
+		fprintf_log(ssa->log_file, buffer);
+	}
+}
+
+/** =========================================================================
+ */
+static void ssa_db_diff_dump_qmap(IN cl_qmap_t * p_qmap,
+				  IN struct ssa_events * ssa,
+				  IN void (*pfn_dump)(struct ssa_events *, cl_map_item_t *))
+{
+	cl_map_item_t *p_map_item, *p_map_item_next;
+	uint8_t is_changed = 0;
+
+        p_map_item_next = cl_qmap_head(p_qmap);
+        while (p_map_item_next != cl_qmap_end(p_qmap)) {
+                p_map_item = p_map_item_next;
+                p_map_item_next = cl_qmap_next(p_map_item);
+                pfn_dump(ssa, p_map_item);
+		is_changed = 1;
 	}
 
-	/* TODO: make all maps dumps generic and use it in validate_dump_db as well */
+	if (!is_changed)
+		fprintf_log(ssa->log_file, "No changes\n");
+}
+
+/** =========================================================================
+ */
+static void ssa_db_diff_dump(IN struct ssa_events * ssa,
+			     IN struct ssa_db_diff * p_ssa_db_diff)
+{
+	if (!ssa || !p_ssa_db_diff)
+		return;
+
+	fprintf_log(ssa->log_file, "Dumping SMDB changes\n");
+	fprintf_log(ssa->log_file, "===================================\n");
+	ssa_db_diff_dump_fabric_params(ssa, p_ssa_db_diff);
+
+	fprintf_log(ssa->log_file, "-----------------------------------\n");
 	fprintf_log(ssa->log_file, "NODE records:\n");
 	fprintf_log(ssa->log_file, "-----------------------------------\n");
 	fprintf_log(ssa->log_file, "Added records:\n");
-	p_next_node = (struct ep_node_rec *) cl_qmap_head(&p_ssa_db_diff->ep_node_tbl_added);
-	while (p_next_node !=
-	       (struct ep_node_rec *) cl_qmap_end(&p_ssa_db_diff->ep_node_tbl_added)) {
-		p_node = p_next_node;
-		p_next_node = (struct ep_node_rec *) cl_qmap_next(&p_node->map_item);
-		sprintf(buffer, "Node GUID 0x%" PRIx64 " Type %d%s",
-			cl_ntoh64(p_node->node_info.node_guid),
-			p_node->node_info.node_type,
-			(p_node->node_info.node_type == IB_NODE_TYPE_SWITCH) ? " " : "\n");
-		fprintf_log(ssa->log_file, buffer);
-		if (p_node->node_info.node_type == IB_NODE_TYPE_SWITCH)
-			fprintf(ssa->log_file, "with %s Switch Port 0\n",
-				p_node->is_enhanced_sp0 ? "Enhanced" : "Base");
-		is_changed = 1;
-	}
-	if (!is_changed) {
-		fprintf_log(ssa->log_file, "No changes\n");
-		is_changed = 0;
-	}
+	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_node_tbl_added,
+			      ssa, ssa_db_diff_dump_node_rec);
 	fprintf_log(ssa->log_file, "Removed records:\n");
-	p_next_node = (struct ep_node_rec *) cl_qmap_head(&p_ssa_db_diff->ep_node_tbl_removed);
-	while (p_next_node !=
-	       (struct ep_node_rec *) cl_qmap_end(&p_ssa_db_diff->ep_node_tbl_removed)) {
-		p_node = p_next_node;
-		p_next_node = (struct ep_node_rec *) cl_qmap_next(&p_node->map_item);
-		sprintf(buffer, "Node GUID 0x%" PRIx64 " Type %d%s",
-			cl_ntoh64(p_node->node_info.node_guid),
-			p_node->node_info.node_type,
-			(p_node->node_info.node_type == IB_NODE_TYPE_SWITCH) ? " " : "\n");
-		fprintf_log(ssa->log_file, buffer);
-		if (p_node->node_info.node_type == IB_NODE_TYPE_SWITCH)
-			fprintf(ssa->log_file, "with %s Switch Port 0\n",
-				p_node->is_enhanced_sp0 ? "Enhanced" : "Base");
-		is_changed = 1;
-	}
-	if (!is_changed) {
-		fprintf_log(ssa->log_file, "No changes\n");
-		is_changed = 0;
-	}
-	fprintf_log(ssa->log_file, "-----------------------------------\n");
+	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_node_tbl_removed, ssa,
+			      ssa_db_diff_dump_node_rec);
 
+	fprintf_log(ssa->log_file, "-----------------------------------\n");
 	fprintf_log(ssa->log_file, "GUID to LID records:\n");
 	fprintf_log(ssa->log_file, "-----------------------------------\n");
 	fprintf_log(ssa->log_file, "Added records:\n");
-	p_next_port = (struct ep_guid_to_lid_rec *) cl_qmap_head(&p_ssa_db_diff->ep_guid_to_lid_tbl_added);
-	while (p_next_port !=
-	       (struct ep_guid_to_lid_rec *) cl_qmap_end(&p_ssa_db_diff->ep_guid_to_lid_tbl_added)) {
-		p_port = p_next_port;
-		p_next_port = (struct ep_guid_to_lid_rec *) cl_qmap_next(&p_port->map_item);
-		sprintf(buffer, "Port GUID 0x%" PRIx64 " LID %u LMC %u is_switch %d\n",
-			cl_ntoh64(cl_map_key((cl_map_iterator_t) p_port)),
-			p_port->lid, p_port->lmc, p_port->is_switch);
-		fprintf_log(ssa->log_file, buffer);
-		is_changed = 1;
-	}
-	if (!is_changed) {
-		fprintf_log(ssa->log_file, "No changes\n");
-		is_changed = 0;
-	}
+	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_guid_to_lid_tbl_added,
+			      ssa, ssa_db_diff_dump_guid_to_lid_rec);
 	fprintf_log(ssa->log_file, "Removed records:\n");
-	p_next_port = (struct ep_guid_to_lid_rec *) cl_qmap_head(&p_ssa_db_diff->ep_guid_to_lid_tbl_removed);
-	while (p_next_port !=
-	       (struct ep_guid_to_lid_rec *) cl_qmap_end(&p_ssa_db_diff->ep_guid_to_lid_tbl_removed)) {
-		p_port = p_next_port;
-		p_next_port = (struct ep_guid_to_lid_rec *) cl_qmap_next(&p_port->map_item);
-		sprintf(buffer, "Port GUID 0x%" PRIx64 " LID %u LMC %u is_switch %d\n",
-			cl_ntoh64(cl_map_key((cl_map_iterator_t) p_port)),
-			p_port->lid, p_port->lmc, p_port->is_switch);
-		fprintf_log(ssa->log_file, buffer);
-		is_changed = 1;
-	}
-	if (!is_changed) {
-		fprintf_log(ssa->log_file, "No changes\n");
-		is_changed = 0;
-	}
-	fprintf_log(ssa->log_file, "-----------------------------------\n");
+	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_guid_to_lid_tbl_removed,
+			      ssa, ssa_db_diff_dump_guid_to_lid_rec);
 
+	fprintf_log(ssa->log_file, "-----------------------------------\n");
 	fprintf_log(ssa->log_file, "PORT records:\n");
 	fprintf_log(ssa->log_file, "-----------------------------------\n");
 	fprintf_log(ssa->log_file, "Added records:\n");
-	p_next_port_rec = (struct ep_port_rec *) cl_qmap_head(&p_ssa_db_diff->ep_port_tbl_added);
-	while (p_next_port_rec !=
-	       (struct ep_port_rec *) cl_qmap_end(&p_ssa_db_diff->ep_port_tbl_added)) {
-		p_port_rec = p_next_port_rec;
-		p_next_port_rec = (struct ep_port_rec *) cl_qmap_next(&p_port_rec->map_item);
-		fprintf_log(ssa->log_file, "-------------------\n");
-		sprintf(buffer, "Port LID %u LMC %u Port state %d (%s)\n",
-			cl_ntoh16(p_port_rec->port_info.base_lid),
-			ib_port_info_get_lmc(&p_port_rec->port_info),
-			ib_port_info_get_port_state(&p_port_rec->port_info),
-			(ib_port_info_get_port_state(&p_port_rec->port_info) < 5
-			 ? port_state_str[ib_port_info_get_port_state
-			 (&p_port_rec->port_info)] : "???"));
-		fprintf_log(ssa->log_file, buffer);
-		sprintf(buffer, "FDR10 %s active\n",
-			p_port_rec->is_fdr10_active ? "" : "not");
-		fprintf_log(ssa->log_file, buffer);
-
-		/* TODO: add SLVL tables dump */
-
-		sprintf(buffer, "PartitionCap %u\n",
-			p_port_rec->ep_pkey_rec.max_pkeys);
-		fprintf_log(ssa->log_file, buffer);
-		sprintf(buffer, "PKey Table %u used blocks\n",
-			p_port_rec->ep_pkey_rec.used_blocks);
-		fprintf_log(ssa->log_file, buffer);
-
-		for (block_index = 0;
-		     block_index < p_port_rec->ep_pkey_rec.used_blocks;
-		     block_index++) {
-			block = &p_port_rec->ep_pkey_rec.pkey_tbl[block_index];
-			for (pkey_idx = 0;
-			     pkey_idx < IB_NUM_PKEY_ELEMENTS_IN_BLOCK;
-			     pkey_idx++) {
-				pkey = block->pkey_entry[pkey_idx];
-				if (ib_pkey_is_invalid(pkey))
-					continue;
-				sprintf(buffer,
-					"PKey 0x%04x at block %u index %u\n",
-					cl_ntoh16(pkey), block_index,
-					pkey_idx);
-				fprintf_log(ssa->log_file, buffer);
-			}
-		}
-		is_changed = 1;
-	}
-	if (!is_changed) {
-		fprintf_log(ssa->log_file, "No changes\n");
-		is_changed = 0;
-	}
+	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_port_tbl_added,
+			      ssa, ssa_db_diff_dump_port_rec);
 	fprintf_log(ssa->log_file, "Removed records:\n");
-	p_next_port_rec = (struct ep_port_rec *) cl_qmap_head(&p_ssa_db_diff->ep_port_tbl_removed);
-	while (p_next_port_rec !=
-	       (struct ep_port_rec *) cl_qmap_end(&p_ssa_db_diff->ep_port_tbl_removed)) {
-		p_port_rec = p_next_port_rec;
-		p_next_port_rec = (struct ep_port_rec *) cl_qmap_next(&p_port_rec->map_item);
-		fprintf_log(ssa->log_file, "-------------------\n");
-		sprintf(buffer, "Port LID %u LMC %u Port state %d (%s)\n",
-			cl_ntoh16(p_port_rec->port_info.base_lid),
-			ib_port_info_get_lmc(&p_port_rec->port_info),
-			ib_port_info_get_port_state(&p_port_rec->port_info),
-			(ib_port_info_get_port_state(&p_port_rec->port_info) < 5
-			 ? port_state_str[ib_port_info_get_port_state
-			 (&p_port_rec->port_info)] : "???"));
-		fprintf_log(ssa->log_file, buffer);
-		sprintf(buffer, "FDR10 %s active\n",
-			p_port_rec->is_fdr10_active ? "" : "not");
-		fprintf_log(ssa->log_file, buffer);
+	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_port_tbl_removed,
+			      ssa, ssa_db_diff_dump_port_rec);
 
-		/* TODO: add SLVL tables dump */
-
-		sprintf(buffer, "PartitionCap %u\n",
-			p_port_rec->ep_pkey_rec.max_pkeys);
-		fprintf_log(ssa->log_file, buffer);
-		sprintf(buffer, "PKey Table %u used blocks\n",
-			p_port_rec->ep_pkey_rec.used_blocks);
-		fprintf_log(ssa->log_file, buffer);
-
-		for (block_index = 0;
-		     block_index < p_port_rec->ep_pkey_rec.used_blocks;
-		     block_index++) {
-			block = &p_port_rec->ep_pkey_rec.pkey_tbl[block_index];
-			for (pkey_idx = 0;
-			     pkey_idx < IB_NUM_PKEY_ELEMENTS_IN_BLOCK;
-			     pkey_idx++) {
-				pkey = block->pkey_entry[pkey_idx];
-				if (ib_pkey_is_invalid(pkey))
-					continue;
-				sprintf(buffer,
-					"PKey 0x%04x at block %u index %u\n",
-					cl_ntoh16(pkey), block_index,
-					pkey_idx);
-				fprintf_log(ssa->log_file, buffer);
-			}
-		}
-		is_changed = 1;
-	}
-	if (!is_changed) {
-		fprintf_log(ssa->log_file, "No changes\n");
-		is_changed = 0;
-	}
 	fprintf_log(ssa->log_file, "-----------------------------------\n");
-
 	fprintf_log(ssa->log_file, "Link Records:\n");
 	fprintf_log(ssa->log_file, "-----------------------------------\n");
 	fprintf_log(ssa->log_file, "Added records:\n");
-	p_next_link = (struct ep_link_rec *) cl_qmap_head(&p_ssa_db_diff->ep_link_tbl_added);
-	while (p_next_link !=
-	       (struct ep_link_rec *) cl_qmap_end(&p_ssa_db_diff->ep_link_tbl_added)) {
-		p_link = p_next_link;
-		p_next_link = (struct ep_link_rec *) cl_qmap_next(&p_link->map_item);
-		sprintf(buffer, "From LID %u port %u to LID %u port %u\n",
-			cl_ntoh16(p_link->link_rec.from_lid), p_link->link_rec.from_port_num,
-			cl_ntoh16(p_link->link_rec.to_lid), p_link->link_rec.to_port_num);
-		fprintf_log(ssa->log_file, buffer);
-		is_changed = 1;
-	}
-	if (!is_changed) {
-		fprintf_log(ssa->log_file, "No changes\n");
-		is_changed = 0;
-	}
+	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_link_tbl_added,
+			      ssa, ssa_db_diff_dump_link_rec);
 	fprintf_log(ssa->log_file, "Removed records:\n");
-	p_next_link = (struct ep_link_rec *) cl_qmap_head(&p_ssa_db_diff->ep_link_tbl_removed);
-	while (p_next_link !=
-	       (struct ep_link_rec *) cl_qmap_end(&p_ssa_db_diff->ep_link_tbl_removed)) {
-		p_link = p_next_link;
-		p_next_link = (struct ep_link_rec *) cl_qmap_next(&p_link->map_item);
-		sprintf(buffer, "From LID %u port %u to LID %u port %u\n",
-			cl_ntoh16(p_link->link_rec.from_lid), p_link->link_rec.from_port_num,
-			cl_ntoh16(p_link->link_rec.to_lid), p_link->link_rec.to_port_num);
-		fprintf_log(ssa->log_file, buffer);
-		is_changed = 1;
-	}
-	if (!is_changed) {
-		fprintf_log(ssa->log_file, "No changes\n");
-		is_changed = 0;
-	}
+	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_link_tbl_removed,
+			      ssa, ssa_db_diff_dump_link_rec);
 	fprintf_log(ssa->log_file, "-----------------------------------\n");
 	fprintf_log(ssa->log_file, "===================================\n");
-#endif
 }
+#endif
 
 
 /* TODO: make qmap copy functions generic */
@@ -954,7 +902,9 @@ struct ssa_db_diff *ssa_db_compare(IN struct ssa_events * ssa,
 		goto Exit;
 	}
 
+#ifdef SSA_PLUGIN_VERBOSE_LOGGING
 	ssa_db_diff_dump(ssa, p_ssa_db_diff);
+#endif
 Exit:
 	sprintf(buffer, "Finished SMDB comparison\n");
         fprintf_log(ssa->log_file, buffer);
