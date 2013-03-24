@@ -73,6 +73,7 @@ struct ssa_db *ssa_db_init(uint16_t lids)
 		}
 		cl_ptr_vector_set(&p_ssa_db->ep_port_tbl, 0, NULL);
 		cl_qmap_init(&p_ssa_db->ep_link_tbl);
+		cl_qmap_init(&p_ssa_db->ep_lft_tbl);
 	}
 	return p_ssa_db;
 }
@@ -87,6 +88,7 @@ void ssa_db_delete(struct ssa_db *p_ssa_db)
 		cl_qmap_remove_all(&p_ssa_db->ep_node_tbl);
 		cl_qmap_remove_all(&p_ssa_db->ep_guid_to_lid_tbl);
 		cl_qmap_remove_all(&p_ssa_db->ep_link_tbl);
+		cl_qmap_remove_all(&p_ssa_db->ep_lft_tbl);
 		free(p_ssa_db);
 	}
 }
@@ -233,6 +235,51 @@ void ep_link_rec_delete_pfn(cl_map_item_t *p_map_item)
 	ep_link_rec_delete(p_link_rec);
 }
 
+struct ep_lft_rec *ep_lft_rec_init(osm_switch_t * p_sw)
+{
+	struct ep_lft_rec *p_ep_lft_rec;
+
+	p_ep_lft_rec = (struct ep_lft_rec *) malloc(sizeof(*p_ep_lft_rec));
+	if (p_ep_lft_rec) {
+		p_ep_lft_rec->max_lid_ho = p_sw->max_lid_ho;
+		p_ep_lft_rec->lft_size = p_sw->lft_size;
+		p_ep_lft_rec->lft = malloc(p_sw->lft_size);
+		if (!p_ep_lft_rec->lft) {
+			/* add fault handling */
+		}
+		memcpy(p_ep_lft_rec->lft, p_sw->lft, p_sw->lft_size);
+	}
+	return p_ep_lft_rec;
+}
+
+inline uint64_t ep_lft_rec_gen_key(uint16_t lid)
+{
+	return (uint64_t) lid;
+}
+
+void ep_lft_rec_copy(struct ep_lft_rec * p_dest_rec, struct ep_lft_rec * p_src_rec)
+{
+	p_dest_rec->max_lid_ho = p_src_rec->max_lid_ho;
+	p_dest_rec->lft_size = p_src_rec->lft_size;
+	memcpy(p_dest_rec->lft, p_src_rec->lft, p_dest_rec->lft_size);
+}
+
+void ep_lft_rec_delete(struct ep_lft_rec * p_ep_lft_rec)
+{
+	if (!p_ep_lft_rec) {
+		free(p_ep_lft_rec->lft);
+		free(p_ep_lft_rec);
+	}
+}
+
+void ep_lft_rec_delete_pfn(cl_map_item_t * p_map_item)
+{
+	struct ep_lft_rec *p_lft_rec;
+
+	p_lft_rec = (struct ep_lft_rec *) p_map_item;
+	ep_lft_rec_delete(p_lft_rec);
+}
+
 struct ep_port_rec *ep_port_rec_init(osm_port_t *p_port)
 {
 	struct ep_port_rec *p_ep_port_rec;
@@ -324,6 +371,7 @@ void ep_port_rec_delete(struct ep_port_rec *p_ep_port_rec)
 	if (!p_ep_port_rec)
 		return;
 
+	/* TODO:: fix size to capacity */
 	num_slvl = cl_ptr_vector_get_size(&p_ep_port_rec->slvl_by_port);
 	for (i = 0; i < num_slvl; i++)
 		free(cl_ptr_vector_get(&p_ep_port_rec->slvl_by_port, i));

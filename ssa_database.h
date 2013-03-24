@@ -39,6 +39,7 @@
 #include <complib/cl_qmap.h>
 #include <opensm/osm_node.h>
 #include <opensm/osm_port.h>
+#include <opensm/osm_switch.h>
 
 #ifdef __cplusplus
 #  define BEGIN_C_DECLS extern "C" {
@@ -105,6 +106,13 @@ struct ep_link_rec {
 	ib_link_record_t link_rec;
 };
 
+struct ep_lft_rec {
+	cl_map_item_t map_item;
+	uint16_t max_lid_ho;
+	uint16_t lft_size;
+	uint8_t *lft;
+};
+
 struct ssa_db {
 	/* mutex ??? */
 	cl_qmap_t ep_guid_to_lid_tbl;	/* port GUID -> LID */
@@ -112,6 +120,7 @@ struct ssa_db {
 	cl_ptr_vector_t ep_port_tbl;	/* LID based */
 	/* maybe worth using fleximap for shorter key */
 	cl_qmap_t ep_link_tbl;		/* LID + port_num based */
+	cl_qmap_t ep_lft_tbl;		/* LID based */
 
 	/* Fabric/SM related */
 	uint64_t subnet_prefix;		/* even if full PortInfo used */
@@ -131,7 +140,7 @@ struct ssa_database {
 	/* mutex ??? */
 	struct ssa_db *p_current_db;
 	struct ssa_db *p_previous_db;
-	struct ssa_db *p_dump_db;	
+	struct ssa_db *p_dump_db;
 };
 
 
@@ -164,6 +173,13 @@ uint64_t ep_link_rec_gen_key(uint16_t lid, uint8_t port_num);
 void ep_link_rec_copy(struct ep_link_rec *p_dest_rec, struct ep_link_rec *p_src_rec);
 void ep_link_rec_delete(struct ep_link_rec *p_ep_link_rec);
 void ep_link_rec_delete_pfn(cl_map_item_t *p_map_item);
+
+/**********************LFT records***************************************/
+struct ep_lft_rec *ep_lft_rec_init(osm_switch_t *p_switch);
+inline uint64_t ep_lft_rec_gen_key(uint16_t lid);
+void ep_lft_rec_copy(struct ep_lft_rec *p_dest_rec, struct ep_lft_rec *p_src_rec);
+void ep_lft_rec_delete(struct ep_lft_rec *p_ep_lft_rec);
+void ep_lft_rec_delete_pfn(cl_map_item_t *p_map_item);
 
 /**********************PORT records**************************************/
 struct ep_port_rec *ep_port_rec_init(osm_port_t *p_port);
