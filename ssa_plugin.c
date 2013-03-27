@@ -109,6 +109,24 @@ static const char *sm_state_str(int state)
 
 /** =========================================================================
  */
+static struct ssa_db *init_ssa_db(struct ssa_events *ssa)
+{
+	osm_subn_t *p_subn = &ssa->p_osm->subn;
+	struct ssa_db *p_ssa;
+	char buffer[64];
+	uint16_t lids = (uint16_t)
+			cl_ptr_vector_get_size(&p_subn->port_lid_tbl);
+	p_ssa = ssa_db_init(lids);
+	if (!p_ssa) {
+		sprintf(buffer, "init_ssa_db: ssa_db_init failed\n");
+		fprintf_log(ssa->log_file, buffer);
+	}
+
+	return p_ssa;
+}
+
+/** =========================================================================
+ */
 static void *construct(osm_opensm_t *osm)
 {
 	char buffer[64];
@@ -141,6 +159,10 @@ static void *construct(osm_opensm_t *osm)
 
 	ssa->osmlog = &osm->log;
 	ssa->p_osm = osm;
+
+	ssa_db->p_previous_db = init_ssa_db(ssa);
+	ssa_db->p_current_db = init_ssa_db(ssa);
+	ssa_db->p_dump_db = init_ssa_db(ssa);
 	return ((void *)ssa);
 }
 
@@ -175,24 +197,6 @@ static void handle_trap_event(struct ssa_events *ssa, ib_mad_notice_attr_t *p_nt
 			cl_ntoh16(p_ntc->issuer_lid));
 	}
 	fprintf_log(ssa->log_file, buffer);
-}
-
-/** =========================================================================
- */
-static struct ssa_db *init_ssa_db(struct ssa_events *ssa)
-{
-	osm_subn_t *p_subn = &ssa->p_osm->subn;
-	struct ssa_db *p_ssa;
-	char buffer[64];
-	uint16_t lids = (uint16_t)
-			cl_ptr_vector_get_size(&p_subn->port_lid_tbl);
-	p_ssa = ssa_db_init(lids);
-	if (!p_ssa) {
-		sprintf(buffer, "init_ssa_db: ssa_db_init failed\n");
-		fprintf_log(ssa->log_file, buffer);
-	}
-
-	return p_ssa;
 }
 
 /** =========================================================================
@@ -232,13 +236,8 @@ static struct ssa_db *dump_osm_db(struct ssa_events *ssa)
 	lids = (uint16_t) cl_ptr_vector_get_size(&p_subn->port_lid_tbl);
 	sprintf(buffer, "dump_osm_db: %u LIDs\n", lids);
 	fprintf_log(ssa->log_file, buffer);
-	p_ssa = ssa_db_init(lids);		/* Always do this ??? */
-	if (!p_ssa) {
-		sprintf(buffer, "dump_osm_db: ssa_db_init failed\n");
-		fprintf_log(ssa->log_file, buffer);
-		goto _exit;
-	}
 
+	p_ssa = ssa_db->p_dump_db;
 	/* First, Fabric/SM related parameters */
 	p_ssa->subnet_prefix = cl_ntoh64(p_subn->opt.subnet_prefix);
 	p_ssa->sm_state = p_subn->sm_state;
@@ -436,7 +435,7 @@ static struct ssa_db *dump_osm_db(struct ssa_events *ssa)
 	}
 
 	p_ssa->initialized = 1;
-_exit:
+
 	sprintf(buffer, "Exiting dump_osm_db\n");
 	fprintf_log(ssa->log_file, buffer);
 
@@ -633,6 +632,7 @@ void update_ssa_db(IN struct ssa_events *ssa,
 
 	if (ssa_db->p_current_db->initialized) {
 		remove_dump_db(ssa, ssa_db->p_previous_db);
+		ssa_db_delete(ssa_db->p_previous_db);
 		ssa_db->p_previous_db = ssa_db->p_current_db;
 		ssa_db->p_current_db = init_ssa_db(ssa);
 	}
@@ -660,10 +660,6 @@ static void report(void *_ssa, osm_epi_event_id_t event_id, void *event_data)
 			break;
 
 		fprintf_log(ssa->log_file, "Subnet up event\n");
-		if (!ssa_db->p_previous_db)
-			ssa_db->p_previous_db = init_ssa_db(ssa);
-		if (!ssa_db->p_current_db)
-			ssa_db->p_current_db = init_ssa_db(ssa);
 
 if (ssa_db->p_dump_db)
 fprintf_log(ssa->log_file, "First removing existing SSA dump db\n");
