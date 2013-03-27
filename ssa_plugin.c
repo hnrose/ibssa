@@ -671,7 +671,6 @@ static void remove_dump_db(struct ssa_events *ssa, struct ssa_db *p_dump_db)
 void update_ssa_db(IN struct ssa_events *ssa,
 		   IN struct ssa_database *ssa_db)
 {
-	struct ep_lft_rec *p_next_lft, *p_lft, *p_tmp_lft;
 	struct ssa_db *ssa_db_tmp;
 	char buffer[48];
 
@@ -687,27 +686,9 @@ void update_ssa_db(IN struct ssa_events *ssa,
 	if (ssa_db->p_current_db->initialized) {
 		ssa_db_tmp = ssa_db->p_current_db;
 		ssa_db->p_current_db = init_ssa_db(ssa);
-		if (ssa_db->p_previous_db->initialized) {
-			/* Copying LFT records */
-			p_next_lft= (struct ep_lft_rec *)cl_qmap_head(&ssa_db->p_previous_db->ep_lft_tbl);
-			while (p_next_lft !=
-			       (struct ep_lft_rec *)cl_qmap_end(&ssa_db->p_previous_db->ep_lft_tbl)) {
-				p_lft = p_next_lft;
-				p_next_lft = (struct ep_lft_rec *) cl_qmap_next(&p_lft->map_item);
-				p_tmp_lft = (struct ep_lft_rec *) malloc(sizeof(*p_tmp_lft));
-				if (!p_tmp_lft) {
-					/* handle failure - bad memory allocation */
-				}
-				p_tmp_lft->lft = malloc(p_lft->lft_size);
-				if (!p_tmp_lft->lft) {
-					/* handle failure - bad memory allocation */
-				}
-				ep_lft_rec_copy(p_tmp_lft, p_lft);
-				cl_qmap_insert(&ssa_db->p_current_db->ep_lft_tbl,
-					       cl_qmap_key(&p_lft->map_item),
-					       &p_tmp_lft->map_item);
-			}
-		}
+		if (ssa_db->p_previous_db->initialized)
+			ep_lft_qmap_copy(&ssa_db->p_current_db->ep_lft_tbl,
+					 &ssa_db->p_previous_db->ep_lft_tbl);
 		remove_dump_db(ssa, ssa_db->p_previous_db);
 		ssa_db_delete(ssa_db->p_previous_db);
 		ssa_db->p_previous_db = ssa_db_tmp;
@@ -776,7 +757,7 @@ fprintf_log(ssa->log_file, "Now dumping OSM db\n");
 
 		/* Getting SMDB changes from the last dump */
 		p_ssa_db_diff =
-			ssa_db_compare(ssa, ssa_db->p_previous_db, ssa_db->p_current_db);
+			ssa_db_compare(ssa, ssa_db);
 		if (p_ssa_db_diff) {
 			sprintf(buffer, "SMDB was changed. Pushing the changes...\n");
 			fprintf_log(ssa->log_file, buffer);

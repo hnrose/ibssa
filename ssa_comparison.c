@@ -51,6 +51,7 @@ struct ssa_db_diff *ssa_db_diff_init()
 		cl_qmap_init(&p_ssa_db_diff->ep_node_tbl_removed);
 		cl_qmap_init(&p_ssa_db_diff->ep_port_tbl_removed);
 		cl_qmap_init(&p_ssa_db_diff->ep_link_tbl_removed);
+		cl_qmap_init(&p_ssa_db_diff->ep_lft_block_tbl);
 	}
 	return p_ssa_db_diff;
 }
@@ -76,6 +77,8 @@ void ssa_db_diff_destroy(struct ssa_db_diff * p_ssa_db_diff)
 				   ep_link_rec_delete_pfn);
 		ssa_qmap_apply_func(&p_ssa_db_diff->ep_link_tbl_removed,
 				   ep_link_rec_delete_pfn);
+		ssa_qmap_apply_func(&p_ssa_db_diff->ep_lft_block_tbl,
+				   ep_lft_block_rec_delete_pfn);
 
 		cl_qmap_remove_all(&p_ssa_db_diff->ep_guid_to_lid_tbl_added);
 		cl_qmap_remove_all(&p_ssa_db_diff->ep_node_tbl_added);
@@ -85,8 +88,45 @@ void ssa_db_diff_destroy(struct ssa_db_diff * p_ssa_db_diff)
 		cl_qmap_remove_all(&p_ssa_db_diff->ep_node_tbl_removed);
 		cl_qmap_remove_all(&p_ssa_db_diff->ep_port_tbl_removed);
 		cl_qmap_remove_all(&p_ssa_db_diff->ep_link_tbl_removed);
+		cl_qmap_remove_all(&p_ssa_db_diff->ep_lft_block_tbl);
 		free(p_ssa_db_diff);
 	}
+}
+
+/** =========================================================================
+ */
+struct ep_lft_block_rec *ep_lft_block_rec_init(IN struct ep_lft_rec * p_lft_rec,
+					       IN uint16_t lid,
+					       IN uint16_t block)
+{
+	struct ep_lft_block_rec *p_lft_block_rec;
+
+	p_lft_block_rec = (struct ep_lft_block_rec*) malloc(sizeof(*p_lft_block_rec));
+	if (p_lft_block_rec) {
+		p_lft_block_rec->block_num = block;
+		p_lft_block_rec->lid = lid;
+		memcpy(p_lft_block_rec->block,
+		       p_lft_rec->lft + block * IB_SMP_DATA_SIZE,
+		       IB_SMP_DATA_SIZE);
+	}
+	return p_lft_block_rec;
+}
+
+/** =========================================================================
+ */
+void ep_lft_block_rec_delete(struct ep_lft_block_rec * p_lft_block_rec)
+{
+	free(p_lft_block_rec);
+}
+
+/** =========================================================================
+ */
+void ep_lft_block_rec_delete_pfn(cl_map_item_t *p_map_item)
+{
+	struct ep_lft_block_rec *p_lft_block_rec;
+
+	p_lft_block_rec = (struct ep_lft_block_rec *) p_map_item;
+	ep_lft_block_rec_delete(p_lft_block_rec);
 }
 
 /** =========================================================================
@@ -279,7 +319,9 @@ static void ssa_db_diff_compare_subnet_nodes(IN struct ssa_db * p_previous_db,
 	 *
 	 *    (when SMDB is updated using the ssa_db_diff
 	 *    structure the "removed" records map has to applied first
-	 *    and only afterwards the "added" records may be added)
+	 *    and only afterwards the "added" records may be added,
+	 *    for LFT records there is only single map for changed
+	 *    blocks that need to be set)
 	 */
 	/*
 	 * Comparing ep_guid_to_lid_rec records
@@ -538,6 +580,92 @@ static void ssa_db_diff_compare_subnet_nodes(IN struct ssa_db * p_previous_db,
 
 /** =========================================================================
  */
+inline uint64_t ep_lft_block_rec_gen_key(uint16_t lid, uint16_t block_num)
+{
+	uint64_t key;
+	key = (uint64_t) lid;
+	key |= (uint64_t) block_num << 16;
+	return key;
+}
+
+/** =========================================================================
+ */
+static void ssa_db_diff_compare_lfts(IN struct ssa_db * p_current_db,
+				     IN struct ssa_db * p_dump_db,
+				     OUT struct ssa_db_diff * const p_ssa_db_diff)
+{
+	struct ep_lft_rec *p_lft_rec, *p_lft_rec_next;
+	struct ep_lft_rec *p_lft_rec_old;
+	struct ep_lft_block_rec *p_lft_block_rec;
+	uint64_t key;
+	uint16_t i, lid, max_block_old, max_block_new;
+	uint8_t dirty = p_ssa_db_diff->dirty;
+
+	/*
+	 * Comparing ep_lft_rec records - in this case the comparison
+	 * is done only on LFTs that were changed and only modified
+	 * blocks are stored in ssa_db_diff
+	 */
+	p_lft_rec_next = (struct ep_lft_rec *)
+			cl_qmap_head(&p_dump_db->ep_lft_tbl);
+	while (p_lft_rec_next != (struct ep_lft_rec *)
+			cl_qmap_end(&p_dump_db->ep_lft_tbl)) {
+		p_lft_rec = p_lft_rec_next;
+		p_lft_rec_next = (struct ep_lft_rec *)
+			cl_qmap_next(&p_lft_rec->map_item);
+		lid = (uint16_t) cl_qmap_key(&p_lft_rec->map_item);
+		p_lft_rec_old = (struct ep_lft_rec *)
+					cl_qmap_get(&p_current_db->ep_lft_tbl,
+					(uint64_t) lid);
+		if (p_lft_rec_old != (struct ep_lft_rec *)
+			cl_qmap_end(&p_current_db->ep_lft_tbl)) {
+			/* In case of LFT record that was already present
+			 * in previous version - perform coparison (by blocks)
+			 */
+			/* assumption: switch lft size can only grow */
+			max_block_old = p_lft_rec_old->lft_size / IB_SMP_DATA_SIZE;
+			max_block_new = p_lft_rec->lft_size / IB_SMP_DATA_SIZE;
+
+			for (i = 0; i < max_block_old && i < max_block_new; i++) {
+				if (memcmp(p_lft_rec_old->lft + i * IB_SMP_DATA_SIZE,
+					   p_lft_rec->lft + i * IB_SMP_DATA_SIZE,
+					   IB_SMP_DATA_SIZE)) {
+					/* In case of different LFT blocks */
+					p_lft_block_rec =
+						ep_lft_block_rec_init(p_lft_rec, lid, i);
+					key = ep_lft_block_rec_gen_key(lid, i);
+					cl_qmap_insert(&p_ssa_db_diff->ep_lft_block_tbl,
+						       key, &p_lft_block_rec->map_item);
+				}
+			}
+
+			for ( ; i < max_block_new; i++) {
+				p_lft_block_rec =
+					ep_lft_block_rec_init(p_lft_rec, lid, i);
+				key = ep_lft_block_rec_gen_key(lid, i);
+				cl_qmap_insert(&p_ssa_db_diff->ep_lft_block_tbl,
+					       key, &p_lft_block_rec->map_item);
+			}
+
+		} else {
+			/* In case of new LFT */
+			max_block_new = p_lft_rec->lft_size / IB_SMP_DATA_SIZE;
+			for (i = 0; i < max_block_new; i++) {
+				p_lft_block_rec =
+					ep_lft_block_rec_init(p_lft_rec, lid, i);
+				key = ep_lft_block_rec_gen_key(lid, i);
+				cl_qmap_insert(&p_ssa_db_diff->ep_lft_block_tbl,
+					       key, &p_lft_block_rec->map_item);
+			}
+		}
+		dirty = 1;
+	}
+
+	p_ssa_db_diff->dirty = dirty;
+}
+
+/** =========================================================================
+ */
 #ifdef SSA_PLUGIN_VERBOSE_LOGGING
 static void ssa_db_diff_dump_fabric_params(IN struct ssa_events * ssa,
 					   IN struct ssa_db_diff * p_ssa_db_diff)
@@ -694,6 +822,21 @@ static void ssa_db_diff_dump_port_rec(IN struct ssa_events * ssa,
 
 /** =========================================================================
  */
+static void ssa_db_diff_dump_lft_block_rec(IN struct ssa_events * ssa,
+					   IN cl_map_item_t * p_item)
+{
+	struct ep_lft_block_rec *p_lft_block_rec = (struct ep_lft_block_rec *) p_item;
+	char buffer[64];
+
+	if (p_lft_block_rec) {
+		sprintf(buffer, "LFT Block Record: LID %u block # %u\n",
+			p_lft_block_rec->lid, p_lft_block_rec->block_num);
+		fprintf_log(ssa->log_file, buffer);
+	}
+}
+
+/** =========================================================================
+ */
 static void ssa_db_diff_dump_link_rec(IN struct ssa_events * ssa,
 				      IN cl_map_item_t * p_item)
 {
@@ -774,6 +917,12 @@ static void ssa_db_diff_dump(IN struct ssa_events * ssa,
 			      ssa, ssa_db_diff_dump_port_rec);
 
 	fprintf_log(ssa->log_file, "-----------------------------------\n");
+	fprintf_log(ssa->log_file, "LFT block records:\n");
+	fprintf_log(ssa->log_file, "-----------------------------------\n");
+	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_lft_block_tbl,
+			      ssa, ssa_db_diff_dump_lft_block_rec);
+
+	fprintf_log(ssa->log_file, "-----------------------------------\n");
 	fprintf_log(ssa->log_file, "Link Records:\n");
 	fprintf_log(ssa->log_file, "-----------------------------------\n");
 	fprintf_log(ssa->log_file, "Added records:\n");
@@ -841,6 +990,77 @@ void ep_node_qmap_copy(cl_qmap_t *p_dest_qmap, cl_qmap_t * p_src_qmap)
 
 /** =========================================================================
  */
+void ep_lft_block_rec_copy(OUT struct ep_lft_block_rec * p_dest_rec,
+			   IN struct ep_lft_block_rec * p_src_rec)
+{
+	p_dest_rec->lid = p_src_rec->lid;
+	p_dest_rec->block_num = p_src_rec->block_num;
+	memcpy(p_dest_rec->block, p_src_rec->block, sizeof(p_dest_rec->block));
+}
+
+/** =========================================================================
+ */
+void ep_lft_block_qmap_copy(cl_qmap_t *p_dest_qmap, cl_qmap_t * p_src_qmap)
+{
+	struct ep_lft_block_rec *p_lft_block_rec, *p_lft_block_rec_next;
+	struct ep_lft_block_rec *p_lft_block_rec_new;
+
+	p_lft_block_rec_next = (struct ep_lft_block_rec *) cl_qmap_head(p_src_qmap);
+	while (p_lft_block_rec_next !=
+	       (struct ep_lft_block_rec *) cl_qmap_end(p_src_qmap)) {
+		p_lft_block_rec = p_lft_block_rec_next;
+		p_lft_block_rec_next = (struct ep_lft_block_rec *)
+				   cl_qmap_next(&p_lft_block_rec->map_item);
+		p_lft_block_rec_new = (struct ep_lft_block_rec *)
+				  malloc(sizeof(*p_lft_block_rec_new));
+		if (!p_lft_block_rec_new) {
+			/* handle failure - bad memory allocation */
+		}
+		ep_lft_block_rec_copy(p_lft_block_rec_new, p_lft_block_rec);
+		cl_qmap_insert(p_dest_qmap,
+			       cl_qmap_key(&p_lft_block_rec->map_item),
+			       &p_lft_block_rec_new->map_item);
+	}
+}
+
+/** =========================================================================
+ */
+void ep_lft_qmap_copy(cl_qmap_t *p_dest_qmap, cl_qmap_t * p_src_qmap)
+{
+	struct ep_lft_rec *p_next_lft, *p_lft, *p_tmp_lft, *p_old_lft;
+
+	p_next_lft= (struct ep_lft_rec *)cl_qmap_head(p_src_qmap);
+	while (p_next_lft !=
+	       (struct ep_lft_rec *)cl_qmap_end(p_src_qmap)) {
+		p_lft = p_next_lft;
+		p_next_lft = (struct ep_lft_rec *) cl_qmap_next(&p_lft->map_item);
+		p_tmp_lft = (struct ep_lft_rec *) malloc(sizeof(*p_tmp_lft));
+		if (!p_tmp_lft) {
+			/* handle failure - bad memory allocation */
+		}
+		p_tmp_lft->lft = malloc(p_lft->lft_size);
+		if (!p_tmp_lft->lft) {
+			/* handle failure - bad memory allocation */
+		}
+		ep_lft_rec_copy(p_tmp_lft, p_lft);
+
+		/* check if LFT record for the same LID already exists */
+		p_old_lft = (struct ep_lft_rec *)
+				cl_qmap_get(p_dest_qmap,
+					    cl_qmap_key(&p_lft->map_item));
+		if (p_old_lft) {
+			cl_qmap_remove(p_dest_qmap,
+				       cl_qmap_key(&p_lft->map_item));
+			ep_lft_rec_delete(p_old_lft);
+		}
+		cl_qmap_insert(p_dest_qmap,
+			       cl_qmap_key(&p_lft->map_item),
+			       &p_tmp_lft->map_item);
+	}
+}
+
+/** =========================================================================
+ */
 void ep_link_qmap_copy(cl_qmap_t *p_dest_qmap, cl_qmap_t * p_src_qmap)
 {
 	struct ep_link_rec *p_link_rec, *p_link_rec_next;
@@ -867,8 +1087,7 @@ void ep_link_qmap_copy(cl_qmap_t *p_dest_qmap, cl_qmap_t * p_src_qmap)
 /** =========================================================================
  */
 struct ssa_db_diff *ssa_db_compare(IN struct ssa_events * ssa,
-				   IN struct ssa_db * p_previous_db,
-				   IN struct ssa_db * p_current_db)
+				   IN struct ssa_database * ssa_db)
 {
 	char buffer[64];
 	struct ssa_db_diff *p_ssa_db_diff = NULL;
@@ -876,7 +1095,8 @@ struct ssa_db_diff *ssa_db_compare(IN struct ssa_events * ssa,
 	sprintf(buffer, "Start SMDB comparison\n");
 	fprintf_log(ssa->log_file, buffer);
 
-	if (!p_previous_db || !p_current_db) {
+	if (!ssa_db || !ssa_db->p_previous_db ||
+	    !ssa_db->p_current_db || !ssa_db->p_dump_db) {
 		/* bad arguments - error handling */
 		sprintf(buffer, "SMDB Comparison: bad arguments\n");
 		fprintf_log(ssa->log_file, buffer);
@@ -891,17 +1111,27 @@ struct ssa_db_diff *ssa_db_compare(IN struct ssa_events * ssa,
 		goto Exit;
 	}
 
-	ssa_db_diff_compare_subnet_opts(p_previous_db, p_current_db, p_ssa_db_diff);
-	ssa_db_diff_compare_subnet_nodes(p_previous_db, p_current_db, p_ssa_db_diff);
+	ssa_db_diff_compare_subnet_opts(ssa_db->p_previous_db,
+					ssa_db->p_current_db, p_ssa_db_diff);
+	ssa_db_diff_compare_subnet_nodes(ssa_db->p_previous_db,
+					 ssa_db->p_current_db, p_ssa_db_diff);
+
+	ssa_db_diff_compare_lfts(ssa_db->p_current_db,
+				 ssa_db->p_dump_db, p_ssa_db_diff);
+
+	/* update all records in current_db and remove all from dump_db */
+	ep_lft_qmap_copy(&ssa_db->p_current_db->ep_lft_tbl,
+			 &ssa_db->p_dump_db->ep_lft_tbl);
+	ssa_qmap_apply_func(&ssa_db->p_dump_db->ep_lft_tbl, ep_lft_rec_delete_pfn);
+	cl_qmap_remove_all(&ssa_db->p_dump_db->ep_lft_tbl);
 
 	if (!p_ssa_db_diff->dirty) {
-		sprintf(buffer, "SMDB was not changed\n");
-		fprintf_log(ssa->log_file, buffer);
-		ssa_db_diff_destroy(p_ssa_db_diff);
-		p_ssa_db_diff = NULL;
-		goto Exit;
-	}
-
+                sprintf(buffer, "SMDB was not changed\n");
+                fprintf_log(ssa->log_file, buffer);
+                ssa_db_diff_destroy(p_ssa_db_diff);
+                p_ssa_db_diff = NULL;
+                goto Exit;
+        }
 #ifdef SSA_PLUGIN_VERBOSE_LOGGING
 	ssa_db_diff_dump(ssa, p_ssa_db_diff);
 #endif
