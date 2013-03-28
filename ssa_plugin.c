@@ -173,6 +173,9 @@ static void destroy(void *_ssa)
 	struct ssa_events *ssa = (struct ssa_events *) _ssa;
 
 	fprintf_log(ssa->log_file, "SSA Plugin stopped\n");
+	ssa_db_delete(ssa_db->p_previous_db);
+	ssa_db_delete(ssa_db->p_current_db);
+	ssa_db_delete(ssa_db->p_dump_db);
 	ssa_database_delete(ssa_db);
 	fclose(ssa->log_file);
 	free(ssa);
@@ -289,6 +292,15 @@ static struct ssa_db *dump_osm_db(struct ssa_events *ssa)
 		 */
 		if (osm_node_get_type(p_node) == IB_NODE_TYPE_SWITCH) {
 			if (is_first_dump) {
+				p_lft_rec = (struct ep_lft_rec *)
+						cl_qmap_get(&p_ssa->ep_lft_tbl,
+							    cl_ntoh16(osm_node_get_base_lid(p_node, 0)));
+				if (p_lft_rec != (struct ep_lft_rec *)
+							cl_qmap_end(&p_ssa->ep_lft_tbl)) {
+					cl_qmap_remove(&p_ssa->ep_lft_tbl,
+						       cl_qmap_key(&p_lft_rec->map_item));
+					ep_lft_rec_delete(p_lft_rec);
+				}
 				p_lft_rec = ep_lft_rec_init(p_node->sw);
 				if (p_lft_rec) {
 					cl_qmap_insert(&p_ssa->ep_lft_tbl,

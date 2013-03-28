@@ -80,11 +80,24 @@ struct ssa_db *ssa_db_init(uint16_t lids)
 
 void ssa_db_delete(struct ssa_db *p_ssa_db)
 {
+	struct ep_port_rec *p_port_rec;
+	uint16_t lid;
+
 	if (p_ssa_db) {
-		/* change removals once memory allocated!!! */
-		/* TODO: slvl vector elements for each port_rec have to be freed */
+		for(lid = 1;
+		    lid < (uint16_t) cl_ptr_vector_get_size(&p_ssa_db->ep_port_tbl);
+		    lid++) {
+			p_port_rec = (struct ep_port_rec *)
+					cl_ptr_vector_get(&p_ssa_db->ep_port_tbl, lid);
+			ep_port_rec_delete(p_port_rec);
+		}
+		ssa_qmap_apply_func(&p_ssa_db->ep_node_tbl, ep_node_rec_delete_pfn);
+		ssa_qmap_apply_func(&p_ssa_db->ep_guid_to_lid_tbl,
+				    ep_guid_to_lid_rec_delete_pfn);
+		ssa_qmap_apply_func(&p_ssa_db->ep_link_tbl, ep_link_rec_delete_pfn);
+		ssa_qmap_apply_func(&p_ssa_db->ep_lft_tbl, ep_lft_rec_delete_pfn);
+
 		cl_ptr_vector_destroy(&p_ssa_db->ep_port_tbl);
-		/* See ssa_plugin.c:remove_dump_db !!! */
 		cl_qmap_remove_all(&p_ssa_db->ep_node_tbl);
 		cl_qmap_remove_all(&p_ssa_db->ep_guid_to_lid_tbl);
 		cl_qmap_remove_all(&p_ssa_db->ep_link_tbl);

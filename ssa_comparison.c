@@ -1048,7 +1048,8 @@ void ep_lft_qmap_copy(cl_qmap_t *p_dest_qmap, cl_qmap_t * p_src_qmap)
 		p_old_lft = (struct ep_lft_rec *)
 				cl_qmap_get(p_dest_qmap,
 					    cl_qmap_key(&p_lft->map_item));
-		if (p_old_lft) {
+		if (p_old_lft != (struct ep_lft_rec *)
+					cl_qmap_end(p_dest_qmap)) {
 			cl_qmap_remove(p_dest_qmap,
 				       cl_qmap_key(&p_lft->map_item));
 			ep_lft_rec_delete(p_old_lft);
