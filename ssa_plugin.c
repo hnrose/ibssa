@@ -173,9 +173,6 @@ static void destroy(void *_ssa)
 	struct ssa_events *ssa = (struct ssa_events *) _ssa;
 
 	fprintf_log(ssa->log_file, "SSA Plugin stopped\n");
-	ssa_db_delete(ssa_db->p_previous_db);
-	ssa_db_delete(ssa_db->p_current_db);
-	ssa_db_delete(ssa_db->p_dump_db);
 	ssa_database_delete(ssa_db);
 	fclose(ssa->log_file);
 	free(ssa);

@@ -137,6 +137,27 @@ static void ssa_db_diff_compare_subnet_opts(IN struct ssa_db * p_previous_db,
 {
 	uint8_t dirty = p_ssa_db_diff->dirty;
 
+	if (!p_previous_db->initialized && p_current_db->initialized) {
+		p_ssa_db_diff->subnet_prefix = p_current_db->subnet_prefix;
+		p_ssa_db_diff->sm_state = p_current_db->sm_state;
+		p_ssa_db_diff->lmc = p_current_db->lmc;
+		p_ssa_db_diff->subnet_timeout = p_current_db->subnet_timeout;
+		p_ssa_db_diff->fabric_mtu = p_current_db->fabric_mtu;
+		p_ssa_db_diff->enable_quirks = p_current_db->enable_quirks;
+		p_ssa_db_diff->allow_both_pkeys = p_current_db->allow_both_pkeys;
+
+		p_ssa_db_diff->change_mask |= SSA_DB_CHANGEMASK_SUBNET_PREFIX;
+		p_ssa_db_diff->change_mask |= SSA_DB_CHANGEMASK_SM_STATE;
+		p_ssa_db_diff->change_mask |= SSA_DB_CHANGEMASK_LMC;
+		p_ssa_db_diff->change_mask |= SSA_DB_CHANGEMASK_SUBNET_TIMEOUT;
+		p_ssa_db_diff->change_mask |= SSA_DB_CHANGEMASK_FABRIC_MTU;
+		p_ssa_db_diff->change_mask |= SSA_DB_CHANGEMASK_ENABLE_QUIRKS;
+		p_ssa_db_diff->change_mask |= SSA_DB_CHANGEMASK_ALLOW_BOTH_PKEYS;
+
+		dirty = 1;
+		goto Exit;
+	}
+
 	if (p_previous_db->subnet_prefix != p_current_db->subnet_prefix) {
 		p_ssa_db_diff->subnet_prefix = p_current_db->subnet_prefix;
 		p_ssa_db_diff->change_mask |= SSA_DB_CHANGEMASK_SUBNET_PREFIX;
@@ -178,7 +199,7 @@ static void ssa_db_diff_compare_subnet_opts(IN struct ssa_db * p_previous_db,
 		p_ssa_db_diff->change_mask |= SSA_DB_CHANGEMASK_ALLOW_BOTH_PKEYS;
 		dirty = 1;
 	}
-
+Exit:
 	p_ssa_db_diff->dirty = dirty;
 }
 
@@ -507,8 +528,7 @@ static void ssa_db_diff_compare_subnet_nodes(IN struct ssa_db * p_previous_db,
 	     lid++) {		/* increment LID by LMC ??? */
 		p_port_rec_new = (struct ep_port_rec *) cl_ptr_vector_get(&p_current_db->ep_port_tbl, lid);
 		if (p_port_rec_new) {
-			p_port_rec_old = (struct ep_port_rec *) cl_ptr_vector_get(&p_previous_db->ep_port_tbl, lid);
-			if (!p_port_rec_old) {
+			if (!p_previous_db->initialized) {
 				used_blocks = p_port_rec_new->ep_pkey_rec.used_blocks;
 				p_port_rec = (struct ep_port_rec *) malloc(sizeof(*p_port_rec) +
 					      sizeof(p_port_rec_new->ep_pkey_rec.pkey_tbl[0]) * used_blocks);
@@ -518,6 +538,20 @@ static void ssa_db_diff_compare_subnet_nodes(IN struct ssa_db * p_previous_db,
 				ep_port_rec_copy(p_port_rec, p_port_rec_new);
 				cl_qmap_insert(&p_ssa_db_diff->ep_port_tbl_added,
 					       lid, &p_port_rec->map_item);
+			} else {
+				p_port_rec_old = (struct ep_port_rec *)
+							cl_ptr_vector_get(&p_previous_db->ep_port_tbl, lid);
+				if (!p_port_rec_old) {
+					used_blocks = p_port_rec_new->ep_pkey_rec.used_blocks;
+					p_port_rec = (struct ep_port_rec *) malloc(sizeof(*p_port_rec) +
+						      sizeof(p_port_rec_new->ep_pkey_rec.pkey_tbl[0]) * used_blocks);
+					if (!p_port_rec) {
+						/* handle failure - bad memory allocation */
+					}
+					ep_port_rec_copy(p_port_rec, p_port_rec_new);
+					cl_qmap_insert(&p_ssa_db_diff->ep_port_tbl_added,
+						       lid, &p_port_rec->map_item);
+				}
 			}
 		}
 	}
