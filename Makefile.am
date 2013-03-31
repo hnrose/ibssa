@@ -45,7 +45,8 @@ LDADD =
 
 ssa_api_version=$(shell \grep LIBVERSION= $(srcdir)/libssa.ver | sed 's/LIBVERSION=//')
 libssa_la_LDFLAGS = -version-info $(ssa_api_version) -export-dynamic
-libssa_la_SOURCES = $(srcdir)/ssa_database.c $(srcdir)/ssa_plugin.c $(srcdir)/ssa_comparison.c
+libssa_la_SOURCES = $(srcdir)/ssa_database.c $(srcdir)/ssa_plugin.c \
+		    $(srcdir)/ssa_comparison.c $(srcdir)/ssa_extract.c
 #libssa_la_LIBADD =
 lib_LTLIBRARIES = libssa.la
 
