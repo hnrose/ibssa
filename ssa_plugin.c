@@ -246,14 +246,14 @@ static void report(void *_ssa, osm_epi_event_id_t event_id, void *event_data)
 
 if (ssa_db->p_dump_db)
 fprintf_log(ssa->log_file, "First removing existing SSA dump db\n");
-		remove_dump_db(ssa, ssa_db->p_dump_db);
+		ssa_db_remove(ssa, ssa_db->p_dump_db);
 fprintf_log(ssa->log_file, "Now dumping OSM db\n");
-		ssa_db->p_dump_db = dump_osm_db(ssa);
+		ssa_db->p_dump_db = ssa_db_extract(ssa);
 		/* For verification */
-		validate_dump_db(ssa, ssa_db->p_dump_db);
+		ssa_db_validate(ssa, ssa_db->p_dump_db);
 
 		/* Updating SMDB versions */
-		update_ssa_db(ssa, ssa_db);
+		ssa_db_update(ssa, ssa_db);
 
 		/* Getting SMDB changes from the last dump */
 		p_ssa_db_diff =

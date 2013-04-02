@@ -55,10 +55,10 @@ struct ssa_events {
 	osm_opensm_t *p_osm;
 };
 
-extern struct ssa_db *dump_osm_db(struct ssa_events *ssa);
-extern void validate_dump_db(struct ssa_events *ssa, struct ssa_db *p_dump_db);
-extern void remove_dump_db(struct ssa_events *ssa, struct ssa_db *p_dump_db);
-extern void update_ssa_db(struct ssa_events *ssa, struct ssa_database *ssa_db);
+extern struct ssa_db *ssa_db_extract(struct ssa_events *ssa);
+extern void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db);
+extern void ssa_db_remove(struct ssa_events *ssa, struct ssa_db *p_ssa_db);
+extern void ssa_db_update(struct ssa_events *ssa, struct ssa_database *ssa_db);
 
 void fprintf_log(FILE *log_file, const char *buffer);
 END_C_DECLS
