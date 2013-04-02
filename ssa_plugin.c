@@ -42,6 +42,7 @@
 #include <ssa_database.h>
 #include <ssa_plugin.h>
 #include <ssa_comparison.h>
+#include <ssa_extract.h>
 
 struct ssa_database *ssa_db = NULL;
 

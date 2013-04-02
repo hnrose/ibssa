@@ -31,12 +31,8 @@
  *
  */
 
-#ifndef _SSA_PLUGIN_H_
-#define _SSA_PLUGIN_H_
-
-#include <iba/ib_types.h>
-#include <opensm/osm_opensm.h>
-#include <ssa_database.h>
+#ifndef _SSA_EXTRACT_H_
+#define _SSA_EXTRACT_H_
 
 #ifdef __cplusplus
 #  define BEGIN_C_DECLS extern "C" {
@@ -48,13 +44,10 @@
 
 BEGIN_C_DECLS
 
-#define SSA_PLUGIN_OUTPUT_FILE "ssa_plugin.log"
-struct ssa_events {
-	FILE *log_file;
-	osm_log_t *osmlog;
-	osm_opensm_t *p_osm;
-};
+struct ssa_db *ssa_db_extract(struct ssa_events *ssa);
+void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db);
+void ssa_db_remove(struct ssa_events *ssa, struct ssa_db *p_ssa_db);
+void ssa_db_update(struct ssa_events *ssa, struct ssa_database *ssa_db);
 
-void fprintf_log(FILE *log_file, const char *buffer);
 END_C_DECLS
-#endif				/* _SSA_PLUGIN_H_ */
+#endif				/* _SSA_EXTRACT_H_ */
