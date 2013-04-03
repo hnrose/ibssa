@@ -37,6 +37,8 @@
 #include <ssa_comparison.h>
 
 extern char *port_state_str[];
+extern struct ssa_database *ssa_db;
+extern uint8_t first_time_subnet_up;
 
 /** =========================================================================
  */
@@ -62,12 +64,12 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 	struct ep_node_rec *p_node_rec;
 	struct ep_guid_to_lid_rec *p_guid_to_lid_rec;
 	struct ep_port_rec *p_port_rec;
-	struct ep_lft_rec *p_lft_cur, *p_lft_next, *p_lft_rec;
 	struct ep_link_rec *p_link_rec;
+	struct ep_lft_block_rec *p_lft_block_rec;
+	struct ep_lft_top_rec *p_lft_top_rec;
 	uint64_t ep_rec_key;
-	uint16_t lids;
-	uint8_t i;
-	static uint8_t is_first_dump = 1;
+	uint16_t lids, lid_ho, max_block;
+	uint16_t i;
 #ifdef SSA_PLUGIN_VERBOSE_LOGGING
 	uint8_t is_fdr10_active;
 #endif
@@ -115,33 +117,40 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 				cl_ntoh64(osm_node_get_node_guid(p_node)));
 		}
 
+		/* TODO: add more cases when full dump is needed */
+		if (!first_time_subnet_up)
+			continue;
+
+		ep_lft_block_rec_qmap_clear(&ssa_db->p_lft_db->ep_db_lft_block_tbl);
+		ep_lft_top_rec_qmap_clear(&ssa_db->p_lft_db->ep_db_lft_top_tbl);
+
 		/* 		Adding LFT tables
 		 * When the first SMDB dump is performed, all LFTs
 		 * are added automatically, further dumps or changes
 		 * will be done only on OSM_EVENT_ID_LFT_CHANGE
 		 */
 		if (osm_node_get_type(p_node) == IB_NODE_TYPE_SWITCH) {
-			if (is_first_dump) {
-				p_lft_rec = (struct ep_lft_rec *)
-						cl_qmap_get(&p_ssa->ep_lft_tbl,
-							    cl_ntoh16(osm_node_get_base_lid(p_node, 0)));
-				if (p_lft_rec != (struct ep_lft_rec *)
-							cl_qmap_end(&p_ssa->ep_lft_tbl)) {
-					cl_qmap_remove(&p_ssa->ep_lft_tbl,
-						       cl_qmap_key(&p_lft_rec->map_item));
-					ep_lft_rec_delete(p_lft_rec);
+			max_block = p_node->sw->lft_size / IB_SMP_DATA_SIZE;
+			lid_ho = cl_ntoh16(osm_node_get_base_lid(p_node, 0));
+			p_lft_top_rec = ep_lft_top_rec_init(lid_ho, p_node->sw->lft_size);
+			if (!p_lft_top_rec) {
+				/* add handling memory allocation failure */
+			}
+			ep_rec_key = ep_lft_top_rec_gen_key(lid_ho);
+			cl_qmap_insert(&ssa_db->p_lft_db->ep_db_lft_top_tbl,
+				       ep_rec_key, &p_lft_top_rec->map_item);
+			for(i = 0; i < max_block; i++) {
+				p_lft_block_rec = ep_lft_block_rec_init(p_node->sw,
+									lid_ho, i);
+				if (!p_lft_block_rec) {
+					/* add handling memory allocation failure */
 				}
-				p_lft_rec = ep_lft_rec_init(p_node->sw);
-				if (p_lft_rec) {
-					cl_qmap_insert(&p_ssa->ep_lft_tbl,
-						       cl_ntoh16(osm_node_get_base_lid(p_node, 0)),
-						       &p_lft_rec->map_item);
-					/* handle error !!! */
-				}
+				ep_rec_key = ep_lft_block_rec_gen_key(lid_ho, i);
+				cl_qmap_insert(&ssa_db->p_lft_db->ep_db_lft_block_tbl,
+					       ep_rec_key, &p_lft_block_rec->map_item);
 			}
 		}
 	}
-	is_first_dump = 0;
 
 	p_next_port = (osm_port_t *)cl_qmap_head(&p_subn->port_guid_tbl);
 	while (p_next_port !=
@@ -286,26 +295,6 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 		}
 	}
 
-	/* remove all LFT records for switches that doesn't exist */
-	/* HACK: for removed switch whose LID was immediately
-	 * assigned to another port, its LFT record won't be deleted
-	 */
-	p_lft_next = (struct ep_lft_rec *) cl_qmap_head(&p_ssa->ep_lft_tbl);
-	while (p_lft_next !=
-	       (struct ep_lft_rec *) cl_qmap_end(&p_ssa->ep_lft_tbl)) {
-		p_lft_cur = p_lft_next;
-		p_lft_next = (struct ep_lft_rec *) cl_qmap_next(&p_lft_cur->map_item);
-		ep_rec_key = ep_rec_gen_key((uint16_t) cl_qmap_key(&p_lft_cur->map_item),
-					    (uint8_t) 0);
-		p_port_rec = (struct ep_port_rec *)
-				cl_qmap_get(&p_ssa->ep_port_tbl, ep_rec_key);
-		if (!p_port_rec) {
-			cl_qmap_remove_item(&p_ssa->ep_lft_tbl,
-					    &p_lft_cur->map_item);
-			ep_lft_rec_delete(p_lft_cur);
-		}
-	}
-
 	p_ssa->initialized = 1;
 
 	ssa_log(SSA_LOG_VERBOSE, "]\n");
@@ -315,12 +304,45 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 
 /** =========================================================================
  */
+void ssa_db_validate_lft(struct ssa_events *ssa)
+{
+	struct ep_lft_block_rec *p_lft_block, *p_next_lft_block;
+	struct ep_lft_top_rec *p_lft_top, *p_next_lft_top;
+
+	if (!first_time_subnet_up)
+		return;
+
+	p_next_lft_block = (struct ep_lft_block_rec *)
+				cl_qmap_head(&ssa_db->p_lft_db->ep_db_lft_block_tbl);
+	while (p_next_lft_block != (struct ep_lft_block_rec *)
+				cl_qmap_end(&ssa_db->p_lft_db->ep_db_lft_block_tbl)) {
+		p_lft_block = p_next_lft_block;
+		p_next_lft_block = (struct ep_lft_block_rec *)
+					cl_qmap_next(&p_lft_block->map_item);
+		ssa_log(SSA_LOG_VERBOSE, "LFT Block Record: LID %u Block num %u\n",
+			p_lft_block->lid,
+			p_lft_block->block_num);
+	}
+	p_next_lft_top = (struct ep_lft_top_rec *)
+				cl_qmap_head(&ssa_db->p_lft_db->ep_db_lft_top_tbl);
+	while (p_next_lft_top != (struct ep_lft_top_rec *)
+			cl_qmap_end(&ssa_db->p_lft_db->ep_db_lft_top_tbl)) {
+		p_lft_top = p_next_lft_top;
+		p_next_lft_top = (struct ep_lft_top_rec *)
+					cl_qmap_next(&p_lft_top->map_item);
+		ssa_log(SSA_LOG_VERBOSE, "LFT Top Record: LID %u New Top %u\n",
+			p_lft_top->lid,
+			p_lft_top->lft_top);
+	}
+}
+
+/** =========================================================================
+ */
 void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 {
 	struct ep_node_rec *p_node, *p_next_node;
 	struct ep_guid_to_lid_rec *p_port, *p_next_port;
 	struct ep_port_rec *p_port_rec, *p_next_port_rec;
-	struct ep_lft_rec *p_lft, *p_next_lft;
 	struct ep_link_rec *p_link, *p_next_link;
 	const ib_pkey_table_t *block;
 	char buffer[64];
@@ -400,15 +422,6 @@ void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 		}
 	}
 
-	p_next_lft = (struct ep_lft_rec *)cl_qmap_head(&p_ssa_db->ep_lft_tbl);
-	while (p_next_lft !=
-	       (struct ep_lft_rec *)cl_qmap_end(&p_ssa_db->ep_lft_tbl)) {
-		p_lft = p_next_lft;
-		p_next_lft = (struct ep_lft_rec *)cl_qmap_next(&p_lft->map_item);
-		ssa_log(SSA_LOG_VERBOSE, "LFT Record: LID %u lft size %u maximum LID reachable %u\n",
-			(uint16_t) cl_qmap_key(&p_lft->map_item), p_lft->lft_size, p_lft->max_lid_ho);
-	}
-
 	p_next_link = (struct ep_link_rec *)cl_qmap_head(&p_ssa_db->ep_link_tbl);
 	while (p_next_link !=
 	       (struct ep_link_rec *)cl_qmap_end(&p_ssa_db->ep_link_tbl)) {
@@ -477,8 +490,7 @@ void ssa_db_remove(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 		ep_link_rec_delete(p_link);
 	}
 
-	if (cl_qmap_head(&p_ssa_db->ep_lft_tbl) == cl_qmap_end(&p_ssa_db->ep_lft_tbl))
-		p_ssa_db->initialized = 0;
+	p_ssa_db->initialized = 0;
 	ssa_log(SSA_LOG_VERBOSE, "]\n");
 }
 

@@ -38,6 +38,7 @@
 #include <opensm/osm_config.h>
 #include <opensm/osm_version.h>
 #include <opensm/osm_opensm.h>
+#include <opensm/osm_event_plugin.h>
 #include <opensm/osm_log.h>
 #include <ssa_database.h>
 #include <ssa_plugin.h>
@@ -47,6 +48,7 @@
 
 struct ssa_database *ssa_db = NULL;
 static FILE *flog;
+uint8_t first_time_subnet_up = 1;
 
 static const char *month_str[] = {
 	"Jan",
@@ -236,33 +238,63 @@ static void report(void *_ssa, osm_epi_event_id_t event_id, void *event_data)
 {
 	struct ssa_events *ssa = (struct ssa_events *) _ssa;
 	struct ssa_db_diff *p_ssa_db_diff;
-	struct ep_lft_rec *p_lft_rec, *p_lft_rec_old;
-	osm_switch_t *p_sw;
-	uint16_t lid_ho;
+	struct ep_lft_block_rec *p_lft_block, *p_lft_block_old;
+	struct ep_lft_top_rec *p_lft_top, *p_lft_top_old;
+	osm_epi_lft_change_event_t *p_lft_change;
+	uint64_t key;
+	uint16_t lid, block_num;
 
 	switch (event_id) {
 	case OSM_EVENT_ID_TRAP:
 		handle_trap_event(ssa, (ib_mad_notice_attr_t *) event_data);
 		break;
 	case OSM_EVENT_ID_LFT_CHANGE:
-		p_sw = (osm_switch_t *) event_data;
-		if (p_sw) {
-			lid_ho = cl_ntoh16(osm_node_get_base_lid(p_sw->p_node, 0));
-			ssa_log(SSA_LOG_VERBOSE, "LFT change event received for LID %u\n",
-				lid_ho);
-			p_lft_rec = ep_lft_rec_init(p_sw);
-			if (p_lft_rec) {
-				p_lft_rec_old = (struct ep_lft_rec *)
-							cl_qmap_get(&ssa_db->p_dump_db->ep_lft_tbl,
-								    (uint64_t) lid_ho);
-				if (p_lft_rec_old != (struct ep_lft_rec *)
-							cl_qmap_end(&ssa_db->p_dump_db->ep_lft_tbl))
-					/* in case of existing record that was modified */
-					cl_qmap_remove(&ssa_db->p_dump_db->ep_lft_tbl,
-						       (uint64_t) lid_ho);
-				cl_qmap_insert(&ssa_db->p_dump_db->ep_lft_tbl,
-					       lid_ho, &p_lft_rec->map_item);
-				ssa_db->p_dump_db->initialized = 1;
+		p_lft_change = (osm_epi_lft_change_event_t *) event_data;
+		if (p_lft_change && p_lft_change->p_sw) {
+			lid = cl_ntoh16(osm_node_get_base_lid(p_lft_change->p_sw->p_node, 0));
+			if (p_lft_change->flags == LFT_CHANGED_BLOCK) {
+				block_num = p_lft_change->block_num;
+				key = ep_lft_block_rec_gen_key(lid, block_num);
+				ssa_log(SSA_LOG_VERBOSE, "LFT change block event received "
+							 "for LID %u Block %u\n",
+							 lid, block_num);
+				p_lft_block = ep_lft_block_rec_init(p_lft_change->p_sw,
+								    lid, block_num);
+				if (p_lft_block) {
+					p_lft_block_old = (struct ep_lft_block_rec *)
+								cl_qmap_insert(&ssa_db->p_lft_db->ep_dump_lft_block_tbl,
+									       key, &p_lft_block->map_item);
+					if (p_lft_block_old != p_lft_block) {
+						/* in case of existing record with the same key */
+						cl_qmap_remove(&ssa_db->p_lft_db->ep_dump_lft_block_tbl, key);
+						ep_lft_block_rec_delete(p_lft_block_old);
+						cl_qmap_insert(&ssa_db->p_lft_db->ep_dump_lft_block_tbl,
+							       key, &p_lft_block->map_item);
+					}
+				}
+			} else if (p_lft_change->flags == LFT_CHANGED_LFT_TOP) {
+				key = ep_lft_top_rec_gen_key(lid);
+				ssa_log(SSA_LOG_VERBOSE, "LFT change top event received "
+							 "for LID %u New Top %u\n",
+							 lid, p_lft_change->lft_top);
+				p_lft_top = ep_lft_top_rec_init(lid, p_lft_change->lft_top);
+				if (p_lft_top) {
+					p_lft_top_old = (struct ep_lft_top_rec *)
+							cl_qmap_insert(&ssa_db->p_lft_db->ep_dump_lft_top_tbl,
+								       key, &p_lft_top->map_item);
+					if (p_lft_top_old != p_lft_top) {
+						/* in case of existing record with the same key */
+						cl_qmap_remove(&ssa_db->p_lft_db->ep_dump_lft_top_tbl, key);
+						ep_lft_top_rec_delete(p_lft_top_old);
+						cl_qmap_insert(&ssa_db->p_lft_db->ep_dump_lft_top_tbl,
+							       key, &p_lft_top->map_item);
+					}
+				}
+			} else {
+				ssa_log(SSA_LOG_ALL, "Unknown LFT change event (%d)\n", p_lft_change->flags);
+				osm_log(ssa->osmlog, OSM_LOG_ERROR,
+					"Unknown LFT change event (%d) reported to SSA plugin\n",
+					p_lft_change->flags);
 			}
 		}
 		break;
@@ -276,6 +308,7 @@ static void report(void *_ssa, osm_epi_event_id_t event_id, void *event_data)
 		ssa_db->p_dump_db = ssa_db_extract(ssa);
 		/* For verification */
 		ssa_db_validate(ssa, ssa_db->p_dump_db);
+		ssa_db_validate_lft(ssa);
 
 		/* Updating SMDB versions */
 		ssa_db_update(ssa, ssa_db);
@@ -288,7 +321,7 @@ static void report(void *_ssa, osm_epi_event_id_t event_id, void *event_data)
 			/* TODO: Here the changes are pushed down through ditribution tree */
 			ssa_db_diff_destroy(p_ssa_db_diff);
 		}
-
+		first_time_subnet_up = 0;
 		break;
 	case OSM_EVENT_ID_STATE_CHANGE:
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE,

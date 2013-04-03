@@ -46,6 +46,7 @@ BEGIN_C_DECLS
 
 struct ssa_db *ssa_db_extract(struct ssa_events *ssa);
 void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db);
+void ssa_db_validate_lft(struct ssa_events *ssa);
 void ssa_db_remove(struct ssa_events *ssa, struct ssa_db *p_ssa_db);
 void ssa_db_update(struct ssa_events *ssa, struct ssa_database *ssa_db);
 

@@ -55,13 +55,6 @@ BEGIN_C_DECLS
 #define SSA_DB_CHANGEMASK_ENABLE_QUIRKS		(((uint16_t)1)<<4)
 #define SSA_DB_CHANGEMASK_ALLOW_BOTH_PKEYS	(((uint16_t)1)<<5)
 
-struct ep_lft_block_rec {
-	cl_map_item_t map_item;
-	uint16_t lid;
-	uint16_t block_num;
-	uint8_t block[IB_SMP_DATA_SIZE];
-};
-
 /* used for making comparison between two ssa databases */
 struct ssa_db_diff {
 	/***** guid_to_lid_tbl changes tracking **********/
@@ -76,8 +69,9 @@ struct ssa_db_diff {
 	cl_qmap_t ep_port_tbl_added;
 	cl_qmap_t ep_port_tbl_removed;
 	/*************************************************/
-	/********** lft_tbl changes tracking *************/
+	/********** LFT changes tracking *****************/
 	cl_qmap_t ep_lft_block_tbl;
+	cl_qmap_t ep_lft_top_tbl;
 	/*************************************************/
 	/********** link_tbl changes tracking ************/
 	cl_qmap_t ep_link_tbl_added;
@@ -101,16 +95,5 @@ struct ssa_db_diff *ssa_db_diff_init();
 void ssa_db_diff_destroy(struct ssa_db_diff * p_ssa_db_diff);
 struct ssa_db_diff *ssa_db_compare(struct ssa_events * ssa,
 				   struct ssa_database * ssa_db);
-void ep_lft_qmap_copy(cl_qmap_t * p_dest_qmap, cl_qmap_t * p_src_qmap);
-
-/********************** LFT Block records*******************************/
-struct ep_lft_block_rec *ep_lft_block_rec_init(struct ep_lft_rec *p_lft_rec,
-					       uint16_t lid, uint16_t block);
-void ep_lft_block_rec_delete(struct ep_lft_block_rec *p_lft_block_rec);
-void ep_lft_block_rec_delete_pfn(cl_map_item_t * p_map_item);
-void ep_lft_block_rec_copy(struct ep_lft_block_rec * p_dest_rec,
-			   struct ep_lft_block_rec * p_src_rec);
-void ep_lft_block_qmap_copy(cl_qmap_t * p_dest_qmap, cl_qmap_t * p_src_qmap);
-/***********************************************************************/
 END_C_DECLS
 #endif				/* _SSA_COMPARISON_H_ */

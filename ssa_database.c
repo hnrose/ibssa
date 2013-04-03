@@ -38,7 +38,22 @@
 
 struct ssa_database *ssa_database_init()
 {
-	return (struct ssa_database *) calloc(1, sizeof(struct ssa_database));
+	struct ssa_database *p_ssa_database =
+		(struct ssa_database *) calloc(1, sizeof(struct ssa_database));
+	if (p_ssa_database) {
+		p_ssa_database->p_lft_db = (struct ssa_db_lft *)
+					malloc(sizeof(*p_ssa_database->p_lft_db));
+		if (p_ssa_database->p_lft_db) {
+			cl_qmap_init(&p_ssa_database->p_lft_db->ep_db_lft_block_tbl);
+			cl_qmap_init(&p_ssa_database->p_lft_db->ep_db_lft_top_tbl);
+			cl_qmap_init(&p_ssa_database->p_lft_db->ep_dump_lft_block_tbl);
+			cl_qmap_init(&p_ssa_database->p_lft_db->ep_dump_lft_top_tbl);
+		} else {
+			free(p_ssa_database);
+			p_ssa_database = NULL;
+		}
+	}
+	return p_ssa_database;
 }
 
 void ssa_database_delete(struct ssa_database *p_ssa_db)
@@ -47,6 +62,22 @@ void ssa_database_delete(struct ssa_database *p_ssa_db)
 		ssa_db_delete(p_ssa_db->p_dump_db);
 		ssa_db_delete(p_ssa_db->p_previous_db);
 		ssa_db_delete(p_ssa_db->p_current_db);
+		if (p_ssa_db->p_lft_db) {
+			ssa_qmap_apply_func(&p_ssa_db->p_lft_db->ep_db_lft_block_tbl,
+					    ep_lft_block_rec_delete_pfn);
+			ssa_qmap_apply_func(&p_ssa_db->p_lft_db->ep_db_lft_top_tbl,
+					    ep_lft_top_rec_delete_pfn);
+			ssa_qmap_apply_func(&p_ssa_db->p_lft_db->ep_dump_lft_block_tbl,
+					    ep_lft_block_rec_delete_pfn);
+			ssa_qmap_apply_func(&p_ssa_db->p_lft_db->ep_dump_lft_top_tbl,
+					    ep_lft_top_rec_delete_pfn);
+			cl_qmap_remove_all(&p_ssa_db->p_lft_db->ep_db_lft_block_tbl);
+			cl_qmap_remove_all(&p_ssa_db->p_lft_db->ep_db_lft_top_tbl);
+			cl_qmap_remove_all(&p_ssa_db->p_lft_db->ep_dump_lft_block_tbl);
+			cl_qmap_remove_all(&p_ssa_db->p_lft_db->ep_dump_lft_top_tbl);
+
+			free(p_ssa_db->p_lft_db);
+		}
 		free(p_ssa_db);
 	}
 }
@@ -61,7 +92,6 @@ struct ssa_db *ssa_db_init()
 		cl_qmap_init(&p_ssa_db->ep_node_tbl);
 		cl_qmap_init(&p_ssa_db->ep_port_tbl);
 		cl_qmap_init(&p_ssa_db->ep_link_tbl);
-		cl_qmap_init(&p_ssa_db->ep_lft_tbl);
 	}
 	return p_ssa_db;
 }
@@ -74,13 +104,11 @@ void ssa_db_delete(struct ssa_db *p_ssa_db)
 				    ep_guid_to_lid_rec_delete_pfn);
 		ssa_qmap_apply_func(&p_ssa_db->ep_port_tbl, ep_port_rec_delete_pfn);
 		ssa_qmap_apply_func(&p_ssa_db->ep_link_tbl, ep_link_rec_delete_pfn);
-		ssa_qmap_apply_func(&p_ssa_db->ep_lft_tbl, ep_lft_rec_delete_pfn);
 
 		cl_qmap_remove_all(&p_ssa_db->ep_node_tbl);
 		cl_qmap_remove_all(&p_ssa_db->ep_guid_to_lid_tbl);
 		cl_qmap_remove_all(&p_ssa_db->ep_port_tbl);
 		cl_qmap_remove_all(&p_ssa_db->ep_link_tbl);
-		cl_qmap_remove_all(&p_ssa_db->ep_lft_tbl);
 		free(p_ssa_db);
 	}
 }
@@ -219,49 +247,116 @@ void ep_link_rec_delete_pfn(cl_map_item_t *p_map_item)
 	ep_link_rec_delete(p_link_rec);
 }
 
-struct ep_lft_rec *ep_lft_rec_init(osm_switch_t * p_sw)
+struct ep_lft_block_rec *ep_lft_block_rec_init(IN osm_switch_t * p_sw,
+					       IN uint16_t lid,
+					       IN uint16_t block)
 {
-	struct ep_lft_rec *p_ep_lft_rec;
+	struct ep_lft_block_rec *p_lft_block_rec;
 
-	p_ep_lft_rec = (struct ep_lft_rec *) malloc(sizeof(*p_ep_lft_rec));
-	if (p_ep_lft_rec) {
-		p_ep_lft_rec->max_lid_ho = p_sw->max_lid_ho;
-		p_ep_lft_rec->lft_size = p_sw->lft_size;
-		p_ep_lft_rec->lft = malloc(p_sw->lft_size);
-		if (!p_ep_lft_rec->lft) {
-			/* add fault handling */
-		}
-		memcpy(p_ep_lft_rec->lft, p_sw->lft, p_sw->lft_size);
+	p_lft_block_rec = (struct ep_lft_block_rec*) malloc(sizeof(*p_lft_block_rec));
+	if (p_lft_block_rec) {
+		p_lft_block_rec->lid = lid;
+		p_lft_block_rec->block_num = block;
+		memcpy(p_lft_block_rec->block, p_sw->lft + block * IB_SMP_DATA_SIZE,
+		       IB_SMP_DATA_SIZE);
 	}
-	return p_ep_lft_rec;
+	return p_lft_block_rec;
 }
 
-inline uint64_t ep_lft_rec_gen_key(uint16_t lid)
+void ep_lft_block_rec_copy(OUT struct ep_lft_block_rec * p_dest_rec,
+			   IN struct ep_lft_block_rec * p_src_rec)
+{
+	p_dest_rec->lid = p_src_rec->lid;
+	p_dest_rec->block_num = p_src_rec->block_num;
+	memcpy(p_dest_rec->block, p_src_rec->block, sizeof(p_dest_rec->block));
+}
+
+inline uint64_t ep_lft_block_rec_gen_key(uint16_t lid, uint16_t block_num)
+{
+	uint64_t key;
+	key = (uint64_t) lid;
+	key |= (uint64_t) block_num << 16;
+	return key;
+}
+
+void ep_lft_block_rec_delete(struct ep_lft_block_rec * p_lft_block_rec)
+{
+	free(p_lft_block_rec);
+}
+
+void ep_lft_block_rec_delete_pfn(cl_map_item_t *p_map_item)
+{
+	struct ep_lft_block_rec *p_lft_block_rec;
+
+	p_lft_block_rec = (struct ep_lft_block_rec *) p_map_item;
+	ep_lft_block_rec_delete(p_lft_block_rec);
+}
+
+/* TODO: make generic quick map clear method */
+void ep_lft_block_rec_qmap_clear(cl_qmap_t * p_map)
+{
+	struct ep_lft_block_rec *p_lft_block, *p_lft_block_next;
+
+	p_lft_block_next = (struct ep_lft_block_rec *) cl_qmap_head(p_map);
+	while (p_lft_block_next !=
+	       (struct ep_lft_block_rec *) cl_qmap_end(p_map)) {
+		p_lft_block = p_lft_block_next;
+		p_lft_block_next = (struct ep_lft_block_rec *) cl_qmap_next(&p_lft_block->map_item);
+		cl_qmap_remove_item(p_map, &p_lft_block->map_item);
+		ep_lft_block_rec_delete(p_lft_block);
+	}
+}
+
+struct ep_lft_top_rec *ep_lft_top_rec_init(IN uint16_t lid,
+					   IN uint16_t lft_top)
+{
+	struct ep_lft_top_rec *p_lft_top_rec;
+
+	p_lft_top_rec = (struct ep_lft_top_rec*) malloc(sizeof(*p_lft_top_rec));
+	if (p_lft_top_rec) {
+		p_lft_top_rec->lid = lid;
+		p_lft_top_rec->lft_top = lft_top;
+	}
+	return p_lft_top_rec;
+}
+
+void ep_lft_top_rec_copy(OUT struct ep_lft_top_rec * p_dest_rec,
+			   IN struct ep_lft_top_rec * p_src_rec)
+{
+	p_dest_rec->lid = p_src_rec->lid;
+	p_dest_rec->lft_top = p_src_rec->lft_top;
+}
+
+inline uint64_t ep_lft_top_rec_gen_key(uint16_t lid)
 {
 	return (uint64_t) lid;
 }
 
-void ep_lft_rec_copy(struct ep_lft_rec * p_dest_rec, struct ep_lft_rec * p_src_rec)
+void ep_lft_top_rec_delete(struct ep_lft_top_rec * p_lft_top_rec)
 {
-	p_dest_rec->max_lid_ho = p_src_rec->max_lid_ho;
-	p_dest_rec->lft_size = p_src_rec->lft_size;
-	memcpy(p_dest_rec->lft, p_src_rec->lft, p_dest_rec->lft_size);
+	free(p_lft_top_rec);
 }
 
-void ep_lft_rec_delete(struct ep_lft_rec * p_ep_lft_rec)
+void ep_lft_top_rec_delete_pfn(cl_map_item_t *p_map_item)
 {
-	if (!p_ep_lft_rec) {
-		free(p_ep_lft_rec->lft);
-		free(p_ep_lft_rec);
+	struct ep_lft_top_rec *p_lft_top_rec;
+
+	p_lft_top_rec = (struct ep_lft_top_rec *) p_map_item;
+	ep_lft_top_rec_delete(p_lft_top_rec);
+}
+
+void ep_lft_top_rec_qmap_clear(cl_qmap_t * p_map)
+{
+	struct ep_lft_top_rec *p_lft_top, *p_lft_top_next;
+
+	p_lft_top_next = (struct ep_lft_top_rec *) cl_qmap_head(p_map);
+	while (p_lft_top_next !=
+	       (struct ep_lft_top_rec *) cl_qmap_end(p_map)) {
+		p_lft_top = p_lft_top_next;
+		p_lft_top_next = (struct ep_lft_top_rec *) cl_qmap_next(&p_lft_top->map_item);
+		cl_qmap_remove_item(p_map, &p_lft_top->map_item);
+		ep_lft_top_rec_delete(p_lft_top);
 	}
-}
-
-void ep_lft_rec_delete_pfn(cl_map_item_t * p_map_item)
-{
-	struct ep_lft_rec *p_lft_rec;
-
-	p_lft_rec = (struct ep_lft_rec *) p_map_item;
-	ep_lft_rec_delete(p_lft_rec);
 }
 
 struct ep_port_rec *ep_port_rec_init(osm_physp_t *p_physp)
