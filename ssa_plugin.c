@@ -43,8 +43,10 @@
 #include <ssa_plugin.h>
 #include <ssa_comparison.h>
 #include <ssa_extract.h>
+#include <stdarg.h>
 
 struct ssa_database *ssa_db = NULL;
+static FILE *flog;
 
 static const char *month_str[] = {
 	"Jan",
@@ -93,6 +95,45 @@ void fprintf_log(FILE *log_file, const char *buffer)
 
 /** =========================================================================
  */
+int  ssa_open_log(char *log_file, osm_opensm_t *osm)
+{
+	char buffer[64];
+
+	sprintf(buffer, "%s/%s",
+		osm->subn.opt.dump_files_dir, log_file);
+	flog = fopen(buffer, "w");
+	if (!(flog)) {
+		osm_log(&osm->log, OSM_LOG_ERROR,
+			"SSA Plugin: Failed to open output file \"%s\"\n",
+			buffer);
+		return -1;
+	}
+	return 0;
+}
+
+/** =========================================================================
+ */
+void ssa_close_log(void)
+{
+	fclose(flog);
+}
+
+/** =========================================================================
+ */
+void ssa_write_log(int level, const char *format, ...)
+{
+	va_list args;
+	char buffer[256];
+
+	va_start(args, format);
+	vsprintf(buffer, format, args);
+	fprintf_log(flog, buffer);
+	fflush(flog);
+	va_end(args);
+}
+
+/** =========================================================================
+ */
 static const char *sm_state_str(int state)
 {
 	switch (state) {
@@ -114,14 +155,11 @@ struct ssa_db *init_ssa_db(struct ssa_events *ssa)
 {
 	osm_subn_t *p_subn = &ssa->p_osm->subn;
 	struct ssa_db *p_ssa;
-	char buffer[64];
 	uint16_t lids = (uint16_t)
 			cl_ptr_vector_get_size(&p_subn->port_lid_tbl);
 	p_ssa = ssa_db_init(lids);
-	if (!p_ssa) {
-		sprintf(buffer, "init_ssa_db: ssa_db_init failed\n");
-		fprintf_log(ssa->log_file, buffer);
-	}
+	if (!p_ssa)
+		ssa_log(SSA_LOG_ALL, "ssa_db_init failed\n");
 
 	return p_ssa;
 }
@@ -130,30 +168,24 @@ struct ssa_db *init_ssa_db(struct ssa_events *ssa)
  */
 static void *construct(osm_opensm_t *osm)
 {
-	char buffer[64];
-
 	struct ssa_events *ssa = (struct ssa_events *) malloc(sizeof(*ssa));
 	if (!ssa)
 		return (NULL);
 
-	sprintf(buffer, "%s/%s",
-		osm->subn.opt.dump_files_dir, SSA_PLUGIN_OUTPUT_FILE);
-	ssa->log_file = fopen(buffer, "a+");
-	if (!(ssa->log_file)) {
-		osm_log(&osm->log, OSM_LOG_ERROR,
-			"SSA Plugin: Failed to open output file \"%s\"\n",
-			buffer);
+	if (ssa_open_log(SSA_PLUGIN_OUTPUT_FILE, osm) < 0) {
 		free(ssa);
 		return (NULL);
 	}
-	fprintf_log(ssa->log_file, "SSA Plugin started\n");
+
+	ssa_log(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE, "Scalable SA Core - OpenSM Plugin\n");
+	ssa_log(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE, "SSA Plugin started\n");
 
 	ssa_db = ssa_database_init();
 	if (!ssa_db) {
-		fprintf_log(ssa->log_file, "SSA database init failed\n");
+		ssa_log(SSA_LOG_ALL, "SSA database init failed\n");
 		osm_log(&osm->log, OSM_LOG_ERROR,
 			"SSA Plugin: SSA database init failed\n");
-		fclose(ssa->log_file);
+		ssa_close_log();
 		free(ssa);
 		return (NULL);
 	}
@@ -173,31 +205,29 @@ static void destroy(void *_ssa)
 {
 	struct ssa_events *ssa = (struct ssa_events *) _ssa;
 
-	fprintf_log(ssa->log_file, "SSA Plugin stopped\n");
+	ssa_log(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE, "SSA Plugin stopped\n");
 	ssa_database_delete(ssa_db);
-	fclose(ssa->log_file);
 	free(ssa);
+	ssa_log(SSA_LOG_VERBOSE, "that's all folks!\n");
+	ssa_close_log();
 }
 
 /** =========================================================================
  */
 static void handle_trap_event(struct ssa_events *ssa, ib_mad_notice_attr_t *p_ntc)
 {
-	char buffer[128];
-
 	if (ib_notice_is_generic(p_ntc)) {
-		sprintf(buffer,
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE,
 			"Generic trap type %d event %d from LID %u\n",
 			ib_notice_get_type(p_ntc),
 			cl_ntoh16(p_ntc->g_or_v.generic.trap_num),
 			cl_ntoh16(p_ntc->issuer_lid));
 	} else {
-		sprintf(buffer,
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE,
 			"Vendor trap type %d from LID %u\n",
 			ib_notice_get_type(p_ntc),
 			cl_ntoh16(p_ntc->issuer_lid));
 	}
-	fprintf_log(ssa->log_file, buffer);
 }
 
 /** =========================================================================
@@ -209,7 +239,6 @@ static void report(void *_ssa, osm_epi_event_id_t event_id, void *event_data)
 	struct ep_lft_rec *p_lft_rec, *p_lft_rec_old;
 	osm_switch_t *p_sw;
 	uint16_t lid_ho;
-	char buffer[48];
 
 	switch (event_id) {
 	case OSM_EVENT_ID_TRAP:
@@ -219,9 +248,8 @@ static void report(void *_ssa, osm_epi_event_id_t event_id, void *event_data)
 		p_sw = (osm_switch_t *) event_data;
 		if (p_sw) {
 			lid_ho = cl_ntoh16(osm_node_get_base_lid(p_sw->p_node, 0));
-			sprintf(buffer, "LFT change event received for LID %u\n",
+			ssa_log(SSA_LOG_VERBOSE, "LFT change event received for LID %u\n",
 				lid_ho);
-			fprintf_log(ssa->log_file, buffer);
 			p_lft_rec = ep_lft_rec_init(p_sw);
 			if (p_lft_rec) {
 				p_lft_rec_old = (struct ep_lft_rec *)
@@ -243,12 +271,12 @@ static void report(void *_ssa, osm_epi_event_id_t event_id, void *event_data)
 		if (ssa->p_osm->subn.subnet_initialization_error)
 			break;
 
-		fprintf_log(ssa->log_file, "Subnet up event\n");
+		ssa_log(SSA_LOG_VERBOSE, "Subnet up event\n");
 
 if (ssa_db->p_dump_db)
-fprintf_log(ssa->log_file, "First removing existing SSA dump db\n");
+ssa_log(SSA_LOG_VERBOSE, "First removing existing SSA dump db\n");
 		ssa_db_remove(ssa, ssa_db->p_dump_db);
-fprintf_log(ssa->log_file, "Now dumping OSM db\n");
+ssa_log(SSA_LOG_VERBOSE, "Now dumping OSM db\n");
 		ssa_db->p_dump_db = ssa_db_extract(ssa);
 		/* For verification */
 		ssa_db_validate(ssa, ssa_db->p_dump_db);
@@ -260,30 +288,27 @@ fprintf_log(ssa->log_file, "Now dumping OSM db\n");
 		p_ssa_db_diff =
 			ssa_db_compare(ssa, ssa_db);
 		if (p_ssa_db_diff) {
-			sprintf(buffer, "SMDB was changed. Pushing the changes...\n");
-			fprintf_log(ssa->log_file, buffer);
+			ssa_log(SSA_LOG_VERBOSE, "SMDB was changed. Pushing the changes...\n");
 			/* TODO: Here the changes are pushed down through ditribution tree */
 			ssa_db_diff_destroy(p_ssa_db_diff);
 		}
 
 		break;
 	case OSM_EVENT_ID_STATE_CHANGE:
-		sprintf(buffer, "SM state (%u: %s) change event\n",
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE,
+			"SM state (%u: %s) change event\n",
 			ssa->p_osm->subn.sm_state,
 			sm_state_str(ssa->p_osm->subn.sm_state));
-		fprintf_log(ssa->log_file, buffer);
 		break;
 	default:
 		/* Ignoring all other events for now... */
 		if (event_id >= OSM_EVENT_ID_MAX) {
-			sprintf(buffer, "Unknown event (%d)\n", event_id);
-			fprintf_log(ssa->log_file, buffer);
+			ssa_log(SSA_LOG_ALL, "Unknown event (%d)\n", event_id);
 			osm_log(ssa->osmlog, OSM_LOG_ERROR,
 				"Unknown event (%d) reported to SSA plugin\n",
 				event_id);
 		}
 	}
-	fflush(ssa->log_file);
 }
 
 /** =========================================================================

@@ -51,7 +51,7 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 #ifdef SSA_PLUGIN_VERBOSE_LOGGING
 	const osm_pkey_tbl_t *p_pkey_tbl;
 	const ib_pkey_table_t *block;
-	char slvl_buffer[128];
+	char buffer[64];
 	char *header_line =    "#in out : 0  1  2  3  4  5  6  7  8  9  10 11 12 13 14 15";
 	char *separator_line = "#--------------------------------------------------------";
 	ib_slvl_table_t *p_tbl;
@@ -67,7 +67,6 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 	struct ep_port_rec *p_port_rec;
 	struct ep_lft_rec *p_lft_cur, *p_lft_next, *p_lft_rec;
 	struct ep_link_rec *p_link_rec;
-	char buffer[64];
 	uint64_t link_rec_key;
 	uint8_t i;
 	static uint8_t is_first_dump = 1;
@@ -76,8 +75,7 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 #endif
 
 	lids = (uint16_t) cl_ptr_vector_get_size(&p_subn->port_lid_tbl);
-	sprintf(buffer, "ssa_db_extract: %u LIDs\n", lids);
-	fprintf_log(ssa->log_file, buffer);
+	ssa_log(SSA_LOG_VERBOSE, "[ %u LIDs\n", lids);
 
 	p_ssa = ssa_db->p_dump_db;
 	/* First, Fabric/SM related parameters */
@@ -97,14 +95,15 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 		p_node = p_next_node;
 		p_next_node = (osm_node_t *)cl_qmap_next(&p_node->map_item);
 #ifdef SSA_PLUGIN_VERBOSE_LOGGING
-		sprintf(buffer, "Node GUID 0x%" PRIx64 " Type %d%s",
+		if (osm_node_get_type(p_node) == IB_NODE_TYPE_SWITCH)
+			sprintf(buffer, " with %s Switch Port 0\n",
+				ib_switch_info_is_enhanced_port0(&p_node->sw->switch_info) ? "Enhanced" : "Base");
+		else
+			sprintf(buffer, "\n");
+		ssa_log(SSA_LOG_VERBOSE, "Node GUID 0x%" PRIx64 " Type %d%s",
 			cl_ntoh64(osm_node_get_node_guid(p_node)),
 			osm_node_get_type(p_node),
-			(osm_node_get_type(p_node) == IB_NODE_TYPE_SWITCH) ? " " : "\n");
-		fprintf_log(ssa->log_file, buffer);
-		if (osm_node_get_type(p_node) == IB_NODE_TYPE_SWITCH)
-			fprintf(ssa->log_file, "with %s Switch Port 0\n",
-				ib_switch_info_is_enhanced_port0(&p_node->sw->switch_info) ? "Enhanced" : "Base");
+			buffer);
 #endif
 
 		/* add to node table (ep_node_tbl) */
@@ -116,10 +115,9 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 			/* handle error !!! */
 
 		} else {
-			sprintf(buffer, "Node rec memory allocation for "
+			ssa_log(SSA_LOG_VERBOSE, "Node rec memory allocation for "
 				"Node GUID 0x%" PRIx64 " failed\n",
 				cl_ntoh64(osm_node_get_node_guid(p_node)));
-			fprintf_log(ssa->log_file, buffer);
 		}
 
 		/* 		Adding LFT tables
@@ -156,26 +154,21 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 		p_port = p_next_port;
 		p_next_port = (osm_port_t *)cl_qmap_next(&p_port->map_item);
 #ifdef SSA_PLUGIN_VERBOSE_LOGGING
-		sprintf(buffer, "Port GUID 0x%" PRIx64 " LID %u Port state %d (%s)\n",
+		ssa_log(SSA_LOG_VERBOSE, "Port GUID 0x%" PRIx64 " LID %u Port state %d (%s)\n",
 			cl_ntoh64(osm_physp_get_port_guid(p_port->p_physp)),
 			cl_ntoh16(osm_port_get_base_lid(p_port)),
 			osm_physp_get_port_state(p_port->p_physp),
 			(osm_physp_get_port_state(p_port->p_physp) < 5 ? port_state_str[osm_physp_get_port_state(p_port->p_physp)] : "???"));
-		fprintf_log(ssa->log_file, buffer);
 		is_fdr10_active =
 		    p_port->p_physp->ext_port_info.link_speed_active & FDR10;
-		sprintf(buffer, "FDR10 %s active\n",
+		ssa_log(SSA_LOG_VERBOSE, "FDR10 %s active\n",
 			is_fdr10_active ? "" : "not");
-		fprintf_log(ssa->log_file, buffer);
 #endif
 
 #ifdef SSA_PLUGIN_VERBOSE_LOGGING
-		sprintf(slvl_buffer, "\t\t\tSLVL tables\n");
-		fprintf_log(ssa->log_file, slvl_buffer);
-		sprintf(slvl_buffer, "%s\n", header_line);
-		fprintf_log(ssa->log_file, slvl_buffer);
-		sprintf(slvl_buffer, "%s\n", separator_line);
-		fprintf_log(ssa->log_file, slvl_buffer);
+		ssa_log(SSA_LOG_VERBOSE, "\t\t\tSLVL tables\n");
+		ssa_log(SSA_LOG_VERBOSE, "%s\n", header_line);
+		ssa_log(SSA_LOG_VERBOSE, "%s\n", separator_line);
 
 		out_port = p_port->p_physp->port_num;
 		num_ports = p_port->p_physp->p_node->node_info.num_ports;
@@ -190,25 +183,21 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 				for (i = 0, n = 0; i < 16; i++)
 					n += sprintf(buffer + n, " %-2d",
 						ib_slvl_table_get(p_tbl, i));
-					sprintf(slvl_buffer, "%-3d %-3d :%s\n", in_port, out_port, buffer);
-				fprintf_log(ssa->log_file, slvl_buffer);
+					ssa_log(SSA_LOG_VERBOSE, "%-3d %-3d :%s\n", in_port, out_port, buffer);
 			}
 		} else {
 			p_tbl = osm_physp_get_slvl_tbl(p_port->p_physp, 0);
 			for (i = 0, n = 0; i < 16; i++)
 				n += sprintf(buffer + n, " %-2d",
 						ib_slvl_table_get(p_tbl, i));
-				sprintf(slvl_buffer, "%-3d %-3d :%s\n", out_port, out_port, buffer);
-			fprintf_log(ssa->log_file, slvl_buffer);
+				ssa_log(SSA_LOG_VERBOSE, "%-3d %-3d :%s\n", out_port, out_port, buffer);
 		}
 
 		max_pkeys = cl_ntoh16(p_port->p_node->node_info.partition_cap);
-		sprintf(buffer, "PartitionCap %u\n", max_pkeys);
-		fprintf_log(ssa->log_file, buffer);
+		ssa_log(SSA_LOG_VERBOSE, "PartitionCap %u\n", max_pkeys);
 		p_pkey_tbl = osm_physp_get_pkey_tbl(p_port->p_physp);
-		sprintf(buffer, "PKey Table %u used blocks\n",
+		ssa_log(SSA_LOG_VERBOSE, "PKey Table %u used blocks\n",
 			p_pkey_tbl->used_blocks);
-		fprintf_log(ssa->log_file, buffer);
 		for (block_index = 0; block_index < p_pkey_tbl->used_blocks;
 		     block_index++) {
 			block = osm_pkey_tbl_new_block_get(p_pkey_tbl,
@@ -221,9 +210,8 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 				pkey = block->pkey_entry[pkey_idx];
 				if (ib_pkey_is_invalid(pkey))
 					continue;
-				sprintf(buffer, "PKey 0x%04x at block %u index %u\n",
+				ssa_log(SSA_LOG_VERBOSE, "PKey 0x%04x at block %u index %u\n",
 					cl_ntoh16(pkey), block_index, pkey_idx);
-				fprintf_log(ssa->log_file, buffer);
 			}
 		}
 #endif
@@ -231,11 +219,10 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 		/* check for valid LID first */
 		if ((cl_ntoh16(osm_port_get_base_lid(p_port)) < IB_LID_UCAST_START_HO) ||
 		    (cl_ntoh16(osm_port_get_base_lid(p_port)) > IB_LID_UCAST_END_HO)) {
-			sprintf(buffer, "Port GUID 0x%" PRIx64
+			ssa_log(SSA_LOG_VERBOSE, "Port GUID 0x%" PRIx64
 				" has invalid LID %u\n",
 				cl_ntoh64(osm_physp_get_port_guid(p_port->p_physp)),
 				cl_ntoh16(osm_port_get_base_lid(p_port)));
-			fprintf_log(ssa->log_file, buffer);
 		}
 
 		/* add to port tables (ep_guid_to_lid_tbl (qmap), ep_port_tbl (vector)) */
@@ -247,10 +234,9 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 			/* handle error !!! */
 
 		} else {
-			sprintf(buffer, "Port GUID to LID rec memory allocation "
+			ssa_log(SSA_LOG_VERBOSE, "Port GUID to LID rec memory allocation "
 				" for Port GUID 0x%" PRIx64 " failed\n",
 				cl_ntoh64(osm_physp_get_port_guid(p_port->p_physp)));
-			fprintf_log(ssa->log_file, buffer);
 		}
 
 		p_port_rec = ep_port_rec_init(p_port);
@@ -261,10 +247,9 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 			/* handle error !!! */
 
 		} else {
-			sprintf(buffer, "Port rec memory allocation for "
+			ssa_log(SSA_LOG_VERBOSE, "Port rec memory allocation for "
 				"Port GUID 0x%" PRIx64 " failed\n",
 				cl_ntoh64(osm_physp_get_port_guid(p_port->p_physp)));
-			fprintf_log(ssa->log_file, buffer);
 		}
 
 		/* TODO:: adding all physical port objects to the port map - by LID and port_num or GUID ??? */
@@ -324,8 +309,7 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 
 	p_ssa->initialized = 1;
 
-	sprintf(buffer, "Exiting ssa_db_extract\n");
-	fprintf_log(ssa->log_file, buffer);
+	ssa_log(SSA_LOG_VERBOSE, "]\n");
 
 	return p_ssa;
 }
@@ -340,39 +324,36 @@ void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 	struct ep_lft_rec *p_lft, *p_next_lft;
 	struct ep_link_rec *p_link, *p_next_link;
 	const ib_pkey_table_t *block;
+	char buffer[64];
 	uint16_t lid, block_index, pkey_idx;
 	ib_net16_t pkey;
-	char buffer[64];
 
 	if (!p_ssa_db || !p_ssa_db->initialized)
 		return;
 
-	sprintf(buffer, "ssa_db_validate\n");
-	fprintf_log(ssa->log_file, buffer);
+	ssa_log(SSA_LOG_VERBOSE, "[\n");
 
 	/* First, most Fabric/SM related parameters */
-	sprintf(buffer, "Subnet prefix 0x%" PRIx64 "\n", p_ssa_db->subnet_prefix);
-	fprintf_log(ssa->log_file, buffer);
-	sprintf(buffer, "LMC %u Subnet timeout %u Quirks %sabled MTU %d Rate %d Both Pkeys %sabled\n",
+	ssa_log(SSA_LOG_VERBOSE, "Subnet prefix 0x%" PRIx64 "\n", p_ssa_db->subnet_prefix);
+	ssa_log(SSA_LOG_VERBOSE, "LMC %u Subnet timeout %u Quirks %sabled MTU %d Rate %d Both Pkeys %sabled\n",
 		p_ssa_db->lmc, p_ssa_db->subnet_timeout,
 		p_ssa_db->enable_quirks ? "en" : "dis",
 		p_ssa_db->fabric_mtu, p_ssa_db->fabric_rate,
 		p_ssa_db->allow_both_pkeys ? "en" : "dis");
-	fprintf_log(ssa->log_file, buffer);
 
 	p_next_node = (struct ep_node_rec *)cl_qmap_head(&p_ssa_db->ep_node_tbl);
 	while (p_next_node !=
 	       (struct ep_node_rec *)cl_qmap_end(&p_ssa_db->ep_node_tbl)) {
 		p_node = p_next_node;
 		p_next_node = (struct ep_node_rec *)cl_qmap_next(&p_node->map_item);
-		sprintf(buffer, "Node GUID 0x%" PRIx64 " Type %d%s",
+		if (p_node->node_info.node_type == IB_NODE_TYPE_SWITCH)
+			sprintf(buffer, " with %s Switch Port 0\n", p_node->is_enhanced_sp0 ? "Enhanced" : "Base");
+		else
+			sprintf(buffer, "\n");
+		ssa_log(SSA_LOG_VERBOSE, "Node GUID 0x%" PRIx64 " Type %d%s",
 			cl_ntoh64(p_node->node_info.node_guid),
 			p_node->node_info.node_type,
-			(p_node->node_info.node_type == IB_NODE_TYPE_SWITCH) ? " " : "\n");
-		fprintf_log(ssa->log_file, buffer);
-		if (p_node->node_info.node_type == IB_NODE_TYPE_SWITCH)
-			fprintf(ssa->log_file, "with %s Switch Port 0\n",
-				p_node->is_enhanced_sp0 ? "Enhanced" : "Base");
+			buffer);
 	}
 
 	p_next_port = (struct ep_guid_to_lid_rec *)cl_qmap_head(&p_ssa_db->ep_guid_to_lid_tbl);
@@ -380,10 +361,9 @@ void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 	       (struct ep_guid_to_lid_rec *)cl_qmap_end(&p_ssa_db->ep_guid_to_lid_tbl)) {
 		p_port = p_next_port;
 		p_next_port = (struct ep_guid_to_lid_rec *)cl_qmap_next(&p_port->map_item);
-		sprintf(buffer, "Port GUID 0x%" PRIx64 " LID %u LMC %u is_switch %d\n",
+		ssa_log(SSA_LOG_VERBOSE, "Port GUID 0x%" PRIx64 " LID %u LMC %u is_switch %d\n",
 			cl_ntoh64(cl_map_key((cl_map_iterator_t) p_port)),
 			p_port->lid, p_port->lmc, p_port->is_switch);
-		fprintf_log(ssa->log_file, buffer);
 	}
 
 	for (lid = 1;
@@ -391,24 +371,20 @@ void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 	     lid++) {		/* increment LID by LMC ??? */
 		p_port_rec = (struct ep_port_rec *) cl_ptr_vector_get(&p_ssa_db->ep_port_tbl, lid);
 		if (p_port_rec) {
-			sprintf(buffer, "Port LID %u LMC %u Port state %d (%s)\n",
+			ssa_log(SSA_LOG_VERBOSE, "Port LID %u LMC %u Port state %d (%s)\n",
 				cl_ntoh16(p_port_rec->port_info.base_lid),
 				ib_port_info_get_lmc(&p_port_rec->port_info),
 				ib_port_info_get_port_state(&p_port_rec->port_info),
 				(ib_port_info_get_port_state(&p_port_rec->port_info) < 5 ? port_state_str[ib_port_info_get_port_state(&p_port_rec->port_info)] : "???"));
-			fprintf_log(ssa->log_file, buffer);
-			sprintf(buffer, "FDR10 %s active\n",
+			ssa_log(SSA_LOG_VERBOSE, "FDR10 %s active\n",
 				p_port_rec->is_fdr10_active ? "" : "not");
-			fprintf_log(ssa->log_file, buffer);
 
 			/* TODO: add SLVL tables dump */
 
-			sprintf(buffer, "PartitionCap %u\n",
+			ssa_log(SSA_LOG_VERBOSE, "PartitionCap %u\n",
 				p_port_rec->ep_pkey_rec.max_pkeys);
-			fprintf_log(ssa->log_file, buffer);
-			sprintf(buffer, "PKey Table %u used blocks\n",
+			ssa_log(SSA_LOG_VERBOSE, "PKey Table %u used blocks\n",
 				p_port_rec->ep_pkey_rec.used_blocks);
-			fprintf_log(ssa->log_file, buffer);
 
 			for (block_index = 0;
 			     block_index < p_port_rec->ep_pkey_rec.used_blocks;
@@ -420,11 +396,10 @@ void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 					pkey = block->pkey_entry[pkey_idx];
 					if (ib_pkey_is_invalid(pkey))
 						continue;
-					sprintf(buffer,
+					ssa_log(SSA_LOG_VERBOSE,
 						"PKey 0x%04x at block %u index %u\n",
 						cl_ntoh16(pkey), block_index,
 						pkey_idx);
-					fprintf_log(ssa->log_file, buffer);
 				}
 			}
 		}
@@ -435,9 +410,8 @@ void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 	       (struct ep_lft_rec *)cl_qmap_end(&p_ssa_db->ep_lft_tbl)) {
 		p_lft = p_next_lft;
 		p_next_lft = (struct ep_lft_rec *)cl_qmap_next(&p_lft->map_item);
-		sprintf(buffer, "LFT Record: LID %u lft size %u maximum LID reachable %u\n",
+		ssa_log(SSA_LOG_VERBOSE, "LFT Record: LID %u lft size %u maximum LID reachable %u\n",
 			(uint16_t) cl_qmap_key(&p_lft->map_item), p_lft->lft_size, p_lft->max_lid_ho);
-		fprintf_log(ssa->log_file, buffer);
 	}
 
 	p_next_link = (struct ep_link_rec *)cl_qmap_head(&p_ssa_db->ep_link_tbl);
@@ -445,14 +419,12 @@ void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 	       (struct ep_link_rec *)cl_qmap_end(&p_ssa_db->ep_link_tbl)) {
 		p_link = p_next_link;
 		p_next_link = (struct ep_link_rec *)cl_qmap_next(&p_link->map_item);
-		sprintf(buffer, "Link Record: from LID %u port %u to LID %u port %u\n",
+		ssa_log(SSA_LOG_VERBOSE, "Link Record: from LID %u port %u to LID %u port %u\n",
 			cl_ntoh16(p_link->link_rec.from_lid), p_link->link_rec.from_port_num,
 			cl_ntoh16(p_link->link_rec.to_lid), p_link->link_rec.to_port_num);
-		fprintf_log(ssa->log_file, buffer);
 	}
 
-	sprintf(buffer, "Exiting ssa_db_validate\n");
-	fprintf_log(ssa->log_file, buffer);
+	ssa_log(SSA_LOG_VERBOSE, "]\n");
 }
 
 /** =========================================================================
@@ -464,13 +436,11 @@ void ssa_db_remove(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 	struct ep_node_rec *p_node, *p_next_node;
 	struct ep_link_rec *p_link, *p_next_link;
 	uint16_t lid;
-	char buffer[64];
 
 	if (!p_ssa_db || !p_ssa_db->initialized)
 		return;
 
-	sprintf(buffer, "ssa_db_remove\n");
-	fprintf_log(ssa->log_file, buffer);
+	ssa_log(SSA_LOG_VERBOSE, "[\n");
 
 	for (lid = 1;
 	     lid < (uint16_t) cl_ptr_vector_get_size(&p_ssa_db->ep_port_tbl);
@@ -512,8 +482,7 @@ void ssa_db_remove(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 
 	if (cl_qmap_head(&p_ssa_db->ep_lft_tbl) == cl_qmap_end(&p_ssa_db->ep_lft_tbl))
 		p_ssa_db->initialized = 0;
-	sprintf(buffer, "Exiting ssa_db_remove\n");
-	fprintf_log(ssa->log_file, buffer);
+	ssa_log(SSA_LOG_VERBOSE, "]\n");
 }
 
 /** =========================================================================
@@ -523,10 +492,8 @@ void ssa_db_update(IN struct ssa_events *ssa,
 		   IN struct ssa_database *ssa_db)
 {
 	struct ssa_db *ssa_db_tmp;
-	char buffer[48];
 
-	sprintf(buffer, "Updating SMDB versions\n");
-	fprintf_log(ssa->log_file, buffer);
+	ssa_log(SSA_LOG_VERBOSE, "[\n");
 
         if (!ssa_db || !ssa_db->p_previous_db || !ssa_db->p_current_db) {
                 /* error handling */
@@ -547,6 +514,5 @@ void ssa_db_update(IN struct ssa_events *ssa,
 	}
 	ssa_db_copy(ssa_db->p_current_db, ssa_db->p_dump_db);
 
-	sprintf(buffer, "Finished updating SMDB versions\n");
-	fprintf_log(ssa->log_file, buffer);
+	ssa_log(SSA_LOG_VERBOSE, "]\n");
 }

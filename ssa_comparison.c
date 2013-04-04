@@ -704,62 +704,53 @@ static void ssa_db_diff_compare_lfts(IN struct ssa_db * p_current_db,
 static void ssa_db_diff_dump_fabric_params(IN struct ssa_events * ssa,
 					   IN struct ssa_db_diff * p_ssa_db_diff)
 {
-	char buffer[64];
 	uint8_t is_changed = 0;
 
-	fprintf_log(ssa->log_file, "Fabric parameters:\n");
+	ssa_log(SSA_LOG_VERBOSE, "Fabric parameters:\n");
 
 	if (p_ssa_db_diff->change_mask & SSA_DB_CHANGEMASK_SUBNET_PREFIX) {
-		sprintf(buffer, "Subnet Prefix: 0x%" PRIx64 "\n",
+		ssa_log(SSA_LOG_VERBOSE, "Subnet Prefix: 0x%" PRIx64 "\n",
 			p_ssa_db_diff->subnet_prefix);
-		fprintf_log(ssa->log_file, buffer);
 		is_changed = 1;
 	}
 	if (p_ssa_db_diff->change_mask & SSA_DB_CHANGEMASK_SM_STATE) {
-		sprintf(buffer, "SM state: %d\n",
+		ssa_log(SSA_LOG_VERBOSE, "SM state: %d\n",
 			p_ssa_db_diff->sm_state);
-		fprintf_log(ssa->log_file, buffer);
 		is_changed = 1;
 	}
 	if (p_ssa_db_diff->change_mask & SSA_DB_CHANGEMASK_LMC) {
-		sprintf(buffer, "LMC: %u\n",
+		ssa_log(SSA_LOG_VERBOSE, "LMC: %u\n",
 			p_ssa_db_diff->lmc);
-		fprintf_log(ssa->log_file, buffer);
 		is_changed = 1;
 	}
 	if (p_ssa_db_diff->change_mask & SSA_DB_CHANGEMASK_SUBNET_TIMEOUT) {
-		sprintf(buffer, "Subnet timeout: %u\n",
+		ssa_log(SSA_LOG_VERBOSE, "Subnet timeout: %u\n",
 			p_ssa_db_diff->subnet_timeout);
-		fprintf_log(ssa->log_file, buffer);
 		is_changed = 1;
 	}
 	if (p_ssa_db_diff->change_mask & SSA_DB_CHANGEMASK_FABRIC_MTU) {
-		sprintf(buffer, "Fabric MTU: %d\n",
+		ssa_log(SSA_LOG_VERBOSE, "Fabric MTU: %d\n",
 			p_ssa_db_diff->fabric_mtu);
-		fprintf_log(ssa->log_file, buffer);
 		is_changed = 1;
 	}
 	if (p_ssa_db_diff->change_mask & SSA_DB_CHANGEMASK_FABRIC_RATE) {
-		sprintf(buffer, "Fabric rate: %d\n",
+		ssa_log(SSA_LOG_VERBOSE, "Fabric rate: %d\n",
 			p_ssa_db_diff->fabric_rate);
-		fprintf_log(ssa->log_file, buffer);
 		is_changed = 1;
 	}
 	if (p_ssa_db_diff->change_mask & SSA_DB_CHANGEMASK_ENABLE_QUIRKS) {
-		sprintf(buffer, "Quirks %sabled\n",
+		ssa_log(SSA_LOG_VERBOSE, "Quirks %sabled\n",
 			p_ssa_db_diff->enable_quirks ? "en" : "dis");
-		fprintf_log(ssa->log_file, buffer);
 		is_changed = 1;
 	}
 	if (p_ssa_db_diff->change_mask & SSA_DB_CHANGEMASK_ALLOW_BOTH_PKEYS) {
-		sprintf(buffer, "Both pkeys %sabled\n",
+		ssa_log(SSA_LOG_VERBOSE, "Both pkeys %sabled\n",
 			p_ssa_db_diff->allow_both_pkeys ? "en" : "dis");
-		fprintf_log(ssa->log_file, buffer);
 		is_changed = 1;
 	}
 
 	if (!is_changed)
-		fprintf_log(ssa->log_file, "No changes\n");
+		ssa_log(SSA_LOG_VERBOSE, "No changes\n");
 }
 
 /** =========================================================================
@@ -771,14 +762,15 @@ static void ssa_db_diff_dump_node_rec(IN struct ssa_events * ssa,
 	char buffer[64];
 
 	if (p_node_rec) {
-		sprintf(buffer, "Node GUID 0x%" PRIx64 " Type %d%s",
+		if (p_node_rec->node_info.node_type == IB_NODE_TYPE_SWITCH)
+			sprintf(buffer, " with %s Switch Port 0\n",
+				p_node_rec->is_enhanced_sp0 ? "Enhanced" : "Base");
+		else
+			sprintf(buffer, "\n");
+		ssa_log(SSA_LOG_VERBOSE, "Node GUID 0x%" PRIx64 " Type %d%s",
 			cl_ntoh64(p_node_rec->node_info.node_guid),
 			p_node_rec->node_info.node_type,
-			(p_node_rec->node_info.node_type == IB_NODE_TYPE_SWITCH) ? " " : "\n");
-		fprintf_log(ssa->log_file, buffer);
-		if (p_node_rec->node_info.node_type == IB_NODE_TYPE_SWITCH)
-			fprintf(ssa->log_file, "with %s Switch Port 0\n",
-				p_node_rec->is_enhanced_sp0 ? "Enhanced" : "Base");
+			buffer);
 	}
 }
 
@@ -788,15 +780,13 @@ static void ssa_db_diff_dump_guid_to_lid_rec(IN struct ssa_events * ssa,
 					     IN cl_map_item_t * p_item)
 {
 	struct ep_guid_to_lid_rec *p_guid_to_lid_rec = (struct ep_guid_to_lid_rec *) p_item;
-	char buffer[64];
 
 	if (p_guid_to_lid_rec) {
-		sprintf(buffer, "Port GUID 0x%" PRIx64 " LID %u LMC %u is_switch %d\n",
+		ssa_log(SSA_LOG_VERBOSE, "Port GUID 0x%" PRIx64 " LID %u LMC %u is_switch %d\n",
 			cl_ntoh64(cl_map_key((cl_map_iterator_t) p_guid_to_lid_rec)),
 			p_guid_to_lid_rec->lid,
 			p_guid_to_lid_rec->lmc,
 			p_guid_to_lid_rec->is_switch);
-		fprintf_log(ssa->log_file, buffer);
 	}
 }
 
@@ -807,32 +797,27 @@ static void ssa_db_diff_dump_port_rec(IN struct ssa_events * ssa,
 {
 	struct ep_port_rec *p_port_rec = (struct ep_port_rec *) p_item;
 	const ib_pkey_table_t *block;
-	char buffer[64];
 	ib_net16_t pkey;
 	uint16_t block_index, pkey_idx;
 
 	if (p_port_rec) {
-		fprintf_log(ssa->log_file, "-------------------\n");
-		sprintf(buffer, "Port LID %u LMC %u Port state %d (%s)\n",
+		ssa_log(SSA_LOG_VERBOSE, "-------------------\n");
+		ssa_log(SSA_LOG_VERBOSE, "Port LID %u LMC %u Port state %d (%s)\n",
 			cl_ntoh16(p_port_rec->port_info.base_lid),
 			ib_port_info_get_lmc(&p_port_rec->port_info),
 			ib_port_info_get_port_state(&p_port_rec->port_info),
 			(ib_port_info_get_port_state(&p_port_rec->port_info) < 5
 			 ? port_state_str[ib_port_info_get_port_state
 			 (&p_port_rec->port_info)] : "???"));
-		fprintf_log(ssa->log_file, buffer);
-		sprintf(buffer, "FDR10 %s active\n",
+		ssa_log(SSA_LOG_VERBOSE, "FDR10 %s active\n",
 			p_port_rec->is_fdr10_active ? "" : "not");
-		fprintf_log(ssa->log_file, buffer);
 
 		/* TODO: add SLVL tables dump */
 
-		sprintf(buffer, "PartitionCap %u\n",
+		ssa_log(SSA_LOG_VERBOSE, "PartitionCap %u\n",
 			p_port_rec->ep_pkey_rec.max_pkeys);
-		fprintf_log(ssa->log_file, buffer);
-		sprintf(buffer, "PKey Table %u used blocks\n",
+		ssa_log(SSA_LOG_VERBOSE, "PKey Table %u used blocks\n",
 			p_port_rec->ep_pkey_rec.used_blocks);
-		fprintf_log(ssa->log_file, buffer);
 
 		for (block_index = 0;
 		     block_index < p_port_rec->ep_pkey_rec.used_blocks;
@@ -844,11 +829,10 @@ static void ssa_db_diff_dump_port_rec(IN struct ssa_events * ssa,
 				pkey = block->pkey_entry[pkey_idx];
 				if (ib_pkey_is_invalid(pkey))
 					continue;
-				sprintf(buffer,
+				ssa_log(SSA_LOG_VERBOSE,
 					"PKey 0x%04x at block %u index %u\n",
 					cl_ntoh16(pkey), block_index,
 					pkey_idx);
-				fprintf_log(ssa->log_file, buffer);
 			}
 		}
 	}
@@ -860,13 +844,10 @@ static void ssa_db_diff_dump_lft_block_rec(IN struct ssa_events * ssa,
 					   IN cl_map_item_t * p_item)
 {
 	struct ep_lft_block_rec *p_lft_block_rec = (struct ep_lft_block_rec *) p_item;
-	char buffer[64];
 
-	if (p_lft_block_rec) {
-		sprintf(buffer, "LFT Block Record: LID %u block # %u\n",
+	if (p_lft_block_rec)
+		ssa_log(SSA_LOG_VERBOSE, "LFT Block Record: LID %u block # %u\n",
 			p_lft_block_rec->lid, p_lft_block_rec->block_num);
-		fprintf_log(ssa->log_file, buffer);
-	}
 }
 
 /** =========================================================================
@@ -875,16 +856,13 @@ static void ssa_db_diff_dump_link_rec(IN struct ssa_events * ssa,
 				      IN cl_map_item_t * p_item)
 {
 	struct ep_link_rec *p_link_rec = (struct ep_link_rec *) p_item;
-	char buffer[64];
 
-	if (p_link_rec) {
-		sprintf(buffer, "From LID %u port %u to LID %u port %u\n",
+	if (p_link_rec)
+		ssa_log(SSA_LOG_VERBOSE, "From LID %u port %u to LID %u port %u\n",
 			cl_ntoh16(p_link_rec->link_rec.from_lid),
 			p_link_rec->link_rec.from_port_num,
 			cl_ntoh16(p_link_rec->link_rec.to_lid),
 			p_link_rec->link_rec.to_port_num);
-		fprintf_log(ssa->log_file, buffer);
-	}
 }
 
 /** =========================================================================
@@ -905,7 +883,7 @@ static void ssa_db_diff_dump_qmap(IN cl_qmap_t * p_qmap,
 	}
 
 	if (!is_changed)
-		fprintf_log(ssa->log_file, "No changes\n");
+		ssa_log(SSA_LOG_VERBOSE, "No changes\n");
 }
 
 /** =========================================================================
@@ -913,60 +891,62 @@ static void ssa_db_diff_dump_qmap(IN cl_qmap_t * p_qmap,
 static void ssa_db_diff_dump(IN struct ssa_events * ssa,
 			     IN struct ssa_db_diff * p_ssa_db_diff)
 {
+	int ssa_log_level = SSA_LOG_VERBOSE;
+
 	if (!ssa || !p_ssa_db_diff)
 		return;
 
-	fprintf_log(ssa->log_file, "Dumping SMDB changes\n");
-	fprintf_log(ssa->log_file, "===================================\n");
+	ssa_log(ssa_log_level, "Dumping SMDB changes\n");
+	ssa_log(ssa_log_level, "===================================\n");
 	ssa_db_diff_dump_fabric_params(ssa, p_ssa_db_diff);
 
-	fprintf_log(ssa->log_file, "-----------------------------------\n");
-	fprintf_log(ssa->log_file, "NODE records:\n");
-	fprintf_log(ssa->log_file, "-----------------------------------\n");
-	fprintf_log(ssa->log_file, "Added records:\n");
+	ssa_log(ssa_log_level, "-----------------------------------\n");
+	ssa_log(ssa_log_level, "NODE records:\n");
+	ssa_log(ssa_log_level, "-----------------------------------\n");
+	ssa_log(ssa_log_level, "Added records:\n");
 	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_node_tbl_added,
 			      ssa, ssa_db_diff_dump_node_rec);
-	fprintf_log(ssa->log_file, "Removed records:\n");
+	ssa_log(ssa_log_level, "Removed records:\n");
 	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_node_tbl_removed, ssa,
 			      ssa_db_diff_dump_node_rec);
 
-	fprintf_log(ssa->log_file, "-----------------------------------\n");
-	fprintf_log(ssa->log_file, "GUID to LID records:\n");
-	fprintf_log(ssa->log_file, "-----------------------------------\n");
-	fprintf_log(ssa->log_file, "Added records:\n");
+	ssa_log(ssa_log_level, "-----------------------------------\n");
+	ssa_log(ssa_log_level, "GUID to LID records:\n");
+	ssa_log(ssa_log_level, "-----------------------------------\n");
+	ssa_log(ssa_log_level, "Added records:\n");
 	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_guid_to_lid_tbl_added,
 			      ssa, ssa_db_diff_dump_guid_to_lid_rec);
-	fprintf_log(ssa->log_file, "Removed records:\n");
+	ssa_log(ssa_log_level, "Removed records:\n");
 	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_guid_to_lid_tbl_removed,
 			      ssa, ssa_db_diff_dump_guid_to_lid_rec);
 
-	fprintf_log(ssa->log_file, "-----------------------------------\n");
-	fprintf_log(ssa->log_file, "PORT records:\n");
-	fprintf_log(ssa->log_file, "-----------------------------------\n");
-	fprintf_log(ssa->log_file, "Added records:\n");
+	ssa_log(ssa_log_level, "-----------------------------------\n");
+	ssa_log(ssa_log_level, "PORT records:\n");
+	ssa_log(ssa_log_level, "-----------------------------------\n");
+	ssa_log(ssa_log_level, "Added records:\n");
 	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_port_tbl_added,
 			      ssa, ssa_db_diff_dump_port_rec);
-	fprintf_log(ssa->log_file, "Removed records:\n");
+	ssa_log(ssa_log_level, "Removed records:\n");
 	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_port_tbl_removed,
 			      ssa, ssa_db_diff_dump_port_rec);
 
-	fprintf_log(ssa->log_file, "-----------------------------------\n");
-	fprintf_log(ssa->log_file, "LFT block records:\n");
-	fprintf_log(ssa->log_file, "-----------------------------------\n");
+	ssa_log(ssa_log_level, "-----------------------------------\n");
+	ssa_log(ssa_log_level, "LFT block records:\n");
+	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_lft_block_tbl,
 			      ssa, ssa_db_diff_dump_lft_block_rec);
 
-	fprintf_log(ssa->log_file, "-----------------------------------\n");
-	fprintf_log(ssa->log_file, "Link Records:\n");
-	fprintf_log(ssa->log_file, "-----------------------------------\n");
-	fprintf_log(ssa->log_file, "Added records:\n");
+	ssa_log(ssa_log_level, "-----------------------------------\n");
+	ssa_log(ssa_log_level, "Link Records:\n");
+	ssa_log(ssa_log_level, "-----------------------------------\n");
+	ssa_log(ssa_log_level, "Added records:\n");
 	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_link_tbl_added,
 			      ssa, ssa_db_diff_dump_link_rec);
-	fprintf_log(ssa->log_file, "Removed records:\n");
+	ssa_log(ssa_log_level, "Removed records:\n");
 	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_link_tbl_removed,
 			      ssa, ssa_db_diff_dump_link_rec);
-	fprintf_log(ssa->log_file, "-----------------------------------\n");
-	fprintf_log(ssa->log_file, "===================================\n");
+	ssa_log(ssa_log_level, "-----------------------------------\n");
+	ssa_log(ssa_log_level, "===================================\n");
 }
 #endif
 
@@ -1124,25 +1104,21 @@ void ep_link_qmap_copy(cl_qmap_t *p_dest_qmap, cl_qmap_t * p_src_qmap)
 struct ssa_db_diff *ssa_db_compare(IN struct ssa_events * ssa,
 				   IN struct ssa_database * ssa_db)
 {
-	char buffer[64];
 	struct ssa_db_diff *p_ssa_db_diff = NULL;
 
-	sprintf(buffer, "Start SMDB comparison\n");
-	fprintf_log(ssa->log_file, buffer);
+	ssa_log(SSA_LOG_VERBOSE, "[\n");
 
 	if (!ssa_db || !ssa_db->p_previous_db ||
 	    !ssa_db->p_current_db || !ssa_db->p_dump_db) {
 		/* bad arguments - error handling */
-		sprintf(buffer, "SMDB Comparison: bad arguments\n");
-		fprintf_log(ssa->log_file, buffer);
+		ssa_log(SSA_LOG_ALL, "SMDB Comparison: bad arguments\n");
 		goto Exit;
 	}
 
 	p_ssa_db_diff = ssa_db_diff_init();
 	if (!p_ssa_db_diff) {
 		/* error handling */
-		sprintf(buffer, "SMDB Comparison: bad diff struct initialization\n");
-		fprintf_log(ssa->log_file, buffer);
+		ssa_log(SSA_LOG_ALL, "SMDB Comparison: bad diff struct initialization\n");
 		goto Exit;
 	}
 
@@ -1161,8 +1137,7 @@ struct ssa_db_diff *ssa_db_compare(IN struct ssa_events * ssa,
 	cl_qmap_remove_all(&ssa_db->p_dump_db->ep_lft_tbl);
 
 	if (!p_ssa_db_diff->dirty) {
-                sprintf(buffer, "SMDB was not changed\n");
-                fprintf_log(ssa->log_file, buffer);
+                ssa_log(SSA_LOG_VERBOSE, "SMDB was not changed\n");
                 ssa_db_diff_destroy(p_ssa_db_diff);
                 p_ssa_db_diff = NULL;
                 goto Exit;
@@ -1171,8 +1146,7 @@ struct ssa_db_diff *ssa_db_compare(IN struct ssa_events * ssa,
 	ssa_db_diff_dump(ssa, p_ssa_db_diff);
 #endif
 Exit:
-	sprintf(buffer, "Finished SMDB comparison\n");
-        fprintf_log(ssa->log_file, buffer);
+	ssa_log(SSA_LOG_VERBOSE, "]\n");
 
 	return p_ssa_db_diff;
 }

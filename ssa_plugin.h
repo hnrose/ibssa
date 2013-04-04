@@ -50,10 +50,25 @@ BEGIN_C_DECLS
 
 #define SSA_PLUGIN_OUTPUT_FILE "ssa_plugin.log"
 struct ssa_events {
-	FILE *log_file;
 	osm_log_t *osmlog;
 	osm_opensm_t *p_osm;
 };
+
+/* TODO: remove after migration with SSA framework */
+enum {
+	SSA_LOG_DEFAULT		= 1 << 0,
+	SSA_LOG_VERBOSE		= 1 << 1,
+	SSA_LOG_CTRL		= 1 << 2,
+	SSA_LOG_DB		= 1 << 3,
+	SSA_LOG_COMM		= 1 << 4,
+	SSA_LOG_ALL		= 0xFFFFFFFF,
+};
+
+int  ssa_open_log(char *log_file, osm_opensm_t *osm);
+void ssa_close_log(void);
+void ssa_write_log(int level, const char *format, ...);
+#define ssa_log(level, format, ...) \
+	ssa_write_log(level, "%s: "format, __func__, ## __VA_ARGS__)
 
 void fprintf_log(FILE *log_file, const char *buffer);
 END_C_DECLS
