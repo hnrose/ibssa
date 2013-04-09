@@ -308,7 +308,7 @@ static void ssa_db_diff_compare_subnet_nodes(IN struct ssa_db * p_previous_db,
 					     IN struct ssa_db * p_current_db,
 					     OUT struct ssa_db_diff * const p_ssa_db_diff)
 {
-	struct ep_port_rec *p_port_rec;
+	struct ep_port_rec *p_port_rec, *p_port_rec_next;
 	struct ep_port_rec *p_port_rec_new, *p_port_rec_old;
 	struct ep_node_rec *p_node_rec, *p_node_rec_next;
 	struct ep_node_rec *p_node_rec_new, *p_node_rec_old;
@@ -317,7 +317,7 @@ static void ssa_db_diff_compare_subnet_nodes(IN struct ssa_db * p_previous_db,
 	struct ep_link_rec *p_link_rec, *p_link_rec_next;
 	struct ep_link_rec *p_link_rec_new, *p_link_rec_old;
 	uint64_t key;
-	uint16_t lid, used_blocks;
+	uint16_t used_blocks;
 	uint8_t dirty = p_ssa_db_diff->dirty;
 
 	/*
@@ -522,91 +522,66 @@ static void ssa_db_diff_compare_subnet_nodes(IN struct ssa_db * p_previous_db,
 	/*
 	 * Comparing ep_port_rec records
 	 */
-	/* new port records that had not exist before */
-	for (lid = 1;
-	     lid < (uint16_t) cl_ptr_vector_get_size(&p_current_db->ep_port_tbl);
-	     lid++) {		/* increment LID by LMC ??? */
-		p_port_rec_new = (struct ep_port_rec *) cl_ptr_vector_get(&p_current_db->ep_port_tbl, lid);
-		if (p_port_rec_new) {
-			if (!p_previous_db->initialized) {
-				used_blocks = p_port_rec_new->ep_pkey_rec.used_blocks;
-				p_port_rec = (struct ep_port_rec *) malloc(sizeof(*p_port_rec) +
-					      sizeof(p_port_rec_new->ep_pkey_rec.pkey_tbl[0]) * used_blocks);
-				if (!p_port_rec) {
-					/* handle failure - bad memory allocation */
-				}
-				ep_port_rec_copy(p_port_rec, p_port_rec_new);
-				cl_qmap_insert(&p_ssa_db_diff->ep_port_tbl_added,
-					       lid, &p_port_rec->map_item);
-			} else {
-				p_port_rec_old = (struct ep_port_rec *)
-							cl_ptr_vector_get(&p_previous_db->ep_port_tbl, lid);
-				if (!p_port_rec_old) {
-					used_blocks = p_port_rec_new->ep_pkey_rec.used_blocks;
-					p_port_rec = (struct ep_port_rec *) malloc(sizeof(*p_port_rec) +
-						      sizeof(p_port_rec_new->ep_pkey_rec.pkey_tbl[0]) * used_blocks);
-					if (!p_port_rec) {
-						/* handle failure - bad memory allocation */
-					}
-					ep_port_rec_copy(p_port_rec, p_port_rec_new);
-					cl_qmap_insert(&p_ssa_db_diff->ep_port_tbl_added,
-						       lid, &p_port_rec->map_item);
-				}
-			}
-		}
-	}
+	dirty = ssa_db_diff_compare_qmap(&p_previous_db->ep_port_tbl,
+					 &p_current_db->ep_port_tbl,
+					 ep_port_qmap_copy,
+					 ep_port_rec_delete_pfn,
+					 &p_ssa_db_diff->ep_port_tbl_added,
+					 &p_ssa_db_diff->ep_port_tbl_removed);
 
-	/* old port records that no longer exist */
-	for (lid = 1;
-	     lid < (uint16_t) cl_ptr_vector_get_size(&p_previous_db->ep_port_tbl);
-	     lid++) {		/* increment LID by LMC ??? */
-		p_port_rec_old = (struct ep_port_rec *) cl_ptr_vector_get(&p_previous_db->ep_port_tbl, lid);
-		if (p_port_rec_old) {
-			p_port_rec_new = (struct ep_port_rec *) cl_ptr_vector_get(&p_current_db->ep_port_tbl, lid);
-			if (!p_port_rec_new) {
-				used_blocks = p_port_rec_old->ep_pkey_rec.used_blocks;
-				p_port_rec = (struct ep_port_rec *) malloc(sizeof(*p_port_rec) +
-					      sizeof(p_port_rec_old->ep_pkey_rec.pkey_tbl[0]) * used_blocks);
-				if (!p_port_rec) {
-					/* handle failure - bad memory allocation */
-				}
-				ep_port_rec_copy(p_port_rec, p_port_rec_old);
-				cl_qmap_insert(&p_ssa_db_diff->ep_port_tbl_removed,
-					       lid, &p_port_rec->map_item);
-			}
-		}
-	}
+	p_port_rec_next = (struct ep_port_rec *)
+			cl_qmap_head(&p_previous_db->ep_port_tbl);
+	while (p_port_rec_next != (struct ep_port_rec *)
+			cl_qmap_end(&p_previous_db->ep_port_tbl)) {
+		p_port_rec = p_port_rec_next;
+		p_port_rec_next = (struct ep_port_rec *)
+			cl_qmap_next(&p_port_rec->map_item);
 
-	/* comparing new Vs. old port records */
-	for (lid = 1;
-	     lid < (uint16_t) cl_ptr_vector_get_size(&p_previous_db->ep_port_tbl);
-	     lid++) {		/* increment LID by LMC ??? */
-		p_port_rec_old = (struct ep_port_rec *) cl_ptr_vector_get(&p_previous_db->ep_port_tbl, lid);
-		if (p_port_rec_old) {
-			p_port_rec_new = (struct ep_port_rec *) cl_ptr_vector_get(&p_current_db->ep_port_tbl, lid);
-			if (p_port_rec_new) {
-				if (ssa_db_port_comp(p_port_rec_old, p_port_rec_new)) {
-					used_blocks = p_port_rec_old->ep_pkey_rec.used_blocks;
-					p_port_rec = (struct ep_port_rec *) malloc(sizeof(*p_port_rec) +
-						      sizeof(p_port_rec_old->ep_pkey_rec.pkey_tbl[0]) * used_blocks);
-					if (!p_port_rec) {
-						/* handle failure - bad memory allocation */
-					}
-					ep_port_rec_copy(p_port_rec, p_port_rec_old);
-					cl_qmap_insert(&p_ssa_db_diff->ep_port_tbl_removed,
-						       lid, &p_port_rec->map_item);
-					used_blocks = p_port_rec_new->ep_pkey_rec.used_blocks;
-					p_port_rec = (struct ep_port_rec *) malloc(sizeof(*p_port_rec) +
-						      sizeof(p_port_rec_new->ep_pkey_rec.pkey_tbl[0]) * used_blocks);
-					if (!p_port_rec) {
-						/* handle failure - bad memory allocation */
-					}
-					ep_port_rec_copy(p_port_rec, p_port_rec_new);
-					cl_qmap_insert(&p_ssa_db_diff->ep_port_tbl_added,
-						       lid, &p_port_rec->map_item);
-				}
-			}
+		key = cl_qmap_key(&p_port_rec->map_item);
+		/* checking if the item is already in added or removed sections */
+		if (cl_qmap_get(&p_ssa_db_diff->ep_port_tbl_added, key)
+		    != cl_qmap_end(&p_ssa_db_diff->ep_port_tbl_added))
+			continue;
+		if (cl_qmap_get(&p_ssa_db_diff->ep_port_tbl_removed, key)
+		    != cl_qmap_end(&p_ssa_db_diff->ep_port_tbl_removed))
+			continue;
+
+		p_port_rec_new = (struct ep_port_rec *)
+			cl_qmap_get(&p_current_db->ep_port_tbl, key);
+		if (p_port_rec_new == (struct ep_port_rec *)
+			cl_qmap_end(&p_current_db->ep_port_tbl)) {
+			/* we are not supposed to get here - error occured */
 		}
+
+		p_port_rec_old = p_port_rec;
+		/* comparing 2 ep_node_rec records with the same key */
+		if (ssa_db_port_comp(p_port_rec_old, p_port_rec_new)) {
+			used_blocks = p_port_rec_old->ep_pkey_rec.used_blocks;
+			p_port_rec = (struct ep_port_rec *)
+					malloc(sizeof(*p_port_rec) +
+					       sizeof(p_port_rec->ep_pkey_rec.pkey_tbl[0]) *
+					       used_blocks);
+			if (!p_port_rec) {
+				/* handle failure - bad memory allocation */
+			}
+			ep_port_rec_copy(p_port_rec, p_port_rec_old);
+			cl_qmap_insert(&p_ssa_db_diff->ep_port_tbl_removed,
+				       key, &p_port_rec->map_item);
+
+			used_blocks = p_port_rec_new->ep_pkey_rec.used_blocks;
+			p_port_rec = (struct ep_port_rec *)
+					malloc(sizeof(*p_port_rec) +
+					       sizeof(p_port_rec->ep_pkey_rec.pkey_tbl[0]) *
+					       used_blocks);
+			if (!p_port_rec) {
+				/* handle failure - bad memory allocation */
+			}
+			ep_port_rec_copy(p_port_rec, p_port_rec_new);
+			cl_qmap_insert(&p_ssa_db_diff->ep_port_tbl_added,
+				       key, &p_port_rec->map_item);
+			dirty = 1;
+		}
+		/* we get here if the there is no difference between 2 records */
 	}
 
 	p_ssa_db_diff->dirty = dirty;
@@ -802,8 +777,9 @@ static void ssa_db_diff_dump_port_rec(IN struct ssa_events * ssa,
 
 	if (p_port_rec) {
 		ssa_log(SSA_LOG_VERBOSE, "-------------------\n");
-		ssa_log(SSA_LOG_VERBOSE, "Port LID %u LMC %u Port state %d (%s)\n",
-			cl_ntoh16(p_port_rec->port_info.base_lid),
+		ssa_log(SSA_LOG_VERBOSE, "Port LID %u Port Num %u LMC %u Port state %d (%s)\n",
+			(uint16_t) cl_qmap_key(&p_port_rec->map_item),
+			(uint8_t) (cl_qmap_key(&p_port_rec->map_item) >> 16),
 			ib_port_info_get_lmc(&p_port_rec->port_info),
 			ib_port_info_get_port_state(&p_port_rec->port_info),
 			(ib_port_info_get_port_state(&p_port_rec->port_info) < 5
@@ -999,6 +975,35 @@ void ep_node_qmap_copy(cl_qmap_t *p_dest_qmap, cl_qmap_t * p_src_qmap)
 		cl_qmap_insert(p_dest_qmap,
 			       cl_qmap_key(&p_node_rec->map_item),
 			       &p_node_rec_new->map_item);
+	}
+}
+
+/** =========================================================================
+ */
+void ep_port_qmap_copy(cl_qmap_t *p_dest_qmap, cl_qmap_t * p_src_qmap)
+{
+	struct ep_port_rec *p_port_rec, *p_port_rec_next;
+	struct ep_port_rec *p_port_rec_new;
+	uint16_t used_blocks;
+
+	p_port_rec_next = (struct ep_port_rec *) cl_qmap_head(p_src_qmap);
+	while (p_port_rec_next !=
+	       (struct ep_port_rec *) cl_qmap_end(p_src_qmap)) {
+		p_port_rec = p_port_rec_next;
+		p_port_rec_next = (struct ep_port_rec *)
+				   cl_qmap_next(&p_port_rec->map_item);
+		used_blocks = p_port_rec->ep_pkey_rec.used_blocks;
+		p_port_rec_new = (struct ep_port_rec *)
+				  malloc(sizeof(*p_port_rec_new) +
+					 sizeof(p_port_rec_new->ep_pkey_rec.pkey_tbl[0]) *
+					 used_blocks);
+		if (!p_port_rec_new) {
+			/* handle failure - bad memory allocation */
+		}
+		ep_port_rec_copy(p_port_rec_new, p_port_rec);
+		cl_qmap_insert(p_dest_qmap,
+			       cl_qmap_key(&p_port_rec->map_item),
+			       &p_port_rec_new->map_item);
 	}
 }
 

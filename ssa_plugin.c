@@ -151,21 +151,6 @@ static const char *sm_state_str(int state)
 
 /** =========================================================================
  */
-struct ssa_db *init_ssa_db(struct ssa_events *ssa)
-{
-	osm_subn_t *p_subn = &ssa->p_osm->subn;
-	struct ssa_db *p_ssa;
-	uint16_t lids = (uint16_t)
-			cl_ptr_vector_get_size(&p_subn->port_lid_tbl);
-	p_ssa = ssa_db_init(lids);
-	if (!p_ssa)
-		ssa_log(SSA_LOG_ALL, "ssa_db_init failed\n");
-
-	return p_ssa;
-}
-
-/** =========================================================================
- */
 static void *construct(osm_opensm_t *osm)
 {
 	struct ssa_events *ssa = (struct ssa_events *) malloc(sizeof(*ssa));
@@ -193,9 +178,24 @@ static void *construct(osm_opensm_t *osm)
 	ssa->osmlog = &osm->log;
 	ssa->p_osm = osm;
 
-	ssa_db->p_previous_db = init_ssa_db(ssa);
-	ssa_db->p_current_db = init_ssa_db(ssa);
-	ssa_db->p_dump_db = init_ssa_db(ssa);
+	ssa_db->p_previous_db = ssa_db_init();
+	if (!ssa_db->p_previous_db) {
+		ssa_log(SSA_LOG_ALL, "ssa_db_init failed (previous SMDB)\n");
+		return (NULL);
+	}
+	ssa_db->p_current_db = ssa_db_init();
+	if (!ssa_db->p_current_db) {
+		ssa_log(SSA_LOG_ALL, "ssa_db_init failed (current SMDB)\n");
+		ssa_db_delete(ssa_db->p_previous_db);
+		return (NULL);
+	}
+	ssa_db->p_dump_db = ssa_db_init();
+	if (!ssa_db->p_dump_db) {
+		ssa_log(SSA_LOG_ALL, "ssa_db_init failed (dump SMDB)\n");
+		ssa_db_delete(ssa_db->p_previous_db);
+		ssa_db_delete(ssa_db->p_current_db);
+		return (NULL);
+	}
 	return ((void *)ssa);
 }
 

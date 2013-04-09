@@ -107,6 +107,7 @@ struct ssa_db_diff *ssa_db_compare(struct ssa_events * ssa,
 				   struct ssa_database * ssa_db);
 void ep_guid_to_lid_qmap_copy(cl_qmap_t * p_dest_qmap, cl_qmap_t * p_src_qmap);
 void ep_node_qmap_copy(cl_qmap_t * p_dest_qmap, cl_qmap_t * p_src_qmap);
+void ep_port_qmap_copy(cl_qmap_t * p_dest_qmap, cl_qmap_t * p_src_qmap);
 void ep_lft_qmap_copy(cl_qmap_t * p_dest_qmap, cl_qmap_t * p_src_qmap);
 void ep_link_qmap_copy(cl_qmap_t * p_dest_qmap, cl_qmap_t * p_src_qmap);
 

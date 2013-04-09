@@ -117,8 +117,7 @@ struct ssa_db {
 	/* mutex ??? */
 	cl_qmap_t ep_guid_to_lid_tbl;	/* port GUID -> LID */
 	cl_qmap_t ep_node_tbl;		/* node GUID based */
-	cl_ptr_vector_t ep_port_tbl;	/* LID based */
-	/* maybe worth using fleximap for shorter key */
+	cl_qmap_t ep_port_tbl;		/* LID + port_num based*/
 	cl_qmap_t ep_link_tbl;		/* LID + port_num based */
 	cl_qmap_t ep_lft_tbl;		/* LID based */
 
@@ -151,7 +150,7 @@ struct ssa_database *ssa_database_init();
 void ssa_database_delete(struct ssa_database *p_ssa_db);
 
 /**********************SSA DB********************************************/
-struct ssa_db *ssa_db_init(uint16_t lids);
+struct ssa_db *ssa_db_init();
 void ssa_db_copy(struct ssa_db *p_dest_db, struct ssa_db *p_src_db);
 void ssa_db_delete(struct ssa_db *p_ssa_db);
 
@@ -169,7 +168,6 @@ void ep_node_rec_delete_pfn(cl_map_item_t *p_map_item);
 
 /**********************LINK records**************************************/
 struct ep_link_rec *ep_link_rec_init(osm_physp_t *p_physp);
-uint64_t ep_link_rec_gen_key(uint16_t lid, uint8_t port_num);
 void ep_link_rec_copy(struct ep_link_rec *p_dest_rec, struct ep_link_rec *p_src_rec);
 void ep_link_rec_delete(struct ep_link_rec *p_ep_link_rec);
 void ep_link_rec_delete_pfn(cl_map_item_t *p_map_item);
@@ -188,6 +186,7 @@ void ep_port_rec_delete(struct ep_port_rec *p_ep_port_rec);
 void ep_port_rec_delete_pfn(cl_map_item_t *p_map_item);
 /***********************************************************************/
 
+uint64_t ep_rec_gen_key(uint16_t lid, uint8_t port_num);
 void ssa_qmap_apply_func(cl_qmap_t *p_qmap, void (*destroy_pfn)(cl_map_item_t *));
 END_C_DECLS
 #endif				/* _SSA_DATABASE_H_ */
