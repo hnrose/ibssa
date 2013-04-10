@@ -293,21 +293,21 @@ void ep_lft_rec_delete_pfn(cl_map_item_t * p_map_item)
 	ep_lft_rec_delete(p_lft_rec);
 }
 
-struct ep_port_rec *ep_port_rec_init(osm_port_t *p_port)
+struct ep_port_rec *ep_port_rec_init(osm_physp_t *p_physp)
 {
 	struct ep_port_rec *p_ep_port_rec;
 	ib_pkey_table_t *pkey_tbl;
 	ib_slvl_table_t *p_slvl_tbl, *p_slvl_tbl_new;
 	cl_status_t status;
-	uint16_t used_blocks = p_port->p_physp->pkeys.used_blocks;
+	uint16_t used_blocks = p_physp->pkeys.used_blocks;
 	uint16_t block_index;
-	uint8_t slvl_rec = cl_ptr_vector_get_size(&p_port->p_physp->slvl_by_port);
+	uint8_t slvl_rec = cl_ptr_vector_get_size(&p_physp->slvl_by_port);
 	uint8_t i;
 
 	p_ep_port_rec = (struct ep_port_rec *) malloc(sizeof(*p_ep_port_rec) +
 						      sizeof(p_ep_port_rec->ep_pkey_rec.pkey_tbl[0]) * used_blocks);
 	if (p_ep_port_rec) {
-		memcpy(&p_ep_port_rec->port_info, &p_port->p_physp->port_info,
+		memcpy(&p_ep_port_rec->port_info, &p_physp->port_info,
 		       sizeof(p_ep_port_rec->port_info));
 
 		/* slvl tables vector initialization */
@@ -316,7 +316,7 @@ struct ep_port_rec *ep_port_rec_init(osm_port_t *p_port)
 			/* handle failure !!! */
 		}
 		for (i = 0; i < slvl_rec; i++) {
-			cl_ptr_vector_at(&p_port->p_physp->slvl_by_port, i, (void*)&p_slvl_tbl);
+			cl_ptr_vector_at(&p_physp->slvl_by_port, i, (void*)&p_slvl_tbl);
 			if (!p_slvl_tbl)
 				continue;
 			p_slvl_tbl_new = (ib_slvl_table_t *) malloc(sizeof(*p_slvl_tbl_new));
@@ -328,13 +328,13 @@ struct ep_port_rec *ep_port_rec_init(osm_port_t *p_port)
 		}
 
 		p_ep_port_rec->is_fdr10_active =
-			p_port->p_physp->ext_port_info.link_speed_active & FDR10;
+			p_physp->ext_port_info.link_speed_active & FDR10;
 		p_ep_port_rec->ep_pkey_rec.max_pkeys =
-			cl_ntoh16(p_port->p_node->node_info.partition_cap);
+			cl_ntoh16(p_physp->p_node->node_info.partition_cap);
 		p_ep_port_rec->ep_pkey_rec.used_blocks = used_blocks;
 		for (block_index = 0; block_index < used_blocks;
 		     block_index++) {
-			pkey_tbl = osm_pkey_tbl_block_get(osm_physp_get_pkey_tbl(p_port->p_physp), block_index);
+			pkey_tbl = osm_pkey_tbl_block_get(osm_physp_get_pkey_tbl(p_physp), block_index);
 			if (pkey_tbl)
 				memcpy(&p_ep_port_rec->ep_pkey_rec.pkey_tbl[block_index],
 				       pkey_tbl,

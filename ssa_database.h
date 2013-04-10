@@ -182,7 +182,7 @@ void ep_lft_rec_delete(struct ep_lft_rec *p_ep_lft_rec);
 void ep_lft_rec_delete_pfn(cl_map_item_t *p_map_item);
 
 /**********************PORT records**************************************/
-struct ep_port_rec *ep_port_rec_init(osm_port_t *p_port);
+struct ep_port_rec *ep_port_rec_init(osm_physp_t *p_physp);
 void ep_port_rec_copy(struct ep_port_rec *p_dest_rec, struct ep_port_rec *p_src_rec);
 void ep_port_rec_delete(struct ep_port_rec *p_ep_port_rec);
 void ep_port_rec_delete_pfn(cl_map_item_t *p_map_item);

@@ -239,7 +239,7 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 				cl_ntoh64(osm_physp_get_port_guid(p_port->p_physp)));
 		}
 
-		p_port_rec = ep_port_rec_init(p_port);
+		p_port_rec = ep_port_rec_init(p_port->p_physp);
 		if (p_port_rec) {
 			cl_ptr_vector_set(&p_ssa->ep_port_tbl,	/* dump_db ??? */
 					  cl_ntoh16(osm_port_get_base_lid(p_port)),
