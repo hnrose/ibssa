@@ -205,9 +205,30 @@ Exit:
 
 /** =========================================================================
  */
-static int ssa_db_guid_to_lid_comp(IN struct ep_guid_to_lid_rec * p_rec_old,
-				   IN struct ep_guid_to_lid_rec * p_rec_new)
+static void ssa_db_guid_to_lid_insert(OUT cl_qmap_t * p_map,
+				      IN uint64_t key,
+				      IN cl_map_item_t * p_item)
 {
+	struct ep_guid_to_lid_rec *p_guid_to_lid_rec;
+
+	p_guid_to_lid_rec = (struct ep_guid_to_lid_rec *)
+			     malloc(sizeof(*p_guid_to_lid_rec));
+	if (!p_guid_to_lid_rec) {
+		/* handle failure - bad memory allocation */
+	}
+	ep_guid_to_lid_rec_copy(p_guid_to_lid_rec, (struct ep_guid_to_lid_rec *) p_item);
+	cl_qmap_insert(p_map, key, &p_guid_to_lid_rec->map_item);
+}
+
+/** =========================================================================
+ */
+static int ssa_db_guid_to_lid_cmp(IN cl_map_item_t * p_item_old,
+				  IN cl_map_item_t * p_item_new)
+{
+	struct ep_guid_to_lid_rec *p_rec_old =
+			(struct ep_guid_to_lid_rec *) p_item_old;
+	struct ep_guid_to_lid_rec *p_rec_new =
+			(struct ep_guid_to_lid_rec *) p_item_new;
 	int res = 0;
 
 	if (p_rec_old->lid != p_rec_new->lid)
@@ -222,9 +243,27 @@ static int ssa_db_guid_to_lid_comp(IN struct ep_guid_to_lid_rec * p_rec_old,
 
 /** =========================================================================
  */
-static int ssa_db_node_comp(IN struct ep_node_rec * p_rec_old,
-			    IN struct ep_node_rec * p_rec_new)
+static void ssa_db_node_insert(OUT cl_qmap_t * p_map,
+			       IN uint64_t key,
+			       IN cl_map_item_t * p_item)
 {
+	struct ep_node_rec *p_node_rec;
+	p_node_rec = (struct ep_node_rec *)
+			     malloc(sizeof(*p_node_rec));
+	if (!p_node_rec) {
+		/* handle failure - bad memory allocation */
+	}
+	ep_node_rec_copy(p_node_rec, (struct ep_node_rec *) p_item);
+	cl_qmap_insert(p_map, key, &p_node_rec->map_item);
+}
+
+/** =========================================================================
+ */
+static int ssa_db_node_cmp(IN cl_map_item_t * p_item_old,
+			   IN cl_map_item_t * p_item_new)
+{
+	struct ep_node_rec *p_rec_old = (struct ep_node_rec *) p_item_old;
+	struct ep_node_rec *p_rec_new = (struct ep_node_rec *) p_item_new;
 	int res = 0;
 
 	if (memcmp(&p_rec_old->node_info, &p_rec_new->node_info,
@@ -241,9 +280,35 @@ static int ssa_db_node_comp(IN struct ep_node_rec * p_rec_old,
 
 /** =========================================================================
  */
-static int ssa_db_port_comp(IN const struct ep_port_rec * const p_rec_old,
-			    IN const struct ep_port_rec * const p_rec_new)
+static void ssa_db_port_insert(OUT cl_qmap_t * p_map,
+			       IN uint64_t key,
+			       IN cl_map_item_t * p_item)
 {
+	struct ep_port_rec *p_port_rec, *p_port_rec_old;
+	uint16_t used_blocks;
+
+	p_port_rec_old = (struct ep_port_rec *) p_item;
+	used_blocks = p_port_rec_old->ep_pkey_rec.used_blocks;
+
+	p_port_rec = (struct ep_port_rec *)
+			malloc(sizeof(*p_port_rec) +
+			       sizeof(p_port_rec->ep_pkey_rec.pkey_tbl[0]) *
+			       used_blocks);
+	if (!p_port_rec) {
+		/* handle failure - bad memory allocation */
+	}
+
+	ep_port_rec_copy(p_port_rec, p_port_rec_old);
+	cl_qmap_insert(p_map, key, &p_port_rec->map_item);
+}
+
+/** =========================================================================
+ */
+static int ssa_db_port_cmp(IN cl_map_item_t * const p_item_old,
+			   IN cl_map_item_t * const p_item_new)
+{
+	struct ep_port_rec *p_rec_old = (struct ep_port_rec *) p_item_old;
+	struct ep_port_rec *p_rec_new = (struct ep_port_rec *) p_item_new;
 	int res = 0;
 
 	if (memcmp(&p_rec_old->port_info, &p_rec_new->port_info,
@@ -259,40 +324,27 @@ static int ssa_db_port_comp(IN const struct ep_port_rec * const p_rec_old,
 
 /** =========================================================================
  */
-static uint8_t ssa_db_diff_compare_qmap(IN cl_qmap_t * p_qmap_previous,
-					IN cl_qmap_t * p_qmap_current,
-					IN void (*qmap_copy_pfn)(cl_qmap_t *, cl_qmap_t *),
-					IN void (*qmap_delete_pfn)(cl_map_item_t *),
-					OUT cl_qmap_t * p_qmap_added,
-					OUT cl_qmap_t * p_qmap_removed)
+static void ssa_db_link_insert(OUT cl_qmap_t * p_map,
+			       IN uint64_t key,
+			       IN cl_map_item_t * p_item)
 {
-	cl_qmap_t ep_rec_old, ep_rec_new;
-	uint8_t dirty = 0;
-
-	cl_qmap_init(&ep_rec_old);
-	cl_qmap_init(&ep_rec_new);
-
-	qmap_copy_pfn(&ep_rec_old, p_qmap_previous);
-	qmap_copy_pfn(&ep_rec_new, p_qmap_current);
-
-	cl_qmap_delta(&ep_rec_old, &ep_rec_new,
-		      p_qmap_added, p_qmap_removed);
-	if (cl_qmap_head(p_qmap_added) != cl_qmap_end(p_qmap_added))
-		dirty = 1;
-	if (cl_qmap_head(p_qmap_removed) != cl_qmap_end(p_qmap_removed))
-		dirty = 1;
-
-	ssa_qmap_apply_func(&ep_rec_old, qmap_delete_pfn);
-	ssa_qmap_apply_func(&ep_rec_new, qmap_delete_pfn);
-
-	return dirty;
+	struct ep_link_rec *p_link_rec;
+	p_link_rec = (struct ep_link_rec *)
+			     malloc(sizeof(*p_link_rec));
+	if (!p_link_rec) {
+		/* handle failure - bad memory allocation */
+	}
+	ep_link_rec_copy(p_link_rec, (struct ep_link_rec *) p_item);
+	cl_qmap_insert(p_map, key, &p_link_rec->map_item);
 }
 
 /** =========================================================================
  */
-static int ssa_db_link_comp(IN const struct ep_link_rec * const p_rec_old,
-			    IN const struct ep_link_rec * const p_rec_new)
+static int ssa_db_link_cmp(IN cl_map_item_t * p_item_old,
+			   IN cl_map_item_t * p_item_new)
 {
+	struct ep_link_rec *p_rec_old = (struct ep_link_rec *) p_item_old;
+	struct ep_link_rec *p_rec_new = (struct ep_link_rec *) p_item_new;
 	int res = 0;
 
 	if (memcmp(&p_rec_old->link_rec, &p_rec_new->link_rec,
@@ -304,22 +356,66 @@ static int ssa_db_link_comp(IN const struct ep_link_rec * const p_rec_old,
 
 /** =========================================================================
  */
-static void ssa_db_diff_compare_subnet_nodes(IN struct ssa_db * p_previous_db,
+static uint8_t ssa_db_diff_table_cmp(IN cl_qmap_t * p_map_old,
+				     IN cl_qmap_t * p_map_new,
+				     IN void (*qmap_insert_pfn)(cl_qmap_t *,
+								uint64_t, cl_map_item_t *),
+				     IN int (*cmp_pfn)(cl_map_item_t *, cl_map_item_t *),
+				     OUT cl_qmap_t * p_map_added,
+				     OUT cl_qmap_t * p_map_removed)
+{
+	cl_map_item_t *p_item_old, *p_item_new;
+	uint64_t key_old, key_new;
+	uint8_t dirty = 0;
+
+	p_item_old = cl_qmap_head(p_map_old);
+	p_item_new = cl_qmap_head(p_map_new);
+	while (p_item_old != cl_qmap_end(p_map_old) && p_item_new != cl_qmap_end(p_map_new)) {
+		key_old = cl_qmap_key(p_item_old);
+		key_new = cl_qmap_key(p_item_new);
+		if (key_old < key_new) {
+			qmap_insert_pfn(p_map_removed, key_old, p_item_old);
+			p_item_old = cl_qmap_next(p_item_old);
+			dirty = 1;
+		} else if (key_old > key_new) {
+			qmap_insert_pfn(p_map_added, key_new, p_item_new);
+			p_item_new = cl_qmap_next(p_item_new);
+			dirty = 1;
+		} else {
+			if (cmp_pfn(p_item_old, p_item_new)) {
+				qmap_insert_pfn(p_map_removed, key_old, p_item_old);
+				qmap_insert_pfn(p_map_added, key_new, p_item_new);
+				dirty = 1;
+			}
+			p_item_old = cl_qmap_next(p_item_old);
+			p_item_new = cl_qmap_next(p_item_new);
+		}
+	}
+
+	while (p_item_new != cl_qmap_end(p_map_new)) {
+		key_new = cl_qmap_key(p_item_new);
+		qmap_insert_pfn(p_map_added, key_new, p_item_new);
+		p_item_new = cl_qmap_next(p_item_new);
+		dirty = 1;
+	}
+
+	while (p_item_old != cl_qmap_end(p_map_old)) {
+		key_old = cl_qmap_key(p_item_old);
+		qmap_insert_pfn(p_map_removed, key_old, p_item_old);
+		p_item_old = cl_qmap_next(p_item_old);
+		dirty = 1;
+	}
+
+	return dirty;
+}
+
+/** =========================================================================
+ */
+static void ssa_db_diff_compare_subnet_tables(IN struct ssa_db * p_previous_db,
 					     IN struct ssa_db * p_current_db,
 					     OUT struct ssa_db_diff * const p_ssa_db_diff)
 {
-	struct ep_port_rec *p_port_rec, *p_port_rec_next;
-	struct ep_port_rec *p_port_rec_new, *p_port_rec_old;
-	struct ep_node_rec *p_node_rec, *p_node_rec_next;
-	struct ep_node_rec *p_node_rec_new, *p_node_rec_old;
-	struct ep_guid_to_lid_rec *p_guid_to_lid_rec, *p_guid_to_lid_rec_next;
-	struct ep_guid_to_lid_rec *p_guid_to_lid_rec_new, *p_guid_to_lid_rec_old;
-	struct ep_link_rec *p_link_rec, *p_link_rec_next;
-	struct ep_link_rec *p_link_rec_new, *p_link_rec_old;
-	uint64_t key;
-	uint16_t used_blocks;
 	uint8_t dirty = p_ssa_db_diff->dirty;
-
 	/*
 	 * Comparing ep_guid_to_lid_rec / ep_node_rec / ep_port_rec
 	 * 	     ep_link_rec records
@@ -344,245 +440,46 @@ static void ssa_db_diff_compare_subnet_nodes(IN struct ssa_db * p_previous_db,
 	 *    for LFT records there is only single map for changed
 	 *    blocks that need to be set)
 	 */
+
 	/*
 	 * Comparing ep_guid_to_lid_rec records
 	 */
-	dirty = ssa_db_diff_compare_qmap(&p_previous_db->ep_guid_to_lid_tbl,
-					 &p_current_db->ep_guid_to_lid_tbl,
-					 ep_guid_to_lid_qmap_copy,
-					 ep_guid_to_lid_rec_delete_pfn,
-					 &p_ssa_db_diff->ep_guid_to_lid_tbl_added,
-					 &p_ssa_db_diff->ep_guid_to_lid_tbl_removed);
-
-	p_guid_to_lid_rec_next = (struct ep_guid_to_lid_rec *)
-			cl_qmap_head(&p_previous_db->ep_guid_to_lid_tbl);
-	while (p_guid_to_lid_rec_next != (struct ep_guid_to_lid_rec *)
-			cl_qmap_end(&p_previous_db->ep_guid_to_lid_tbl)) {
-		p_guid_to_lid_rec = p_guid_to_lid_rec_next;
-		p_guid_to_lid_rec_next = (struct ep_guid_to_lid_rec *)
-			cl_qmap_next(&p_guid_to_lid_rec->map_item);
-
-		key = cl_qmap_key(&p_guid_to_lid_rec->map_item);
-		/* checking if the item is already in added or removed sections */
-		if (cl_qmap_get(&p_ssa_db_diff->ep_guid_to_lid_tbl_added, key)
-		    != cl_qmap_end(&p_ssa_db_diff->ep_guid_to_lid_tbl_added))
-			continue;
-		if (cl_qmap_get(&p_ssa_db_diff->ep_guid_to_lid_tbl_removed, key)
-		    != cl_qmap_end(&p_ssa_db_diff->ep_guid_to_lid_tbl_removed))
-			continue;
-
-		p_guid_to_lid_rec_new = (struct ep_guid_to_lid_rec *)
-			cl_qmap_get(&p_current_db->ep_guid_to_lid_tbl, key);
-		if (p_guid_to_lid_rec_new == (struct ep_guid_to_lid_rec *)
-			cl_qmap_end(&p_current_db->ep_guid_to_lid_tbl)) {
-			/* we are not supposed to get here - error occured */
-		}
-
-		p_guid_to_lid_rec_old = p_guid_to_lid_rec;
-		/* comparing 2 ep_guid_to_lid_rec records with the same key */
-		if (ssa_db_guid_to_lid_comp(p_guid_to_lid_rec_old,
-					    p_guid_to_lid_rec_new)) {
-			p_guid_to_lid_rec = (struct ep_guid_to_lid_rec *)
-					     malloc(sizeof(*p_guid_to_lid_rec));
-			if (!p_guid_to_lid_rec) {
-				/* handle failure - bad memory allocation */
-			}
-			ep_guid_to_lid_rec_copy(p_guid_to_lid_rec, p_guid_to_lid_rec_old);
-			cl_qmap_insert(&p_ssa_db_diff->ep_guid_to_lid_tbl_removed,
-				       key, &p_guid_to_lid_rec->map_item);
-			p_guid_to_lid_rec = (struct ep_guid_to_lid_rec *)
-					     malloc(sizeof(*p_guid_to_lid_rec));
-			if (!p_guid_to_lid_rec) {
-				/* handle failure - bad memory allocation */
-			}
-			ep_guid_to_lid_rec_copy(p_guid_to_lid_rec, p_guid_to_lid_rec_new);
-			cl_qmap_insert(&p_ssa_db_diff->ep_guid_to_lid_tbl_added,
-				       key, &p_guid_to_lid_rec->map_item);
-			dirty = 1;
-		}
-		/* we get here if the there is no difference between 2 records */
-	}
+	dirty = ssa_db_diff_table_cmp(&p_previous_db->ep_guid_to_lid_tbl,
+				      &p_current_db->ep_guid_to_lid_tbl,
+				      ssa_db_guid_to_lid_insert,
+				      ssa_db_guid_to_lid_cmp,
+				      &p_ssa_db_diff->ep_guid_to_lid_tbl_added,
+				      &p_ssa_db_diff->ep_guid_to_lid_tbl_removed);
 
 	/*
 	 * Comparing ep_node_rec records
 	 */
-	dirty = ssa_db_diff_compare_qmap(&p_previous_db->ep_node_tbl,
-					 &p_current_db->ep_node_tbl,
-					 ep_node_qmap_copy,
-					 ep_node_rec_delete_pfn,
-					 &p_ssa_db_diff->ep_node_tbl_added,
-					 &p_ssa_db_diff->ep_node_tbl_removed);
-
-	p_node_rec_next = (struct ep_node_rec *)
-			cl_qmap_head(&p_previous_db->ep_node_tbl);
-	while (p_node_rec_next != (struct ep_node_rec *)
-			cl_qmap_end(&p_previous_db->ep_node_tbl)) {
-		p_node_rec = p_node_rec_next;
-		p_node_rec_next = (struct ep_node_rec *)
-			cl_qmap_next(&p_node_rec->map_item);
-
-		key = cl_qmap_key(&p_node_rec->map_item);
-		/* checking if the item is already in added or removed sections */
-		if (cl_qmap_get(&p_ssa_db_diff->ep_node_tbl_added, key)
-		    != cl_qmap_end(&p_ssa_db_diff->ep_node_tbl_added))
-			continue;
-		if (cl_qmap_get(&p_ssa_db_diff->ep_node_tbl_removed, key)
-		    != cl_qmap_end(&p_ssa_db_diff->ep_node_tbl_removed))
-			continue;
-
-		p_node_rec_new = (struct ep_node_rec *)
-			cl_qmap_get(&p_current_db->ep_node_tbl, key);
-		if (p_node_rec_new == (struct ep_node_rec *)
-			cl_qmap_end(&p_current_db->ep_node_tbl)) {
-			/* we are not supposed to get here - error occured */
-		}
-
-		p_node_rec_old = p_node_rec;
-		/* comparing 2 ep_node_rec records with the same key */
-		if (ssa_db_node_comp(p_node_rec_old, p_node_rec_new)) {
-			p_node_rec = (struct ep_node_rec *)
-					     malloc(sizeof(*p_node_rec));
-			if (!p_node_rec) {
-				/* handle failure - bad memory allocation */
-			}
-			ep_node_rec_copy(p_node_rec, p_node_rec_old);
-			cl_qmap_insert(&p_ssa_db_diff->ep_node_tbl_removed,
-				       key, &p_node_rec->map_item);
-			p_node_rec = (struct ep_node_rec *)
-					     malloc(sizeof(*p_node_rec));
-			if (!p_node_rec) {
-				/* handle failure - bad memory allocation */
-			}
-			ep_node_rec_copy(p_node_rec, p_node_rec_new);
-			cl_qmap_insert(&p_ssa_db_diff->ep_node_tbl_added,
-				       key, &p_node_rec->map_item);
-			dirty = 1;
-		}
-		/* we get here if the there is no difference between 2 records */
-	}
+	dirty = ssa_db_diff_table_cmp(&p_previous_db->ep_node_tbl,
+				      &p_current_db->ep_node_tbl,
+				      ssa_db_node_insert,
+				      ssa_db_node_cmp,
+				      &p_ssa_db_diff->ep_node_tbl_added,
+				      &p_ssa_db_diff->ep_node_tbl_removed);
 
 	/*
 	 * Comparing ep_link_rec records
 	 */
-	dirty = ssa_db_diff_compare_qmap(&p_previous_db->ep_link_tbl,
-					 &p_current_db->ep_link_tbl,
-					 ep_link_qmap_copy,
-					 ep_link_rec_delete_pfn,
-					 &p_ssa_db_diff->ep_link_tbl_added,
-					 &p_ssa_db_diff->ep_link_tbl_removed);
-
-	p_link_rec_next = (struct ep_link_rec *)
-			cl_qmap_head(&p_previous_db->ep_link_tbl);
-	while (p_link_rec_next != (struct ep_link_rec *)
-			cl_qmap_end(&p_previous_db->ep_link_tbl)) {
-		p_link_rec = p_link_rec_next;
-		p_link_rec_next = (struct ep_link_rec *)
-			cl_qmap_next(&p_link_rec->map_item);
-
-		key = cl_qmap_key(&p_link_rec->map_item);
-		/* checking if the item is already in added or removed sections */
-		if (cl_qmap_get(&p_ssa_db_diff->ep_link_tbl_added, key)
-		    != cl_qmap_end(&p_ssa_db_diff->ep_link_tbl_added))
-			continue;
-		if (cl_qmap_get(&p_ssa_db_diff->ep_link_tbl_removed, key)
-		    != cl_qmap_end(&p_ssa_db_diff->ep_link_tbl_removed))
-			continue;
-
-		p_link_rec_new = (struct ep_link_rec *)
-			cl_qmap_get(&p_current_db->ep_link_tbl, key);
-		if (p_link_rec_new == (struct ep_link_rec *)
-			cl_qmap_end(&p_current_db->ep_link_tbl)) {
-			/* we are not supposed to get here - error occured */
-		}
-
-		p_link_rec_old = p_link_rec;
-		/* comparing 2 ep_link_rec records with the same key */
-		if (ssa_db_link_comp(p_link_rec_old, p_link_rec_new)) {
-			p_link_rec = (struct ep_link_rec *)
-					     malloc(sizeof(*p_link_rec));
-			if (!p_link_rec) {
-				/* handle failure - bad memory allocation */
-			}
-			ep_link_rec_copy(p_link_rec, p_link_rec_old);
-			cl_qmap_insert(&p_ssa_db_diff->ep_link_tbl_removed,
-				       key, &p_link_rec->map_item);
-			p_link_rec = (struct ep_link_rec *)
-					     malloc(sizeof(*p_link_rec));
-			if (!p_link_rec) {
-				/* handle failure - bad memory allocation */
-			}
-			ep_link_rec_copy(p_link_rec, p_link_rec_new);
-			cl_qmap_insert(&p_ssa_db_diff->ep_link_tbl_added,
-				       key, &p_link_rec->map_item);
-			dirty = 1;
-		}
-		/* we get here if the there is no difference between 2 records */
-	}
+	dirty = ssa_db_diff_table_cmp(&p_previous_db->ep_link_tbl,
+				      &p_current_db->ep_link_tbl,
+				      ssa_db_link_insert,
+				      ssa_db_link_cmp,
+				      &p_ssa_db_diff->ep_link_tbl_added,
+				      &p_ssa_db_diff->ep_link_tbl_removed);
 
 	/*
 	 * Comparing ep_port_rec records
 	 */
-	dirty = ssa_db_diff_compare_qmap(&p_previous_db->ep_port_tbl,
-					 &p_current_db->ep_port_tbl,
-					 ep_port_qmap_copy,
-					 ep_port_rec_delete_pfn,
-					 &p_ssa_db_diff->ep_port_tbl_added,
-					 &p_ssa_db_diff->ep_port_tbl_removed);
-
-	p_port_rec_next = (struct ep_port_rec *)
-			cl_qmap_head(&p_previous_db->ep_port_tbl);
-	while (p_port_rec_next != (struct ep_port_rec *)
-			cl_qmap_end(&p_previous_db->ep_port_tbl)) {
-		p_port_rec = p_port_rec_next;
-		p_port_rec_next = (struct ep_port_rec *)
-			cl_qmap_next(&p_port_rec->map_item);
-
-		key = cl_qmap_key(&p_port_rec->map_item);
-		/* checking if the item is already in added or removed sections */
-		if (cl_qmap_get(&p_ssa_db_diff->ep_port_tbl_added, key)
-		    != cl_qmap_end(&p_ssa_db_diff->ep_port_tbl_added))
-			continue;
-		if (cl_qmap_get(&p_ssa_db_diff->ep_port_tbl_removed, key)
-		    != cl_qmap_end(&p_ssa_db_diff->ep_port_tbl_removed))
-			continue;
-
-		p_port_rec_new = (struct ep_port_rec *)
-			cl_qmap_get(&p_current_db->ep_port_tbl, key);
-		if (p_port_rec_new == (struct ep_port_rec *)
-			cl_qmap_end(&p_current_db->ep_port_tbl)) {
-			/* we are not supposed to get here - error occured */
-		}
-
-		p_port_rec_old = p_port_rec;
-		/* comparing 2 ep_node_rec records with the same key */
-		if (ssa_db_port_comp(p_port_rec_old, p_port_rec_new)) {
-			used_blocks = p_port_rec_old->ep_pkey_rec.used_blocks;
-			p_port_rec = (struct ep_port_rec *)
-					malloc(sizeof(*p_port_rec) +
-					       sizeof(p_port_rec->ep_pkey_rec.pkey_tbl[0]) *
-					       used_blocks);
-			if (!p_port_rec) {
-				/* handle failure - bad memory allocation */
-			}
-			ep_port_rec_copy(p_port_rec, p_port_rec_old);
-			cl_qmap_insert(&p_ssa_db_diff->ep_port_tbl_removed,
-				       key, &p_port_rec->map_item);
-
-			used_blocks = p_port_rec_new->ep_pkey_rec.used_blocks;
-			p_port_rec = (struct ep_port_rec *)
-					malloc(sizeof(*p_port_rec) +
-					       sizeof(p_port_rec->ep_pkey_rec.pkey_tbl[0]) *
-					       used_blocks);
-			if (!p_port_rec) {
-				/* handle failure - bad memory allocation */
-			}
-			ep_port_rec_copy(p_port_rec, p_port_rec_new);
-			cl_qmap_insert(&p_ssa_db_diff->ep_port_tbl_added,
-				       key, &p_port_rec->map_item);
-			dirty = 1;
-		}
-		/* we get here if the there is no difference between 2 records */
-	}
+	dirty = ssa_db_diff_table_cmp(&p_previous_db->ep_port_tbl,
+				      &p_current_db->ep_port_tbl,
+				      ssa_db_port_insert,
+				      ssa_db_port_cmp,
+				      &p_ssa_db_diff->ep_port_tbl_added,
+				      &p_ssa_db_diff->ep_port_tbl_removed);
 
 	p_ssa_db_diff->dirty = dirty;
 }
@@ -1129,8 +1026,8 @@ struct ssa_db_diff *ssa_db_compare(IN struct ssa_events * ssa,
 
 	ssa_db_diff_compare_subnet_opts(ssa_db->p_previous_db,
 					ssa_db->p_current_db, p_ssa_db_diff);
-	ssa_db_diff_compare_subnet_nodes(ssa_db->p_previous_db,
-					 ssa_db->p_current_db, p_ssa_db_diff);
+	ssa_db_diff_compare_subnet_tables(ssa_db->p_previous_db,
+					  ssa_db->p_current_db, p_ssa_db_diff);
 
 	ssa_db_diff_compare_lfts(ssa_db->p_current_db,
 				 ssa_db->p_dump_db, p_ssa_db_diff);
