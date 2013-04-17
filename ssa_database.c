@@ -278,8 +278,12 @@ struct ep_port_rec *ep_port_rec_init(osm_physp_t *p_physp)
 	p_ep_port_rec = (struct ep_port_rec *) malloc(sizeof(*p_ep_port_rec) +
 						      sizeof(p_ep_port_rec->ep_pkey_rec.pkey_tbl[0]) * used_blocks);
 	if (p_ep_port_rec) {
-		memcpy(&p_ep_port_rec->port_info, &p_physp->port_info,
-		       sizeof(p_ep_port_rec->port_info));
+		/* PORT INFO */
+		p_ep_port_rec->mtu_cap			= p_physp->port_info.mtu_cap;
+		p_ep_port_rec->link_speed_ext		= p_physp->port_info.link_speed_ext;
+		p_ep_port_rec->link_speed		= p_physp->port_info.link_speed;
+		p_ep_port_rec->link_width_active	= p_physp->port_info.link_width_active;
+		p_ep_port_rec->vl_enforce		= p_physp->port_info.vl_enforce;
 
 		/* slvl tables vector initialization */
 		status = cl_ptr_vector_init(&p_ep_port_rec->slvl_by_port, slvl_rec, 1);
@@ -326,8 +330,13 @@ void ep_port_rec_copy(OUT struct ep_port_rec *p_dest_rec,
 	uint16_t used_blocks;
 	uint8_t i, slvl_num;
 
-	memcpy(&p_dest_rec->port_info, &p_src_rec->port_info,
-	       sizeof(p_dest_rec->port_info));
+	/* PORT INFO data */
+	p_dest_rec->mtu_cap			= p_src_rec->mtu_cap;
+	p_dest_rec->link_speed_ext		= p_src_rec->link_speed_ext;
+	p_dest_rec->link_speed			= p_src_rec->link_speed;
+	p_dest_rec->link_width_active		= p_src_rec->link_width_active;
+	p_dest_rec->vl_enforce			= p_src_rec->vl_enforce;
+
 	p_dest_rec->is_fdr10_active = p_src_rec->is_fdr10_active;
 
 	slvl_num = cl_ptr_vector_get_size(&p_src_rec->slvl_by_port);

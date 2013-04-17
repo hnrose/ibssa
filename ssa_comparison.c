@@ -35,8 +35,6 @@
 #include <ssa_database.h>
 #include <ssa_comparison.h>
 
-extern char *port_state_str[];
-
 struct ssa_db_diff *ssa_db_diff_init()
 {
 	struct ssa_db_diff *p_ssa_db_diff;
@@ -311,8 +309,8 @@ static int ssa_db_port_cmp(IN cl_map_item_t * const p_item_old,
 	struct ep_port_rec *p_rec_new = (struct ep_port_rec *) p_item_new;
 	int res = 0;
 
-	if (memcmp(&p_rec_old->port_info, &p_rec_new->port_info,
-		   sizeof(p_rec_new->port_info)))
+	/* TODO: remove magic number */
+	if (memcmp(&p_rec_old->mtu_cap, &p_rec_new->mtu_cap, 5)) /* 5 uint8_t fields are taken from port_info */
 		res = 1;
 	if (p_rec_old->is_fdr10_active != p_rec_new->is_fdr10_active)
 		res = 1;
@@ -674,14 +672,9 @@ static void ssa_db_diff_dump_port_rec(IN struct ssa_events * ssa,
 
 	if (p_port_rec) {
 		ssa_log(SSA_LOG_VERBOSE, "-------------------\n");
-		ssa_log(SSA_LOG_VERBOSE, "Port LID %u Port Num %u LMC %u Port state %d (%s)\n",
+		ssa_log(SSA_LOG_VERBOSE, "Port LID %u Port Num %u\n",
 			(uint16_t) cl_qmap_key(&p_port_rec->map_item),
-			(uint8_t) (cl_qmap_key(&p_port_rec->map_item) >> 16),
-			ib_port_info_get_lmc(&p_port_rec->port_info),
-			ib_port_info_get_port_state(&p_port_rec->port_info),
-			(ib_port_info_get_port_state(&p_port_rec->port_info) < 5
-			 ? port_state_str[ib_port_info_get_port_state
-			 (&p_port_rec->port_info)] : "???"));
+			(uint8_t) (cl_qmap_key(&p_port_rec->map_item) >> 16));
 		ssa_log(SSA_LOG_VERBOSE, "FDR10 %s active\n",
 			p_port_rec->is_fdr10_active ? "" : "not");
 

@@ -94,7 +94,13 @@ struct ep_pkey_rec {
 struct ep_port_rec {
 	cl_map_item_t map_item;
 	/* or just (subnet prefix), cap mask, port state ?, active speeds, active width, and mtu cap ? */
-	ib_port_info_t port_info;
+	/*** PORT INFO ****/
+	uint8_t mtu_cap;
+	uint8_t link_speed_ext;
+	uint8_t link_speed;
+	uint8_t link_width_active;
+	uint8_t vl_enforce;
+	/******************/
 	uint8_t is_fdr10_active;
 	uint8_t pad[3];
 	cl_ptr_vector_t slvl_by_port;	/* the length is different for switch or host port */

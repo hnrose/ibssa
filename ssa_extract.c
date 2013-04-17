@@ -373,12 +373,9 @@ void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 	       (struct ep_port_rec *)cl_qmap_end(&p_ssa_db->ep_port_tbl)) {
 		p_port_rec = p_next_port_rec;
 		p_next_port_rec = (struct ep_port_rec *)cl_qmap_next(&p_port_rec->map_item);
-		ssa_log(SSA_LOG_VERBOSE, "Port LID %u Port Num %u LMC %u Port state %d (%s)\n",
+		ssa_log(SSA_LOG_VERBOSE, "Port LID %u Port Num %u\n",
 			(uint16_t) cl_qmap_key(&p_port_rec->map_item),
-			(uint8_t) (cl_qmap_key(&p_port_rec->map_item) >> 16),
-			ib_port_info_get_lmc(&p_port_rec->port_info),
-			ib_port_info_get_port_state(&p_port_rec->port_info),
-			(ib_port_info_get_port_state(&p_port_rec->port_info) < 5 ? port_state_str[ib_port_info_get_port_state(&p_port_rec->port_info)] : "???"));
+			(uint8_t) (cl_qmap_key(&p_port_rec->map_item) >> 16));
 		ssa_log(SSA_LOG_VERBOSE, "FDR10 %s active\n",
 			p_port_rec->is_fdr10_active ? "" : "not");
 
