@@ -488,31 +488,22 @@ void ssa_db_remove(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 void ssa_db_update(IN struct ssa_events *ssa,
 		   IN struct ssa_database *ssa_db)
 {
-	struct ssa_db *ssa_db_tmp;
-
 	ssa_log(SSA_LOG_VERBOSE, "[\n");
 
-        if (!ssa_db || !ssa_db->p_previous_db || !ssa_db->p_current_db) {
+        if (!ssa_db || !ssa_db->p_previous_db ||
+	    !ssa_db->p_current_db || !ssa_db->p_dump_db) {
                 /* error handling */
                 return;
         }
 
 	/* Updating previous SMDB with current one */
 	if (ssa_db->p_current_db->initialized) {
-		ssa_db_tmp = ssa_db->p_current_db;
-		ssa_db->p_current_db = ssa_db_init();
-		if (!ssa_db->p_current_db) {
-			/* TODO: add error handling */
-		}
-		if (ssa_db->p_previous_db->initialized)
-			ep_lft_qmap_copy(&ssa_db->p_current_db->ep_lft_tbl,
-					 &ssa_db->p_previous_db->ep_lft_tbl);
-		/* TODO:: merge ssa_db_remove and ssa_db_delete methods */
 		ssa_db_remove(ssa, ssa_db->p_previous_db);
 		ssa_db_delete(ssa_db->p_previous_db);
-		ssa_db->p_previous_db = ssa_db_tmp;
+		ssa_db->p_previous_db = ssa_db->p_current_db;
 	}
-	ssa_db_copy(ssa_db->p_current_db, ssa_db->p_dump_db);
+	ssa_db->p_current_db = ssa_db->p_dump_db;
+	ssa_db->p_dump_db = ssa_db_init();
 
 	ssa_log(SSA_LOG_VERBOSE, "]\n");
 }

@@ -273,10 +273,6 @@ static void report(void *_ssa, osm_epi_event_id_t event_id, void *event_data)
 
 		ssa_log(SSA_LOG_VERBOSE, "Subnet up event\n");
 
-if (ssa_db->p_dump_db)
-ssa_log(SSA_LOG_VERBOSE, "First removing existing SSA dump db\n");
-		ssa_db_remove(ssa, ssa_db->p_dump_db);
-ssa_log(SSA_LOG_VERBOSE, "Now dumping OSM db\n");
 		ssa_db->p_dump_db = ssa_db_extract(ssa);
 		/* For verification */
 		ssa_db_validate(ssa, ssa_db->p_dump_db);

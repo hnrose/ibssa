@@ -155,7 +155,6 @@ void ssa_database_delete(struct ssa_database *p_ssa_db);
 
 /**********************SSA DB********************************************/
 struct ssa_db *ssa_db_init();
-void ssa_db_copy(struct ssa_db *p_dest_db, struct ssa_db *p_src_db);
 void ssa_db_delete(struct ssa_db *p_ssa_db);
 
 /**********************GUID to LID records*******************************/
