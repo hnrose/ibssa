@@ -105,11 +105,7 @@ struct ssa_db_diff *ssa_db_diff_init();
 void ssa_db_diff_destroy(struct ssa_db_diff * p_ssa_db_diff);
 struct ssa_db_diff *ssa_db_compare(struct ssa_events * ssa,
 				   struct ssa_database * ssa_db);
-void ep_guid_to_lid_qmap_copy(cl_qmap_t * p_dest_qmap, cl_qmap_t * p_src_qmap);
-void ep_node_qmap_copy(cl_qmap_t * p_dest_qmap, cl_qmap_t * p_src_qmap);
-void ep_port_qmap_copy(cl_qmap_t * p_dest_qmap, cl_qmap_t * p_src_qmap);
 void ep_lft_qmap_copy(cl_qmap_t * p_dest_qmap, cl_qmap_t * p_src_qmap);
-void ep_link_qmap_copy(cl_qmap_t * p_dest_qmap, cl_qmap_t * p_src_qmap);
 
 /********************** LFT Block records*******************************/
 struct ep_lft_block_rec *ep_lft_block_rec_init(struct ep_lft_rec *p_lft_rec,

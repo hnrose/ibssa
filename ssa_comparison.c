@@ -823,87 +823,6 @@ static void ssa_db_diff_dump(IN struct ssa_events * ssa,
 }
 #endif
 
-
-/* TODO: make qmap copy functions generic */
-/** =========================================================================
- */
-void ep_guid_to_lid_qmap_copy(cl_qmap_t * p_dest_qmap, cl_qmap_t * p_src_qmap)
-{
-	struct ep_guid_to_lid_rec *p_guid_to_lid_rec, *p_guid_to_lid_rec_next;
-	struct ep_guid_to_lid_rec *p_guid_to_lid_rec_new;
-
-	p_guid_to_lid_rec_next = (struct ep_guid_to_lid_rec *) cl_qmap_head(p_src_qmap);
-	while (p_guid_to_lid_rec_next !=
-	       (struct ep_guid_to_lid_rec *) cl_qmap_end(p_src_qmap)) {
-		p_guid_to_lid_rec = p_guid_to_lid_rec_next;
-		p_guid_to_lid_rec_next = (struct ep_guid_to_lid_rec *)
-					  cl_qmap_next(&p_guid_to_lid_rec->map_item);
-		p_guid_to_lid_rec_new = (struct ep_guid_to_lid_rec *)
-					 malloc(sizeof(*p_guid_to_lid_rec_new));
-		if (!p_guid_to_lid_rec_new) {
-			/* handle failure - bad memory allocation */
-		}
-		ep_guid_to_lid_rec_copy(p_guid_to_lid_rec_new, p_guid_to_lid_rec);
-		cl_qmap_insert(p_dest_qmap,
-			       cl_qmap_key(&p_guid_to_lid_rec->map_item),
-			       &p_guid_to_lid_rec_new->map_item);
-	}
-}
-
-/** =========================================================================
- */
-void ep_node_qmap_copy(cl_qmap_t *p_dest_qmap, cl_qmap_t * p_src_qmap)
-{
-	struct ep_node_rec *p_node_rec, *p_node_rec_next;
-	struct ep_node_rec *p_node_rec_new;
-
-	p_node_rec_next = (struct ep_node_rec *) cl_qmap_head(p_src_qmap);
-	while (p_node_rec_next !=
-	       (struct ep_node_rec *) cl_qmap_end(p_src_qmap)) {
-		p_node_rec = p_node_rec_next;
-		p_node_rec_next = (struct ep_node_rec *)
-				   cl_qmap_next(&p_node_rec->map_item);
-		p_node_rec_new = (struct ep_node_rec *)
-				  malloc(sizeof(*p_node_rec_new));
-		if (!p_node_rec_new) {
-			/* handle failure - bad memory allocation */
-		}
-		ep_node_rec_copy(p_node_rec_new, p_node_rec);
-		cl_qmap_insert(p_dest_qmap,
-			       cl_qmap_key(&p_node_rec->map_item),
-			       &p_node_rec_new->map_item);
-	}
-}
-
-/** =========================================================================
- */
-void ep_port_qmap_copy(cl_qmap_t *p_dest_qmap, cl_qmap_t * p_src_qmap)
-{
-	struct ep_port_rec *p_port_rec, *p_port_rec_next;
-	struct ep_port_rec *p_port_rec_new;
-	uint16_t used_blocks;
-
-	p_port_rec_next = (struct ep_port_rec *) cl_qmap_head(p_src_qmap);
-	while (p_port_rec_next !=
-	       (struct ep_port_rec *) cl_qmap_end(p_src_qmap)) {
-		p_port_rec = p_port_rec_next;
-		p_port_rec_next = (struct ep_port_rec *)
-				   cl_qmap_next(&p_port_rec->map_item);
-		used_blocks = p_port_rec->ep_pkey_rec.used_blocks;
-		p_port_rec_new = (struct ep_port_rec *)
-				  malloc(sizeof(*p_port_rec_new) +
-					 sizeof(p_port_rec_new->ep_pkey_rec.pkey_tbl[0]) *
-					 used_blocks);
-		if (!p_port_rec_new) {
-			/* handle failure - bad memory allocation */
-		}
-		ep_port_rec_copy(p_port_rec_new, p_port_rec);
-		cl_qmap_insert(p_dest_qmap,
-			       cl_qmap_key(&p_port_rec->map_item),
-			       &p_port_rec_new->map_item);
-	}
-}
-
 /** =========================================================================
  */
 void ep_lft_block_rec_copy(OUT struct ep_lft_block_rec * p_dest_rec,
@@ -973,31 +892,6 @@ void ep_lft_qmap_copy(cl_qmap_t *p_dest_qmap, cl_qmap_t * p_src_qmap)
 		cl_qmap_insert(p_dest_qmap,
 			       cl_qmap_key(&p_lft->map_item),
 			       &p_tmp_lft->map_item);
-	}
-}
-
-/** =========================================================================
- */
-void ep_link_qmap_copy(cl_qmap_t *p_dest_qmap, cl_qmap_t * p_src_qmap)
-{
-	struct ep_link_rec *p_link_rec, *p_link_rec_next;
-	struct ep_link_rec *p_link_rec_new;
-
-	p_link_rec_next = (struct ep_link_rec *) cl_qmap_head(p_src_qmap);
-	while (p_link_rec_next !=
-	       (struct ep_link_rec *) cl_qmap_end(p_src_qmap)) {
-		p_link_rec = p_link_rec_next;
-		p_link_rec_next = (struct ep_link_rec *)
-				   cl_qmap_next(&p_link_rec->map_item);
-		p_link_rec_new = (struct ep_link_rec *)
-				  malloc(sizeof(*p_link_rec_new));
-		if (!p_link_rec_new) {
-			/* handle failure - bad memory allocation */
-		}
-		ep_link_rec_copy(p_link_rec_new, p_link_rec);
-		cl_qmap_insert(p_dest_qmap,
-			       cl_qmap_key(&p_link_rec->map_item),
-			       &p_link_rec_new->map_item);
 	}
 }
 
