@@ -81,9 +81,6 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 	p_ssa->sm_state = p_subn->sm_state;
 	p_ssa->lmc = p_subn->opt.lmc;
 	p_ssa->subnet_timeout = p_subn->opt.subnet_timeout;
-	/* Determine fabric_mtu/rate by looking at switch external ports with peer switch external ports in LinkUp state !!! */
-	p_ssa->fabric_mtu = IB_MTU_LEN_4096;
-	p_ssa->fabric_rate = IB_PATH_RECORD_RATE_56_GBS;	/* assume 4x FDR for now */
 	p_ssa->enable_quirks = (uint8_t) p_subn->opt.enable_quirks;
 	p_ssa->allow_both_pkeys = (uint8_t) p_subn->opt.allow_both_pkeys;
 
@@ -337,10 +334,9 @@ void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 
 	/* First, most Fabric/SM related parameters */
 	ssa_log(SSA_LOG_VERBOSE, "Subnet prefix 0x%" PRIx64 "\n", p_ssa_db->subnet_prefix);
-	ssa_log(SSA_LOG_VERBOSE, "LMC %u Subnet timeout %u Quirks %sabled MTU %d Rate %d Both Pkeys %sabled\n",
+	ssa_log(SSA_LOG_VERBOSE, "LMC %u Subnet timeout %u Quirks %sabled Both Pkeys %sabled\n",
 		p_ssa_db->lmc, p_ssa_db->subnet_timeout,
 		p_ssa_db->enable_quirks ? "en" : "dis",
-		p_ssa_db->fabric_mtu, p_ssa_db->fabric_rate,
 		p_ssa_db->allow_both_pkeys ? "en" : "dis");
 
 	p_next_node = (struct ep_node_rec *)cl_qmap_head(&p_ssa_db->ep_node_tbl);

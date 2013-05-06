@@ -132,8 +132,6 @@ struct ssa_db {
 	uint8_t sm_state;
 	uint8_t lmc;
 	uint8_t subnet_timeout;
-	uint8_t fabric_mtu;
-	uint8_t fabric_rate;
 	boolean_t enable_quirks;
 	boolean_t allow_both_pkeys;
 	/* boolean_t qos; */

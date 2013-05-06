@@ -480,8 +480,6 @@ void ssa_db_copy(IN struct ssa_db *p_dest_db,
 	p_dest_db->sm_state = p_src_db->sm_state;
 	p_dest_db->lmc = p_src_db->lmc;
 	p_dest_db->subnet_timeout = p_src_db->subnet_timeout;
-	p_dest_db->fabric_mtu = p_src_db->fabric_mtu;
-	p_dest_db->fabric_rate = p_src_db->fabric_rate;
 	p_dest_db->enable_quirks = p_src_db->enable_quirks;
 	p_dest_db->allow_both_pkeys = p_src_db->allow_both_pkeys;
 

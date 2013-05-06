@@ -52,10 +52,8 @@ BEGIN_C_DECLS
 #define SSA_DB_CHANGEMASK_SM_STATE 		(((uint16_t)1)<<1)
 #define SSA_DB_CHANGEMASK_LMC 			(((uint16_t)1)<<2)
 #define SSA_DB_CHANGEMASK_SUBNET_TIMEOUT 	(((uint16_t)1)<<3)
-#define SSA_DB_CHANGEMASK_FABRIC_MTU		(((uint16_t)1)<<4)
-#define SSA_DB_CHANGEMASK_FABRIC_RATE		(((uint16_t)1)<<5)
-#define SSA_DB_CHANGEMASK_ENABLE_QUIRKS		(((uint16_t)1)<<6)
-#define SSA_DB_CHANGEMASK_ALLOW_BOTH_PKEYS	(((uint16_t)1)<<7)
+#define SSA_DB_CHANGEMASK_ENABLE_QUIRKS		(((uint16_t)1)<<4)
+#define SSA_DB_CHANGEMASK_ALLOW_BOTH_PKEYS	(((uint16_t)1)<<5)
 
 struct ep_lft_block_rec {
 	cl_map_item_t map_item;
@@ -92,8 +90,6 @@ struct ssa_db_diff {
 	uint8_t sm_state;
 	uint8_t lmc;
 	uint8_t subnet_timeout;
-	uint8_t fabric_mtu;
-	uint8_t fabric_rate;
 	uint8_t enable_quirks;
 	uint8_t allow_both_pkeys;
 
