@@ -413,7 +413,7 @@ static void ssa_db_diff_compare_subnet_tables(IN struct ssa_db * p_previous_db,
 					     IN struct ssa_db * p_current_db,
 					     OUT struct ssa_db_diff * const p_ssa_db_diff)
 {
-	uint8_t dirty = p_ssa_db_diff->dirty;
+	uint8_t dirty = 0;
 	/*
 	 * Comparing ep_guid_to_lid_rec / ep_node_rec / ep_port_rec
 	 * 	     ep_link_rec records
@@ -442,44 +442,47 @@ static void ssa_db_diff_compare_subnet_tables(IN struct ssa_db * p_previous_db,
 	/*
 	 * Comparing ep_guid_to_lid_rec records
 	 */
-	dirty = ssa_db_diff_table_cmp(&p_previous_db->ep_guid_to_lid_tbl,
+	dirty |= ssa_db_diff_table_cmp(&p_previous_db->ep_guid_to_lid_tbl,
 				      &p_current_db->ep_guid_to_lid_tbl,
 				      ssa_db_guid_to_lid_insert,
 				      ssa_db_guid_to_lid_cmp,
 				      &p_ssa_db_diff->ep_guid_to_lid_tbl_added,
 				      &p_ssa_db_diff->ep_guid_to_lid_tbl_removed);
 
+	dirty = dirty << 1;
 	/*
 	 * Comparing ep_node_rec records
 	 */
-	dirty = ssa_db_diff_table_cmp(&p_previous_db->ep_node_tbl,
+	dirty |= ssa_db_diff_table_cmp(&p_previous_db->ep_node_tbl,
 				      &p_current_db->ep_node_tbl,
 				      ssa_db_node_insert,
 				      ssa_db_node_cmp,
 				      &p_ssa_db_diff->ep_node_tbl_added,
 				      &p_ssa_db_diff->ep_node_tbl_removed);
 
+	dirty = dirty << 1;
 	/*
 	 * Comparing ep_link_rec records
 	 */
-	dirty = ssa_db_diff_table_cmp(&p_previous_db->ep_link_tbl,
+	dirty |= ssa_db_diff_table_cmp(&p_previous_db->ep_link_tbl,
 				      &p_current_db->ep_link_tbl,
 				      ssa_db_link_insert,
 				      ssa_db_link_cmp,
 				      &p_ssa_db_diff->ep_link_tbl_added,
 				      &p_ssa_db_diff->ep_link_tbl_removed);
 
+	dirty = dirty << 1;
 	/*
 	 * Comparing ep_port_rec records
 	 */
-	dirty = ssa_db_diff_table_cmp(&p_previous_db->ep_port_tbl,
+	dirty |= ssa_db_diff_table_cmp(&p_previous_db->ep_port_tbl,
 				      &p_current_db->ep_port_tbl,
 				      ssa_db_port_insert,
 				      ssa_db_port_cmp,
 				      &p_ssa_db_diff->ep_port_tbl_added,
 				      &p_ssa_db_diff->ep_port_tbl_removed);
-
-	p_ssa_db_diff->dirty = dirty;
+	if (dirty)
+		p_ssa_db_diff->dirty = 1;
 }
 
 /** =========================================================================
