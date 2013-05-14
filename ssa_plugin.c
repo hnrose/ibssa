@@ -266,10 +266,8 @@ static void report(void *_ssa, osm_epi_event_id_t event_id, void *event_data)
 									       key, &p_lft_block->map_item);
 					if (p_lft_block_old != p_lft_block) {
 						/* in case of existing record with the same key */
-						cl_qmap_remove(&ssa_db->p_lft_db->ep_dump_lft_block_tbl, key);
-						ep_lft_block_rec_delete(p_lft_block_old);
-						cl_qmap_insert(&ssa_db->p_lft_db->ep_dump_lft_block_tbl,
-							       key, &p_lft_block->map_item);
+						memcpy(p_lft_block_old->block, p_lft_block->block, IB_SMP_DATA_SIZE);
+						ep_lft_block_rec_delete(p_lft_block);
 					}
 				}
 			} else if (p_lft_change->flags == LFT_CHANGED_LFT_TOP) {
@@ -284,10 +282,8 @@ static void report(void *_ssa, osm_epi_event_id_t event_id, void *event_data)
 								       key, &p_lft_top->map_item);
 					if (p_lft_top_old != p_lft_top) {
 						/* in case of existing record with the same key */
-						cl_qmap_remove(&ssa_db->p_lft_db->ep_dump_lft_top_tbl, key);
-						ep_lft_top_rec_delete(p_lft_top_old);
-						cl_qmap_insert(&ssa_db->p_lft_db->ep_dump_lft_top_tbl,
-							       key, &p_lft_top->map_item);
+						p_lft_top_old->lft_top = p_lft_top->lft_top;
+						ep_lft_top_rec_delete(p_lft_top);
 					}
 				}
 			} else {
