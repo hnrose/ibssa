@@ -38,6 +38,7 @@
 #include <complib/cl_qmap.h>
 #include <ssa_plugin.h>
 #include <ssa_database.h>
+#include <ssa_db.h>
 
 #ifdef __cplusplus
 #  define BEGIN_C_DECLS extern "C" {
@@ -55,8 +56,33 @@ BEGIN_C_DECLS
 #define SSA_DB_CHANGEMASK_ENABLE_QUIRKS		(((uint16_t)1)<<4)
 #define SSA_DB_CHANGEMASK_ALLOW_BOTH_PKEYS	(((uint16_t)1)<<5)
 
+enum ssa_db_diff_table_id {
+	SSA_TABLE_ID_TABLE_DEF = -1,
+	SSA_TABLE_ID_GUID_TO_LID = 1,
+	SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF,
+	SSA_TABLE_ID_MAX = SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF
+};
+
+enum ssa_db_diff_guid_to_lid_fields {
+	SSA_FIELD_ID_GUID_TO_LID_GUID = 1,
+	SSA_FIELD_ID_GUID_TO_LID_LID,
+	SSA_FIELD_ID_GUID_TO_LID_LMC,
+	SSA_FIELD_ID_GUID_TO_LID_IS_SWITCH,
+	SSA_FIELD_ID_GUID_TO_LID_MAX = SSA_FIELD_ID_GUID_TO_LID_IS_SWITCH
+};
+
 /* used for making comparison between two ssa databases */
 struct ssa_db_diff {
+	struct db_def			db_def;
+
+	struct db_dataset		db_table_def;
+	struct db_table_def		*p_def_tbl;
+
+	struct db_dataset		db_guid_to_lid_field_def;
+	struct db_field_def		*p_guid_to_lid_field_tbl;
+	struct db_dataset		db_guid_to_lid;
+	struct ep_guid_to_lid_tbl_rec	*p_guid_to_lid_tbl;
+
 	/***** guid_to_lid_tbl changes tracking **********/
 	cl_qmap_t ep_guid_to_lid_tbl_added;
 	cl_qmap_t ep_guid_to_lid_tbl_removed;
@@ -91,7 +117,7 @@ struct ssa_db_diff {
 	uint8_t dirty;
 };
 
-struct ssa_db_diff *ssa_db_diff_init();
+struct ssa_db_diff *ssa_db_diff_init(uint64_t guid_to_lid_num_recs);
 void ssa_db_diff_destroy(struct ssa_db_diff * p_ssa_db_diff);
 struct ssa_db_diff *ssa_db_compare(struct ssa_events * ssa,
 				   struct ssa_database * ssa_db);

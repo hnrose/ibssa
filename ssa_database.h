@@ -51,16 +51,17 @@
 
 BEGIN_C_DECLS
 
-struct ep_guid_to_lid_rec {
-	cl_map_item_t map_item;
-	uint16_t lid;
-	uint8_t lmc;		/* or just fabric lmc ? */
-#if 1
-	/* Below is to optimize SP0 (if not in other tables) */
-	uint8_t is_switch;	/* ??? */
-#else
-	uint8_t pad;		/* ??? */
-#endif
+struct ep_guid_to_lid_tbl_rec {
+	uint64_t	guid;
+	uint16_t	lid;
+	uint8_t		lmc;
+	uint8_t		is_switch;
+	uint8_t		pad[4];
+};
+
+struct ep_map_rec {
+	cl_map_item_t	map_item;
+	uint64_t	offset;
 };
 
 struct ep_node_rec {
@@ -134,7 +135,9 @@ struct ssa_db_lft {
 
 struct ssa_db {
 	/* mutex ??? */
-	cl_qmap_t ep_guid_to_lid_tbl;	/* port GUID -> LID */
+	struct ep_guid_to_lid_tbl_rec	*p_guid_to_lid_tbl;
+
+	cl_qmap_t ep_guid_to_lid_tbl;	/* port GUID -> offset */
 	cl_qmap_t ep_node_tbl;		/* node GUID based */
 	cl_qmap_t ep_port_tbl;		/* LID + port_num based*/
 	cl_qmap_t ep_link_tbl;		/* LID + port_num based */
@@ -170,10 +173,8 @@ struct ssa_db *ssa_db_init();
 void ssa_db_delete(struct ssa_db *p_ssa_db);
 
 /**********************GUID to LID records*******************************/
-struct ep_guid_to_lid_rec *ep_guid_to_lid_rec_init(osm_port_t *p_port);
-void ep_guid_to_lid_rec_copy(struct ep_guid_to_lid_rec *p_dest_rec, struct ep_guid_to_lid_rec *p_src_rec);
-void ep_guid_to_lid_rec_delete(struct ep_guid_to_lid_rec *p_ep_guid_to_lid_rec);
-void ep_guid_to_lid_rec_delete_pfn(cl_map_item_t *p_map_item);
+void ep_guid_to_lid_tbl_rec_init(osm_port_t *p_port,
+				 struct ep_guid_to_lid_tbl_rec * p_rec);
 
 /**********************NODE records**************************************/
 struct ep_node_rec *ep_node_rec_init(osm_node_t *p_osm_node);
@@ -214,6 +215,10 @@ void ep_port_rec_delete_pfn(cl_map_item_t *p_map_item);
 /***********************************************************************/
 
 uint64_t ep_rec_gen_key(uint16_t lid, uint8_t port_num);
+inline void ep_map_rec_copy(struct ep_map_rec *p_src_rec, struct ep_map_rec *p_dest_rec);
+struct ep_map_rec *ep_map_rec_init(uint64_t offset);
+void ep_map_rec_delete(struct ep_map_rec *p_map_rec);
+void ep_map_rec_delete_pfn(cl_map_item_t *p_map_item);
 void ssa_qmap_apply_func(cl_qmap_t *p_qmap, void (*destroy_pfn)(cl_map_item_t *));
 END_C_DECLS
 #endif				/* _SSA_DATABASE_H_ */

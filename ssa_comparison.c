@@ -37,12 +37,203 @@
 
 extern uint8_t first_time_subnet_up;
 
-struct ssa_db_diff *ssa_db_diff_init()
+static const struct db_table_def def_tbl[] = {
+	{ 1, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SSA_TABLE_ID_GUID_TO_LID, 0 }, "GUID to LID", sizeof(struct ep_guid_to_lid_tbl_rec), 0 },
+	{ 1, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, 0 },
+							"GUID to LID fields", sizeof(struct db_field_def), SSA_TABLE_ID_GUID_TO_LID },
+	{ 0 }
+};
+
+static const struct db_field_def field_tbl[] = {
+	{ 1, 0, DBF_TYPE_NET64, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, SSA_FIELD_ID_GUID_TO_LID_GUID }, "guid", 64, 0 },
+	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, SSA_FIELD_ID_GUID_TO_LID_LID }, "lid", 16, 64 },
+	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, SSA_FIELD_ID_GUID_TO_LID_LMC }, "lmc", 8, 80 },
+	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, SSA_FIELD_ID_GUID_TO_LID_IS_SWITCH }, "is_switch", 8, 88 },
+	{ 0 }
+};
+
+void ssa_db_diff_db_def_init(struct db_def * p_db_def,
+			     uint8_t version, uint8_t size,
+			     uint8_t db_id, uint8_t table_id,
+			     uint8_t field_id, const char * name,
+			     uint32_t table_def_size)
+{
+	p_db_def->version		= version;
+	p_db_def->size			= size;
+	p_db_def->id.db			= db_id;
+	p_db_def->id.table		= table_id;
+	p_db_def->id.field		= field_id;
+	strcpy(p_db_def->name, name);
+	p_db_def->table_def_size	= htonl(table_def_size);
+}
+
+/** =========================================================================
+ */
+void ssa_db_diff_dataset_init(struct db_dataset * p_dataset,
+			      uint8_t version, uint8_t size,
+			      uint8_t access, uint8_t db_id,
+			      uint8_t table_id, uint8_t field_id,
+			      uint64_t epoch, uint64_t set_size,
+			      uint64_t set_offset, uint64_t set_count)
+{
+	p_dataset->version	= version;
+	p_dataset->size		= size;
+	p_dataset->access	= access;
+	p_dataset->id.db	= db_id;
+	p_dataset->id.table	= table_id;
+	p_dataset->id.field	= field_id;
+	p_dataset->epoch	= htonll(epoch);
+	p_dataset->set_size	= htonll(set_size);
+	p_dataset->set_offset	= htonll(set_offset);
+	p_dataset->set_count	= htonll(set_count);
+}
+
+/** =========================================================================
+ */
+void ssa_db_diff_table_def_insert(struct db_table_def * p_tbl,
+				  struct db_dataset * p_dataset,
+				  uint8_t version, uint8_t size,
+				  uint8_t type, uint8_t access,
+				  uint8_t db_id, uint8_t table_id,
+				  uint8_t field_id, const char * name,
+				  uint32_t record_size, uint32_t ref_table_id)
+{
+	struct db_table_def db_table_def_rec;
+
+	memset(&db_table_def_rec, 0, sizeof(db_table_def_rec));
+
+	db_table_def_rec.version	= version;
+	db_table_def_rec.size		= size;
+	db_table_def_rec.type		= type;
+	db_table_def_rec.access		= access;
+	db_table_def_rec.id.db		= db_id;
+	db_table_def_rec.id.table	= table_id;
+	db_table_def_rec.id.field	= field_id;
+	strcpy(db_table_def_rec.name, name);
+	db_table_def_rec.record_size	= htonl(record_size);
+	db_table_def_rec.ref_table_id	= htonl(ref_table_id);
+
+	memcpy(&p_tbl[p_dataset->set_count++], &db_table_def_rec,
+	       sizeof(*p_tbl));
+
+	p_dataset->set_size += sizeof(*p_tbl);
+}
+
+/** =========================================================================
+ */
+void ssa_db_diff_field_def_insert(struct db_field_def * p_tbl,
+				  struct db_dataset * p_dataset,
+				  uint8_t version, uint8_t type,
+				  uint8_t db_id, uint8_t table_id,
+				  uint8_t field_id, const char * name,
+				  uint32_t field_size, uint32_t field_offset)
+{
+	struct db_field_def db_field_def_rec;
+
+	memset(&db_field_def_rec, 0, sizeof(db_field_def_rec));
+
+	db_field_def_rec.version	= version;
+	db_field_def_rec.type		= type;
+	db_field_def_rec.id.db		= db_id;
+	db_field_def_rec.id.table	= table_id;
+	db_field_def_rec.id.field	= field_id;
+	strcpy(db_field_def_rec.name, name);
+	db_field_def_rec.field_size	= htonl(field_size);
+	db_field_def_rec.field_offset	= htonl(field_offset);
+
+	memcpy(&p_tbl[p_dataset->set_count++], &db_field_def_rec,
+	       sizeof(*p_tbl));
+
+	p_dataset->set_size += sizeof(*p_tbl);
+}
+
+/** =========================================================================
+ */
+void ssa_db_diff_tables_init(struct ssa_db_diff * p_ssa_db_diff)
+{
+	const struct db_table_def *p_tbl_def;
+	const struct db_field_def *p_field_def;
+
+	/*
+	 * db_def initialization
+	 */
+	ssa_db_diff_db_def_init(&p_ssa_db_diff->db_def,
+				0, sizeof(p_ssa_db_diff->db_def),
+				12 /* just some db_id */, 0, 0, "SMDB",
+				sizeof(*p_ssa_db_diff->p_def_tbl));
+
+	/*
+	 * Definition tables dataset initialization
+	 */
+	ssa_db_diff_dataset_init(&p_ssa_db_diff->db_table_def,
+				 0, sizeof(p_ssa_db_diff->db_table_def),
+				 0, 0, SSA_TABLE_ID_TABLE_DEF, 0,
+				 0, 0, 0, 0);
+
+	p_ssa_db_diff->p_def_tbl = (struct db_table_def *)
+		malloc(sizeof(*p_ssa_db_diff->p_def_tbl) * SSA_TABLE_ID_MAX);
+	if (!p_ssa_db_diff->p_def_tbl) {
+		/* add handling memory allocation failure */
+	}
+
+	/* adding table definitions */
+	for (p_tbl_def = def_tbl; p_tbl_def->version; p_tbl_def++)
+		ssa_db_diff_table_def_insert(p_ssa_db_diff->p_def_tbl,
+					     &p_ssa_db_diff->db_table_def,
+					     p_tbl_def->version, p_tbl_def->size,
+					     p_tbl_def->type, p_tbl_def->access,
+					     p_tbl_def->id.db, p_tbl_def->id.table,
+					     p_tbl_def->id.field, p_tbl_def->name,
+					     p_tbl_def->record_size, p_tbl_def->ref_table_id);
+
+	/*************************** GUID to LID ******************************/
+	/*
+	 * guid_to_lid dataset initialization
+	 */
+	ssa_db_diff_dataset_init(&p_ssa_db_diff->db_guid_to_lid,
+				 0, sizeof(p_ssa_db_diff->db_guid_to_lid),
+				 0, 0, SSA_TABLE_ID_GUID_TO_LID, 0,
+				 0, 0, 0, 0);
+	/*
+	 * guid_to_lid field dataset initialization
+	 */
+	ssa_db_diff_dataset_init(&p_ssa_db_diff->db_guid_to_lid_field_def,
+				 0, sizeof(p_ssa_db_diff->db_guid_to_lid_field_def),
+				 0, 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, 0,
+				 0, 0, 0, 0);
+
+	p_ssa_db_diff->p_guid_to_lid_field_tbl = (struct db_field_def *)
+		malloc(sizeof(*p_ssa_db_diff->p_guid_to_lid_field_tbl) * SSA_FIELD_ID_GUID_TO_LID_MAX);
+	if (!p_ssa_db_diff->p_guid_to_lid_field_tbl) {
+		/* add handling memory allocation failure */
+	}
+	for (p_field_def = field_tbl; p_field_def->version; p_field_def++) {
+		if (p_field_def->id.table == SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF)
+			ssa_db_diff_field_def_insert(p_ssa_db_diff->p_guid_to_lid_field_tbl,
+						     &p_ssa_db_diff->db_guid_to_lid_field_def,
+						     p_field_def->version, p_field_def->type,
+						     p_field_def->id.db, p_field_def->id.table,
+						     p_field_def->id.field, p_field_def->name,
+						     p_field_def->field_size, p_field_def->field_offset);
+	}
+	/**********************************************************************/
+}
+
+struct ssa_db_diff *ssa_db_diff_init(uint64_t guid_to_lid_num_recs)
 {
 	struct ssa_db_diff *p_ssa_db_diff;
 
 	p_ssa_db_diff = (struct ssa_db_diff *) calloc(1, sizeof(*p_ssa_db_diff));
 	if (p_ssa_db_diff) {
+		ssa_db_diff_tables_init(p_ssa_db_diff);
+
+		p_ssa_db_diff->p_guid_to_lid_tbl = (struct ep_guid_to_lid_tbl_rec *)
+			malloc(sizeof(*p_ssa_db_diff->p_guid_to_lid_tbl) * guid_to_lid_num_recs);
+
+		if (!p_ssa_db_diff->p_guid_to_lid_tbl) {
+			/* TODO: add handling memory allocation failure */
+		}
+
 		cl_qmap_init(&p_ssa_db_diff->ep_guid_to_lid_tbl_added);
 		cl_qmap_init(&p_ssa_db_diff->ep_node_tbl_added);
 		cl_qmap_init(&p_ssa_db_diff->ep_port_tbl_added);
@@ -59,13 +250,27 @@ struct ssa_db_diff *ssa_db_diff_init()
 
 /** =========================================================================
  */
+void ssa_db_diff_tables_destroy(struct ssa_db_diff * p_ssa_db_diff)
+{
+	if (!p_ssa_db_diff)
+		return;
+
+	free(p_ssa_db_diff->p_guid_to_lid_tbl);
+	free(p_ssa_db_diff->p_guid_to_lid_field_tbl);
+	free(p_ssa_db_diff->p_def_tbl);
+}
+
+/** =========================================================================
+ */
 void ssa_db_diff_destroy(struct ssa_db_diff * p_ssa_db_diff)
 {
 	if (p_ssa_db_diff) {
+		ssa_db_diff_tables_destroy(p_ssa_db_diff);
+
 		ssa_qmap_apply_func(&p_ssa_db_diff->ep_guid_to_lid_tbl_added,
-				   ep_guid_to_lid_rec_delete_pfn);
+				   ep_map_rec_delete_pfn);
 		ssa_qmap_apply_func(&p_ssa_db_diff->ep_guid_to_lid_tbl_removed,
-				   ep_guid_to_lid_rec_delete_pfn);
+				   ep_map_rec_delete_pfn);
 		ssa_qmap_apply_func(&p_ssa_db_diff->ep_node_tbl_added,
 				   ep_node_rec_delete_pfn);
 		ssa_qmap_apply_func(&p_ssa_db_diff->ep_node_tbl_removed,
@@ -161,37 +366,65 @@ Exit:
 
 /** =========================================================================
  */
-static void ssa_db_guid_to_lid_insert(cl_qmap_t * p_map,
+static void ssa_db_guid_to_lid_insert(cl_qmap_t *p_map,
+				      struct db_dataset *p_dataset,
+				      void **p_data_tbl,
 				      uint64_t key,
-				      cl_map_item_t * p_item)
+				      cl_map_item_t * p_item,
+				      void * p_data_tbl_src)
 {
-	struct ep_guid_to_lid_rec *p_guid_to_lid_rec;
+	struct ep_map_rec *p_map_rec_new, *p_map_rec_old;
+	struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl_rec_dest;
+	struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl_rec_src;
 
-	p_guid_to_lid_rec = (struct ep_guid_to_lid_rec *)
-			     malloc(sizeof(*p_guid_to_lid_rec));
-	if (!p_guid_to_lid_rec) {
+	p_guid_to_lid_tbl_rec_dest = (struct ep_guid_to_lid_tbl_rec *) *p_data_tbl;
+	p_guid_to_lid_tbl_rec_src = (struct ep_guid_to_lid_tbl_rec *) p_data_tbl_src;
+
+	p_map_rec_new = (struct ep_map_rec *)
+			     malloc(sizeof(*p_map_rec_new));
+	if (!p_map_rec_new) {
 		/* handle failure - bad memory allocation */
 	}
-	ep_guid_to_lid_rec_copy(p_guid_to_lid_rec, (struct ep_guid_to_lid_rec *) p_item);
-	cl_qmap_insert(p_map, key, &p_guid_to_lid_rec->map_item);
+	p_map_rec_new->offset = p_dataset->set_count;
+	cl_qmap_insert(p_map, key, &p_map_rec_new->map_item);
+
+	if (!p_guid_to_lid_tbl_rec_dest) {
+		/* handle failure - bad memory allocation */
+	}
+
+	p_map_rec_old = (struct ep_map_rec *) p_item;
+	memcpy(&p_guid_to_lid_tbl_rec_dest[p_dataset->set_count],
+	       &p_guid_to_lid_tbl_rec_src[p_map_rec_old->offset],
+	       sizeof(*p_guid_to_lid_tbl_rec_dest));
+	*p_data_tbl = p_guid_to_lid_tbl_rec_dest;
+	p_dataset->set_size += sizeof(*p_guid_to_lid_tbl_rec_dest);
+	p_dataset->set_count++;
 }
 
 /** =========================================================================
  */
 static int ssa_db_guid_to_lid_cmp(cl_map_item_t * p_item_old,
-				  cl_map_item_t * p_item_new)
+				  void *p_data_tbl_old,
+				  cl_map_item_t * p_item_new,
+				  void *p_data_tbl_new)
 {
-	struct ep_guid_to_lid_rec *p_rec_old =
-			(struct ep_guid_to_lid_rec *) p_item_old;
-	struct ep_guid_to_lid_rec *p_rec_new =
-			(struct ep_guid_to_lid_rec *) p_item_new;
+	struct ep_map_rec *p_map_rec_old =
+			(struct ep_map_rec *) p_item_old;
+	struct ep_map_rec *p_map_rec_new =
+			(struct ep_map_rec *) p_item_new;
+	struct ep_guid_to_lid_tbl_rec *p_tbl_rec_old =
+			(struct ep_guid_to_lid_tbl_rec *) p_data_tbl_old;
+	struct ep_guid_to_lid_tbl_rec *p_tbl_rec_new =
+			(struct ep_guid_to_lid_tbl_rec *) p_data_tbl_new;
+
 	int res = 0;
 
-	if (p_rec_old->lid != p_rec_new->lid)
-		res = 1;
-	if (p_rec_old->lmc != p_rec_new->lmc)
-		res = 1;
-	if (p_rec_old->is_switch != p_rec_new->is_switch)
+	p_tbl_rec_old += p_map_rec_old->offset;
+	p_tbl_rec_new += p_map_rec_new->offset;
+
+	if (p_tbl_rec_old->lid != p_tbl_rec_new->lid ||
+	    p_tbl_rec_old->lmc != p_tbl_rec_new->lmc ||
+	    p_tbl_rec_old->is_switch != p_tbl_rec_new->is_switch)
 		res = 1;
 
 	return res;
@@ -310,6 +543,77 @@ static int ssa_db_link_cmp(cl_map_item_t * p_item_old,
 	return res;
 }
 
+ /** =========================================================================
+  */
+static uint8_t ssa_db_diff_table_cmp_v2(cl_qmap_t * p_map_old,
+					cl_qmap_t * p_map_new,
+					void *p_data_tbl_old,
+					void *p_data_tbl_new,
+					void (*qmap_insert_pfn)
+					       (cl_qmap_t *,
+						struct db_dataset *,
+						void **, uint64_t,
+						cl_map_item_t *,
+						void *),
+					int (*cmp_pfn)
+						(cl_map_item_t *, void *,
+						 cl_map_item_t *, void *),
+					cl_qmap_t * p_map_added,
+					cl_qmap_t * p_map_removed,
+					struct db_dataset *p_dataset,
+					void **p_data_tbl)
+{
+	cl_map_item_t *p_item_old, *p_item_new;
+	uint64_t key_old, key_new;
+	uint8_t dirty = 0;
+
+	p_item_old = cl_qmap_head(p_map_old);
+	p_item_new = cl_qmap_head(p_map_new);
+	while (p_item_old != cl_qmap_end(p_map_old) && p_item_new != cl_qmap_end(p_map_new)) {
+		key_old = cl_qmap_key(p_item_old);
+		key_new = cl_qmap_key(p_item_new);
+		if (key_old < key_new) {
+			qmap_insert_pfn(p_map_removed, p_dataset, p_data_tbl,
+					key_old, p_item_old, p_data_tbl_old);
+			p_item_old = cl_qmap_next(p_item_old);
+			dirty = 1;
+		} else if (key_old > key_new) {
+			qmap_insert_pfn(p_map_added, p_dataset, p_data_tbl,
+					key_new, p_item_new, p_data_tbl_new);
+			p_item_new = cl_qmap_next(p_item_new);
+			dirty = 1;
+		} else {
+			if (cmp_pfn(p_item_old, p_data_tbl_old, p_item_new, p_data_tbl_new)) {
+				qmap_insert_pfn(p_map_removed, p_dataset, p_data_tbl,
+						key_old, p_item_old, p_data_tbl_old);
+				qmap_insert_pfn(p_map_added, p_dataset, p_data_tbl,
+						key_new, p_item_new, p_data_tbl_new);
+				dirty = 1;
+			}
+			p_item_old = cl_qmap_next(p_item_old);
+			p_item_new = cl_qmap_next(p_item_new);
+		}
+	}
+
+	while (p_item_new != cl_qmap_end(p_map_new)) {
+		key_new = cl_qmap_key(p_item_new);
+		qmap_insert_pfn(p_map_added, p_dataset, p_data_tbl,
+				key_new, p_item_new, p_data_tbl_new);
+		p_item_new = cl_qmap_next(p_item_new);
+		dirty = 1;
+	}
+
+	while (p_item_old != cl_qmap_end(p_map_old)) {
+		key_old = cl_qmap_key(p_item_old);
+		qmap_insert_pfn(p_map_removed, p_dataset, p_data_tbl,
+				key_old, p_item_old, p_data_tbl_old);
+		p_item_old = cl_qmap_next(p_item_old);
+		dirty = 1;
+	}
+
+	return dirty;
+}
+
 /** =========================================================================
  */
 static uint8_t ssa_db_diff_table_cmp(cl_qmap_t * p_map_old,
@@ -373,7 +677,7 @@ static void ssa_db_diff_compare_subnet_tables(struct ssa_db * p_previous_db,
 {
 	uint8_t dirty = 0;
 	/*
-	 * Comparing ep_guid_to_lid_rec / ep_node_rec / ep_port_rec
+	 * Comparing GUID2LID / ep_node_rec / ep_port_rec
 	 * 	     ep_link_rec records
 	 *
 	 * For each record in previous SMDB version:
@@ -400,12 +704,16 @@ static void ssa_db_diff_compare_subnet_tables(struct ssa_db * p_previous_db,
 	/*
 	 * Comparing ep_guid_to_lid_rec records
 	 */
-	dirty |= ssa_db_diff_table_cmp(&p_previous_db->ep_guid_to_lid_tbl,
-				      &p_current_db->ep_guid_to_lid_tbl,
-				      ssa_db_guid_to_lid_insert,
-				      ssa_db_guid_to_lid_cmp,
-				      &p_ssa_db_diff->ep_guid_to_lid_tbl_added,
-				      &p_ssa_db_diff->ep_guid_to_lid_tbl_removed);
+	dirty |= ssa_db_diff_table_cmp_v2(&p_previous_db->ep_guid_to_lid_tbl,
+					  &p_current_db->ep_guid_to_lid_tbl,
+					  p_previous_db->p_guid_to_lid_tbl,
+					  p_current_db->p_guid_to_lid_tbl,
+					  ssa_db_guid_to_lid_insert,
+					  ssa_db_guid_to_lid_cmp,
+					  &p_ssa_db_diff->ep_guid_to_lid_tbl_added,
+					  &p_ssa_db_diff->ep_guid_to_lid_tbl_removed,
+					  &p_ssa_db_diff->db_guid_to_lid,
+					  (void **) &p_ssa_db_diff->p_guid_to_lid_tbl);
 
 	dirty = dirty << 1;
 	/*
@@ -490,6 +798,24 @@ static void ssa_db_diff_dump_fabric_params(struct ssa_events * ssa,
 
 /** =========================================================================
  */
+static void ssa_db_diff_dump_field_rec(struct ssa_events * ssa,
+				       void * p_tbl, uint16_t max_rec)
+{
+	struct db_field_def *p_field_tbl = (struct db_field_def *) p_tbl;
+	struct db_field_def *p_field_rec;
+	uint8_t i;
+
+	for (i = 0; i < max_rec; i++) {
+		p_field_rec = &p_field_tbl[i];
+		ssa_log(SSA_LOG_VERBOSE, "Field %s size %u offset %u\n",
+			p_field_rec->name,
+			ntohl(p_field_rec->field_size),
+			ntohl(p_field_rec->field_offset));
+	}
+}
+
+/** =========================================================================
+ */
 static void ssa_db_diff_dump_node_rec(struct ssa_events * ssa,
 				      cl_map_item_t * p_item)
 {
@@ -512,16 +838,22 @@ static void ssa_db_diff_dump_node_rec(struct ssa_events * ssa,
 /** =========================================================================
  */
 static void ssa_db_diff_dump_guid_to_lid_rec(struct ssa_events * ssa,
-					     cl_map_item_t * p_item)
+					     cl_map_item_t * p_item,
+					     void * p_tbl)
 {
-	struct ep_guid_to_lid_rec *p_guid_to_lid_rec = (struct ep_guid_to_lid_rec *) p_item;
+	struct ep_map_rec *p_map_rec = (struct ep_map_rec *) p_item;
+	struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl_rec, guid_to_lid_tbl_rec;
 
-	if (p_guid_to_lid_rec) {
+	assert(p_map_rec);
+
+	p_guid_to_lid_tbl_rec = (struct ep_guid_to_lid_tbl_rec *) p_tbl;
+	if (p_guid_to_lid_tbl_rec) {
+		guid_to_lid_tbl_rec = p_guid_to_lid_tbl_rec[p_map_rec->offset];
 		ssa_log(SSA_LOG_VERBOSE, "Port GUID 0x%" PRIx64 " LID %u LMC %u is_switch %d\n",
-			cl_ntoh64(cl_map_key((cl_map_iterator_t) p_guid_to_lid_rec)),
-			p_guid_to_lid_rec->lid,
-			p_guid_to_lid_rec->lmc,
-			p_guid_to_lid_rec->is_switch);
+			cl_ntoh64(guid_to_lid_tbl_rec.guid),
+			cl_ntoh16(guid_to_lid_tbl_rec.lid),
+			guid_to_lid_tbl_rec.lmc,
+			guid_to_lid_tbl_rec.is_switch);
 	}
 }
 
@@ -610,6 +942,29 @@ static void ssa_db_diff_dump_link_rec(struct ssa_events * ssa,
 
 /** =========================================================================
  */
+static void ssa_db_diff_dump_qmap_v2(cl_qmap_t * p_qmap,
+				     struct ssa_events * ssa,
+				     void (*pfn_dump)(struct ssa_events *,
+				           cl_map_item_t *, void *),
+				     void * p_tbl)
+{
+	cl_map_item_t *p_map_item, *p_map_item_next;
+	uint8_t is_changed = 0;
+
+        p_map_item_next = cl_qmap_head(p_qmap);
+        while (p_map_item_next != cl_qmap_end(p_qmap)) {
+                p_map_item = p_map_item_next;
+                p_map_item_next = cl_qmap_next(p_map_item);
+                pfn_dump(ssa, p_map_item, p_tbl);
+		is_changed = 1;
+	}
+
+	if (!is_changed)
+		ssa_log(SSA_LOG_VERBOSE, "No changes\n");
+}
+
+/** =========================================================================
+ */
 static void ssa_db_diff_dump_qmap(cl_qmap_t * p_qmap,
 				  struct ssa_events * ssa,
 				  void (*pfn_dump)(struct ssa_events *, cl_map_item_t *))
@@ -656,12 +1011,17 @@ static void ssa_db_diff_dump(struct ssa_events * ssa,
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "GUID to LID records:\n");
 	ssa_log(ssa_log_level, "-----------------------------------\n");
+	ssa_log(ssa_log_level, "GUID to LID field definitions:\n");
+	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->p_guid_to_lid_field_tbl, SSA_FIELD_ID_GUID_TO_LID_MAX);
+	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "Added records:\n");
-	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_guid_to_lid_tbl_added,
-			      ssa, ssa_db_diff_dump_guid_to_lid_rec);
+	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_guid_to_lid_tbl_added,
+				 ssa, ssa_db_diff_dump_guid_to_lid_rec,
+				 p_ssa_db_diff->p_guid_to_lid_tbl);
 	ssa_log(ssa_log_level, "Removed records:\n");
-	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_guid_to_lid_tbl_removed,
-			      ssa, ssa_db_diff_dump_guid_to_lid_rec);
+	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_guid_to_lid_tbl_removed,
+				 ssa, ssa_db_diff_dump_guid_to_lid_rec,
+				 p_ssa_db_diff->p_guid_to_lid_tbl);
 
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "PORT records:\n");
@@ -773,6 +1133,7 @@ struct ssa_db_diff *ssa_db_compare(struct ssa_events * ssa,
 				   struct ssa_database * ssa_db)
 {
 	struct ssa_db_diff *p_ssa_db_diff = NULL;
+	uint64_t guid_to_lid_num_recs;
 
 	ssa_log(SSA_LOG_VERBOSE, "[\n");
 
@@ -784,7 +1145,10 @@ struct ssa_db_diff *ssa_db_compare(struct ssa_events * ssa,
 		goto Exit;
 	}
 
-	p_ssa_db_diff = ssa_db_diff_init();
+	guid_to_lid_num_recs = cl_qmap_count(&ssa_db->p_current_db->ep_guid_to_lid_tbl) +
+			cl_qmap_count(&ssa_db->p_previous_db->ep_guid_to_lid_tbl);
+
+	p_ssa_db_diff = ssa_db_diff_init(guid_to_lid_num_recs);
 	if (!p_ssa_db_diff) {
 		/* error handling */
 		ssa_log(SSA_LOG_ALL, "SMDB Comparison: bad diff struct initialization\n");

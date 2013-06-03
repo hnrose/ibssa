@@ -99,9 +99,10 @@ struct ssa_db *ssa_db_init()
 void ssa_db_delete(struct ssa_db *p_ssa_db)
 {
 	if (p_ssa_db) {
+		free(p_ssa_db->p_guid_to_lid_tbl);
+
+		ssa_qmap_apply_func(&p_ssa_db->ep_guid_to_lid_tbl, ep_map_rec_delete_pfn);
 		ssa_qmap_apply_func(&p_ssa_db->ep_node_tbl, ep_node_rec_delete_pfn);
-		ssa_qmap_apply_func(&p_ssa_db->ep_guid_to_lid_tbl,
-				    ep_guid_to_lid_rec_delete_pfn);
 		ssa_qmap_apply_func(&p_ssa_db->ep_port_tbl, ep_port_rec_delete_pfn);
 		ssa_qmap_apply_func(&p_ssa_db->ep_link_tbl, ep_link_rec_delete_pfn);
 
@@ -113,39 +114,13 @@ void ssa_db_delete(struct ssa_db *p_ssa_db)
 	}
 }
 
-struct ep_guid_to_lid_rec *ep_guid_to_lid_rec_init(osm_port_t *p_port)
+void ep_guid_to_lid_tbl_rec_init(osm_port_t *p_port,
+				 struct ep_guid_to_lid_tbl_rec *p_rec)
 {
-        struct ep_guid_to_lid_rec *p_ep_guid_to_lid_rec;
-
-	p_ep_guid_to_lid_rec = (struct ep_guid_to_lid_rec *) malloc(sizeof(*p_ep_guid_to_lid_rec));
-	if (p_ep_guid_to_lid_rec) {
-		p_ep_guid_to_lid_rec->lid =
-			cl_ntoh16(osm_physp_get_base_lid(p_port->p_physp));
-		p_ep_guid_to_lid_rec->lmc = osm_physp_get_lmc(p_port->p_physp);
-		p_ep_guid_to_lid_rec->is_switch =
-		    (osm_node_get_type(p_port->p_node) == IB_NODE_TYPE_SWITCH);
-	}
-	return p_ep_guid_to_lid_rec;
-}
-
-void ep_guid_to_lid_rec_copy(struct ep_guid_to_lid_rec *p_dest_rec,
-			     struct ep_guid_to_lid_rec *p_src_rec)
-{
-	memcpy(&p_dest_rec->lid, &p_src_rec->lid, sizeof(*p_dest_rec) -
-	       offsetof(struct ep_guid_to_lid_rec, lid));
-}
-
-void ep_guid_to_lid_rec_delete(struct ep_guid_to_lid_rec *p_ep_guid_to_lid_rec)
-{
-	free(p_ep_guid_to_lid_rec);
-}
-
-void ep_guid_to_lid_rec_delete_pfn(cl_map_item_t * p_map_item)
-{
-	struct ep_guid_to_lid_rec *p_guid_to_lid_rec;
-
-	p_guid_to_lid_rec = (struct ep_guid_to_lid_rec *) p_map_item;
-	ep_guid_to_lid_rec_delete(p_guid_to_lid_rec);
+	p_rec->guid = osm_physp_get_port_guid(p_port->p_physp);
+	p_rec->lid = osm_physp_get_base_lid(p_port->p_physp);
+	p_rec->lmc = osm_physp_get_lmc(p_port->p_physp);
+	p_rec->is_switch = (osm_node_get_type(p_port->p_node) == IB_NODE_TYPE_SWITCH);
 }
 
 struct ep_node_rec *ep_node_rec_init(osm_node_t *p_node)
@@ -481,6 +456,36 @@ uint64_t ep_rec_gen_key(uint16_t lid, uint8_t port_num)
 	key = (uint64_t) lid;
 	key |= (uint64_t) port_num << 16;
 	return key;
+}
+
+inline void ep_map_rec_copy(struct ep_map_rec *p_src_rec,
+			    struct ep_map_rec *p_dest_rec)
+{
+	p_dest_rec->offset = p_src_rec->offset;
+}
+
+struct ep_map_rec *ep_map_rec_init(uint64_t offset)
+{
+        struct ep_map_rec *p_map_rec;
+
+	p_map_rec = (struct ep_map_rec *) malloc(sizeof(*p_map_rec));
+	if (p_map_rec)
+		p_map_rec->offset = offset;
+
+	return p_map_rec;
+}
+
+void ep_map_rec_delete(struct ep_map_rec *p_map_rec)
+{
+	free(p_map_rec);
+}
+
+void ep_map_rec_delete_pfn(cl_map_item_t * p_map_item)
+{
+	struct ep_map_rec *p_map_rec;
+
+	p_map_rec = (struct ep_map_rec *) p_map_item;
+	ep_map_rec_delete(p_map_rec);
 }
 
 void ssa_qmap_apply_func(cl_qmap_t *p_qmap, void (*pfn_func)(cl_map_item_t *))
