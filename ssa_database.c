@@ -374,7 +374,7 @@ struct ep_port_rec *ep_port_rec_init(osm_physp_t *p_physp)
 						      sizeof(p_ep_port_rec->ep_pkey_rec.pkey_tbl[0]) * used_blocks);
 	if (p_ep_port_rec) {
 		/* PORT INFO */
-		p_ep_port_rec->mtu_cap			= p_physp->port_info.mtu_cap;
+		p_ep_port_rec->neighbor_mtu		= ib_port_info_get_neighbor_mtu(&p_physp->port_info);
 		p_ep_port_rec->link_speed_ext		= p_physp->port_info.link_speed_ext;
 		p_ep_port_rec->link_speed		= p_physp->port_info.link_speed;
 		p_ep_port_rec->link_width_active	= p_physp->port_info.link_width_active;
@@ -426,7 +426,7 @@ void ep_port_rec_copy(OUT struct ep_port_rec *p_dest_rec,
 	uint8_t i, slvl_num;
 
 	/* PORT INFO data */
-	p_dest_rec->mtu_cap			= p_src_rec->mtu_cap;
+	p_dest_rec->neighbor_mtu		= p_src_rec->neighbor_mtu;
 	p_dest_rec->link_speed_ext		= p_src_rec->link_speed_ext;
 	p_dest_rec->link_speed			= p_src_rec->link_speed;
 	p_dest_rec->link_width_active		= p_src_rec->link_width_active;

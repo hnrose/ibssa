@@ -268,7 +268,7 @@ static int ssa_db_port_cmp(IN cl_map_item_t * const p_item_old,
 	int res = 0;
 
 	/* TODO: remove magic number */
-	if (memcmp(&p_rec_old->mtu_cap, &p_rec_new->mtu_cap, 5)) /* 5 uint8_t fields are taken from port_info */
+	if (memcmp(&p_rec_old->neighbor_mtu, &p_rec_new->neighbor_mtu, 5)) /* 5 uint8_t fields are taken from port_info */
 		res = 1;
 	if (p_rec_old->is_fdr10_active != p_rec_new->is_fdr10_active)
 		res = 1;
