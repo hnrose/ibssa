@@ -128,8 +128,8 @@ struct ep_guid_to_lid_rec *ep_guid_to_lid_rec_init(osm_port_t *p_port)
 	return p_ep_guid_to_lid_rec;
 }
 
-void ep_guid_to_lid_rec_copy(OUT struct ep_guid_to_lid_rec *p_dest_rec,
-			     IN struct ep_guid_to_lid_rec *p_src_rec)
+void ep_guid_to_lid_rec_copy(struct ep_guid_to_lid_rec *p_dest_rec,
+			     struct ep_guid_to_lid_rec *p_src_rec)
 {
 	memcpy(&p_dest_rec->lid, &p_src_rec->lid, sizeof(*p_dest_rec) -
 	       offsetof(struct ep_guid_to_lid_rec, lid));
@@ -167,8 +167,8 @@ struct ep_node_rec *ep_node_rec_init(osm_node_t *p_node)
 	return p_ep_node_rec;
 }
 
-void ep_node_rec_copy(OUT struct ep_node_rec *p_dest_rec,
-		      IN struct ep_node_rec *p_src_rec)
+void ep_node_rec_copy(struct ep_node_rec *p_dest_rec,
+		      struct ep_node_rec *p_src_rec)
 {
 	memcpy(&p_dest_rec->node_info, &p_src_rec->node_info, sizeof(*p_dest_rec) -
 	       offsetof(struct ep_node_rec, node_info));
@@ -247,9 +247,9 @@ void ep_link_rec_delete_pfn(cl_map_item_t *p_map_item)
 	ep_link_rec_delete(p_link_rec);
 }
 
-struct ep_lft_block_rec *ep_lft_block_rec_init(IN osm_switch_t * p_sw,
-					       IN uint16_t lid,
-					       IN uint16_t block)
+struct ep_lft_block_rec *ep_lft_block_rec_init(osm_switch_t * p_sw,
+					       uint16_t lid,
+					       uint16_t block)
 {
 	struct ep_lft_block_rec *p_lft_block_rec;
 
@@ -263,8 +263,8 @@ struct ep_lft_block_rec *ep_lft_block_rec_init(IN osm_switch_t * p_sw,
 	return p_lft_block_rec;
 }
 
-void ep_lft_block_rec_copy(OUT struct ep_lft_block_rec * p_dest_rec,
-			   IN struct ep_lft_block_rec * p_src_rec)
+void ep_lft_block_rec_copy(struct ep_lft_block_rec * p_dest_rec,
+			   struct ep_lft_block_rec * p_src_rec)
 {
 	p_dest_rec->lid = p_src_rec->lid;
 	p_dest_rec->block_num = p_src_rec->block_num;
@@ -307,8 +307,8 @@ void ep_lft_block_rec_qmap_clear(cl_qmap_t * p_map)
 	}
 }
 
-struct ep_lft_top_rec *ep_lft_top_rec_init(IN uint16_t lid,
-					   IN uint16_t lft_top)
+struct ep_lft_top_rec *ep_lft_top_rec_init(uint16_t lid,
+					   uint16_t lft_top)
 {
 	struct ep_lft_top_rec *p_lft_top_rec;
 
@@ -320,8 +320,8 @@ struct ep_lft_top_rec *ep_lft_top_rec_init(IN uint16_t lid,
 	return p_lft_top_rec;
 }
 
-void ep_lft_top_rec_copy(OUT struct ep_lft_top_rec * p_dest_rec,
-			   IN struct ep_lft_top_rec * p_src_rec)
+void ep_lft_top_rec_copy(struct ep_lft_top_rec * p_dest_rec,
+			 struct ep_lft_top_rec * p_src_rec)
 {
 	p_dest_rec->lid = p_src_rec->lid;
 	p_dest_rec->lft_top = p_src_rec->lft_top;
@@ -418,8 +418,8 @@ struct ep_port_rec *ep_port_rec_init(osm_physp_t *p_physp)
 	return p_ep_port_rec;
 }
 
-void ep_port_rec_copy(OUT struct ep_port_rec *p_dest_rec,
-		      IN struct ep_port_rec *p_src_rec)
+void ep_port_rec_copy(struct ep_port_rec *p_dest_rec,
+		      struct ep_port_rec *p_src_rec)
 {
 	ib_slvl_table_t *p_slvl_tbl, *p_slvl_tbl_new;
 	uint16_t used_blocks;

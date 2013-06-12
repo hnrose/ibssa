@@ -99,9 +99,9 @@ void ssa_db_diff_destroy(struct ssa_db_diff * p_ssa_db_diff)
 
 /** =========================================================================
  */
-static void ssa_db_diff_compare_subnet_opts(IN struct ssa_db * p_previous_db,
-					    IN struct ssa_db * p_current_db,
-					    OUT struct ssa_db_diff * p_ssa_db_diff)
+static void ssa_db_diff_compare_subnet_opts(struct ssa_db * p_previous_db,
+					    struct ssa_db * p_current_db,
+					    struct ssa_db_diff * p_ssa_db_diff)
 {
 	uint8_t dirty = p_ssa_db_diff->dirty;
 
@@ -161,9 +161,9 @@ Exit:
 
 /** =========================================================================
  */
-static void ssa_db_guid_to_lid_insert(OUT cl_qmap_t * p_map,
-				      IN uint64_t key,
-				      IN cl_map_item_t * p_item)
+static void ssa_db_guid_to_lid_insert(cl_qmap_t * p_map,
+				      uint64_t key,
+				      cl_map_item_t * p_item)
 {
 	struct ep_guid_to_lid_rec *p_guid_to_lid_rec;
 
@@ -178,8 +178,8 @@ static void ssa_db_guid_to_lid_insert(OUT cl_qmap_t * p_map,
 
 /** =========================================================================
  */
-static int ssa_db_guid_to_lid_cmp(IN cl_map_item_t * p_item_old,
-				  IN cl_map_item_t * p_item_new)
+static int ssa_db_guid_to_lid_cmp(cl_map_item_t * p_item_old,
+				  cl_map_item_t * p_item_new)
 {
 	struct ep_guid_to_lid_rec *p_rec_old =
 			(struct ep_guid_to_lid_rec *) p_item_old;
@@ -199,9 +199,9 @@ static int ssa_db_guid_to_lid_cmp(IN cl_map_item_t * p_item_old,
 
 /** =========================================================================
  */
-static void ssa_db_node_insert(OUT cl_qmap_t * p_map,
-			       IN uint64_t key,
-			       IN cl_map_item_t * p_item)
+static void ssa_db_node_insert(cl_qmap_t * p_map,
+			       uint64_t key,
+			       cl_map_item_t * p_item)
 {
 	struct ep_node_rec *p_node_rec;
 	p_node_rec = (struct ep_node_rec *)
@@ -215,8 +215,8 @@ static void ssa_db_node_insert(OUT cl_qmap_t * p_map,
 
 /** =========================================================================
  */
-static int ssa_db_node_cmp(IN cl_map_item_t * p_item_old,
-			   IN cl_map_item_t * p_item_new)
+static int ssa_db_node_cmp(cl_map_item_t * p_item_old,
+			   cl_map_item_t * p_item_new)
 {
 	struct ep_node_rec *p_rec_old = (struct ep_node_rec *) p_item_old;
 	struct ep_node_rec *p_rec_new = (struct ep_node_rec *) p_item_new;
@@ -236,9 +236,9 @@ static int ssa_db_node_cmp(IN cl_map_item_t * p_item_old,
 
 /** =========================================================================
  */
-static void ssa_db_port_insert(OUT cl_qmap_t * p_map,
-			       IN uint64_t key,
-			       IN cl_map_item_t * p_item)
+static void ssa_db_port_insert(cl_qmap_t * p_map,
+			       uint64_t key,
+			       cl_map_item_t * p_item)
 {
 	struct ep_port_rec *p_port_rec, *p_port_rec_old;
 	uint16_t used_blocks;
@@ -260,8 +260,8 @@ static void ssa_db_port_insert(OUT cl_qmap_t * p_map,
 
 /** =========================================================================
  */
-static int ssa_db_port_cmp(IN cl_map_item_t * const p_item_old,
-			   IN cl_map_item_t * const p_item_new)
+static int ssa_db_port_cmp(cl_map_item_t * const p_item_old,
+			   cl_map_item_t * const p_item_new)
 {
 	struct ep_port_rec *p_rec_old = (struct ep_port_rec *) p_item_old;
 	struct ep_port_rec *p_rec_new = (struct ep_port_rec *) p_item_new;
@@ -280,9 +280,9 @@ static int ssa_db_port_cmp(IN cl_map_item_t * const p_item_old,
 
 /** =========================================================================
  */
-static void ssa_db_link_insert(OUT cl_qmap_t * p_map,
-			       IN uint64_t key,
-			       IN cl_map_item_t * p_item)
+static void ssa_db_link_insert(cl_qmap_t * p_map,
+			       uint64_t key,
+			       cl_map_item_t * p_item)
 {
 	struct ep_link_rec *p_link_rec;
 	p_link_rec = (struct ep_link_rec *)
@@ -296,8 +296,8 @@ static void ssa_db_link_insert(OUT cl_qmap_t * p_map,
 
 /** =========================================================================
  */
-static int ssa_db_link_cmp(IN cl_map_item_t * p_item_old,
-			   IN cl_map_item_t * p_item_new)
+static int ssa_db_link_cmp(cl_map_item_t * p_item_old,
+			   cl_map_item_t * p_item_new)
 {
 	struct ep_link_rec *p_rec_old = (struct ep_link_rec *) p_item_old;
 	struct ep_link_rec *p_rec_new = (struct ep_link_rec *) p_item_new;
@@ -312,13 +312,13 @@ static int ssa_db_link_cmp(IN cl_map_item_t * p_item_old,
 
 /** =========================================================================
  */
-static uint8_t ssa_db_diff_table_cmp(IN cl_qmap_t * p_map_old,
-				     IN cl_qmap_t * p_map_new,
-				     IN void (*qmap_insert_pfn)(cl_qmap_t *,
-								uint64_t, cl_map_item_t *),
-				     IN int (*cmp_pfn)(cl_map_item_t *, cl_map_item_t *),
-				     OUT cl_qmap_t * p_map_added,
-				     OUT cl_qmap_t * p_map_removed)
+static uint8_t ssa_db_diff_table_cmp(cl_qmap_t * p_map_old,
+				     cl_qmap_t * p_map_new,
+				     void (*qmap_insert_pfn)(cl_qmap_t *,
+				     			uint64_t, cl_map_item_t *),
+				     int (*cmp_pfn)(cl_map_item_t *, cl_map_item_t *),
+				     cl_qmap_t * p_map_added,
+				     cl_qmap_t * p_map_removed)
 {
 	cl_map_item_t *p_item_old, *p_item_new;
 	uint64_t key_old, key_new;
@@ -367,9 +367,9 @@ static uint8_t ssa_db_diff_table_cmp(IN cl_qmap_t * p_map_old,
 
 /** =========================================================================
  */
-static void ssa_db_diff_compare_subnet_tables(IN struct ssa_db * p_previous_db,
-					     IN struct ssa_db * p_current_db,
-					     OUT struct ssa_db_diff * const p_ssa_db_diff)
+static void ssa_db_diff_compare_subnet_tables(struct ssa_db * p_previous_db,
+					      struct ssa_db * p_current_db,
+					      struct ssa_db_diff * const p_ssa_db_diff)
 {
 	uint8_t dirty = 0;
 	/*
@@ -446,8 +446,8 @@ static void ssa_db_diff_compare_subnet_tables(IN struct ssa_db * p_previous_db,
 /** =========================================================================
  */
 #ifdef SSA_PLUGIN_VERBOSE_LOGGING
-static void ssa_db_diff_dump_fabric_params(IN struct ssa_events * ssa,
-					   IN struct ssa_db_diff * p_ssa_db_diff)
+static void ssa_db_diff_dump_fabric_params(struct ssa_events * ssa,
+					   struct ssa_db_diff * p_ssa_db_diff)
 {
 	uint8_t is_changed = 0;
 
@@ -490,8 +490,8 @@ static void ssa_db_diff_dump_fabric_params(IN struct ssa_events * ssa,
 
 /** =========================================================================
  */
-static void ssa_db_diff_dump_node_rec(IN struct ssa_events * ssa,
-				      IN cl_map_item_t * p_item)
+static void ssa_db_diff_dump_node_rec(struct ssa_events * ssa,
+				      cl_map_item_t * p_item)
 {
 	struct ep_node_rec *p_node_rec = (struct ep_node_rec *) p_item;
 	char buffer[64];
@@ -511,8 +511,8 @@ static void ssa_db_diff_dump_node_rec(IN struct ssa_events * ssa,
 
 /** =========================================================================
  */
-static void ssa_db_diff_dump_guid_to_lid_rec(IN struct ssa_events * ssa,
-					     IN cl_map_item_t * p_item)
+static void ssa_db_diff_dump_guid_to_lid_rec(struct ssa_events * ssa,
+					     cl_map_item_t * p_item)
 {
 	struct ep_guid_to_lid_rec *p_guid_to_lid_rec = (struct ep_guid_to_lid_rec *) p_item;
 
@@ -527,8 +527,8 @@ static void ssa_db_diff_dump_guid_to_lid_rec(IN struct ssa_events * ssa,
 
 /** =========================================================================
  */
-static void ssa_db_diff_dump_port_rec(IN struct ssa_events * ssa,
-					  IN cl_map_item_t * p_item)
+static void ssa_db_diff_dump_port_rec(struct ssa_events * ssa,
+				      cl_map_item_t * p_item)
 {
 	struct ep_port_rec *p_port_rec = (struct ep_port_rec *) p_item;
 	const ib_pkey_table_t *block;
@@ -571,8 +571,8 @@ static void ssa_db_diff_dump_port_rec(IN struct ssa_events * ssa,
 
 /** =========================================================================
  */
-static void ssa_db_diff_dump_lft_top_rec(IN struct ssa_events * ssa,
-					 IN cl_map_item_t * p_item)
+static void ssa_db_diff_dump_lft_top_rec(struct ssa_events * ssa,
+					 cl_map_item_t * p_item)
 {
 	struct ep_lft_top_rec *p_lft_top_rec = (struct ep_lft_top_rec *) p_item;
 
@@ -583,8 +583,8 @@ static void ssa_db_diff_dump_lft_top_rec(IN struct ssa_events * ssa,
 
 /** =========================================================================
  */
-static void ssa_db_diff_dump_lft_block_rec(IN struct ssa_events * ssa,
-					   IN cl_map_item_t * p_item)
+static void ssa_db_diff_dump_lft_block_rec(struct ssa_events * ssa,
+					   cl_map_item_t * p_item)
 {
 	struct ep_lft_block_rec *p_lft_block_rec = (struct ep_lft_block_rec *) p_item;
 
@@ -595,8 +595,8 @@ static void ssa_db_diff_dump_lft_block_rec(IN struct ssa_events * ssa,
 
 /** =========================================================================
  */
-static void ssa_db_diff_dump_link_rec(IN struct ssa_events * ssa,
-				      IN cl_map_item_t * p_item)
+static void ssa_db_diff_dump_link_rec(struct ssa_events * ssa,
+				      cl_map_item_t * p_item)
 {
 	struct ep_link_rec *p_link_rec = (struct ep_link_rec *) p_item;
 
@@ -610,9 +610,9 @@ static void ssa_db_diff_dump_link_rec(IN struct ssa_events * ssa,
 
 /** =========================================================================
  */
-static void ssa_db_diff_dump_qmap(IN cl_qmap_t * p_qmap,
-				  IN struct ssa_events * ssa,
-				  IN void (*pfn_dump)(struct ssa_events *, cl_map_item_t *))
+static void ssa_db_diff_dump_qmap(cl_qmap_t * p_qmap,
+				  struct ssa_events * ssa,
+				  void (*pfn_dump)(struct ssa_events *, cl_map_item_t *))
 {
 	cl_map_item_t *p_map_item, *p_map_item_next;
 	uint8_t is_changed = 0;
@@ -631,8 +631,8 @@ static void ssa_db_diff_dump_qmap(IN cl_qmap_t * p_qmap,
 
 /** =========================================================================
  */
-static void ssa_db_diff_dump(IN struct ssa_events * ssa,
-			     IN struct ssa_db_diff * p_ssa_db_diff)
+static void ssa_db_diff_dump(struct ssa_events * ssa,
+			     struct ssa_db_diff * p_ssa_db_diff)
 {
 	int ssa_log_level = SSA_LOG_VERBOSE;
 
@@ -769,8 +769,8 @@ static void ep_lft_top_qmap_copy(cl_qmap_t *p_dest_qmap, cl_qmap_t * p_src_qmap)
 
 /** =========================================================================
  */
-struct ssa_db_diff *ssa_db_compare(IN struct ssa_events * ssa,
-				   IN struct ssa_database * ssa_db)
+struct ssa_db_diff *ssa_db_compare(struct ssa_events * ssa,
+				   struct ssa_database * ssa_db)
 {
 	struct ssa_db_diff *p_ssa_db_diff = NULL;
 

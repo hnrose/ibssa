@@ -190,8 +190,8 @@ void ep_link_rec_delete_pfn(cl_map_item_t *p_map_item);
 /********************** LFT Block records*******************************/
 struct ep_lft_block_rec *ep_lft_block_rec_init(osm_switch_t *p_sw,
 					       uint16_t lid, uint16_t block);
-void ep_lft_block_rec_copy(OUT struct ep_lft_block_rec * p_dest_rec,
-			   IN struct ep_lft_block_rec * p_src_rec);
+void ep_lft_block_rec_copy(struct ep_lft_block_rec * p_dest_rec,
+			   struct ep_lft_block_rec * p_src_rec);
 inline uint64_t ep_lft_block_rec_gen_key(uint16_t lid, uint16_t block_num);
 void ep_lft_block_rec_delete(struct ep_lft_block_rec *p_lft_block_rec);
 void ep_lft_block_rec_delete_pfn(cl_map_item_t * p_map_item);
@@ -199,8 +199,8 @@ void ep_lft_block_rec_qmap_clear(cl_qmap_t *p_map);
 
 /********************** LFT Top records*********************************/
 struct ep_lft_top_rec *ep_lft_top_rec_init(uint16_t lid, uint16_t lft_top);
-void ep_lft_top_rec_copy(OUT struct ep_lft_top_rec * p_dest_rec,
-			   IN struct ep_lft_top_rec * p_src_rec);
+void ep_lft_top_rec_copy(struct ep_lft_top_rec * p_dest_rec,
+			 struct ep_lft_top_rec * p_src_rec);
 inline uint64_t ep_lft_top_rec_gen_key(uint16_t lid);
 void ep_lft_top_rec_delete(struct ep_lft_top_rec *p_lft_top_rec);
 void ep_lft_top_rec_delete_pfn(cl_map_item_t * p_map_item);

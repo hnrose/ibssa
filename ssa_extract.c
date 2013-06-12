@@ -497,8 +497,8 @@ void ssa_db_remove(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 /** =========================================================================
  */
 /* TODO:: Add meaningfull return value */
-void ssa_db_update(IN struct ssa_events *ssa,
-		   IN struct ssa_database *ssa_db)
+void ssa_db_update(struct ssa_events *ssa,
+		   struct ssa_database *ssa_db)
 {
 	ssa_log(SSA_LOG_VERBOSE, "[\n");
 
