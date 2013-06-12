@@ -315,7 +315,7 @@ static int ssa_db_link_cmp(cl_map_item_t * p_item_old,
 static uint8_t ssa_db_diff_table_cmp(cl_qmap_t * p_map_old,
 				     cl_qmap_t * p_map_new,
 				     void (*qmap_insert_pfn)(cl_qmap_t *,
-				     			uint64_t, cl_map_item_t *),
+							     uint64_t, cl_map_item_t *),
 				     int (*cmp_pfn)(cl_map_item_t *, cl_map_item_t *),
 				     cl_qmap_t * p_map_added,
 				     cl_qmap_t * p_map_removed)
