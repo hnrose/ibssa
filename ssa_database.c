@@ -121,6 +121,8 @@ void ep_guid_to_lid_tbl_rec_init(osm_port_t *p_port,
 	p_rec->lid = osm_physp_get_base_lid(p_port->p_physp);
 	p_rec->lmc = osm_physp_get_lmc(p_port->p_physp);
 	p_rec->is_switch = (osm_node_get_type(p_port->p_node) == IB_NODE_TYPE_SWITCH);
+
+	memset(&p_rec->pad, 0, sizeof(p_rec->pad));
 }
 
 struct ep_node_rec *ep_node_rec_init(osm_node_t *p_node)
