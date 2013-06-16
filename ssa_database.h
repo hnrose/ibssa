@@ -215,7 +215,6 @@ void ep_port_rec_delete_pfn(cl_map_item_t *p_map_item);
 /***********************************************************************/
 
 uint64_t ep_rec_gen_key(uint16_t lid, uint8_t port_num);
-inline void ep_map_rec_copy(struct ep_map_rec *p_src_rec, struct ep_map_rec *p_dest_rec);
 struct ep_map_rec *ep_map_rec_init(uint64_t offset);
 void ep_map_rec_delete(struct ep_map_rec *p_map_rec);
 void ep_map_rec_delete_pfn(cl_map_item_t *p_map_item);

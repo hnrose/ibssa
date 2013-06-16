@@ -460,12 +460,6 @@ uint64_t ep_rec_gen_key(uint16_t lid, uint8_t port_num)
 	return key;
 }
 
-inline void ep_map_rec_copy(struct ep_map_rec *p_src_rec,
-			    struct ep_map_rec *p_dest_rec)
-{
-	p_dest_rec->offset = p_src_rec->offset;
-}
-
 struct ep_map_rec *ep_map_rec_init(uint64_t offset)
 {
         struct ep_map_rec *p_map_rec;
