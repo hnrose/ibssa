@@ -99,10 +99,11 @@ struct ssa_db *ssa_db_init()
 void ssa_db_delete(struct ssa_db *p_ssa_db)
 {
 	if (p_ssa_db) {
+		free(p_ssa_db->p_node_tbl);
 		free(p_ssa_db->p_guid_to_lid_tbl);
 
 		ssa_qmap_apply_func(&p_ssa_db->ep_guid_to_lid_tbl, ep_map_rec_delete_pfn);
-		ssa_qmap_apply_func(&p_ssa_db->ep_node_tbl, ep_node_rec_delete_pfn);
+		ssa_qmap_apply_func(&p_ssa_db->ep_node_tbl, ep_map_rec_delete_pfn);
 		ssa_qmap_apply_func(&p_ssa_db->ep_port_tbl, ep_port_rec_delete_pfn);
 		ssa_qmap_apply_func(&p_ssa_db->ep_link_tbl, ep_link_rec_delete_pfn);
 
@@ -125,43 +126,18 @@ void ep_guid_to_lid_tbl_rec_init(osm_port_t *p_port,
 	memset(&p_rec->pad, 0, sizeof(p_rec->pad));
 }
 
-struct ep_node_rec *ep_node_rec_init(osm_node_t *p_node)
+void ep_node_tbl_rec_init(osm_node_t *p_node, struct ep_node_tbl_rec *p_rec)
 {
-	struct ep_node_rec *p_ep_node_rec;
-
-	p_ep_node_rec = (struct ep_node_rec *) malloc(sizeof(*p_ep_node_rec));
-	if (p_ep_node_rec) {
-		memcpy(&p_ep_node_rec->node_info, &p_node->node_info,
-		       sizeof(p_ep_node_rec->node_info));
-		memcpy(&p_ep_node_rec->node_desc, &p_node->node_desc,
-		       sizeof(p_ep_node_rec->node_desc));
-		if (p_node->node_info.node_type == IB_NODE_TYPE_SWITCH)
-			p_ep_node_rec->is_enhanced_sp0 =
-			    ib_switch_info_is_enhanced_port0(&p_node->sw->switch_info);
-		else
-			p_ep_node_rec->is_enhanced_sp0 = 0;
-	}
-	return p_ep_node_rec;
-}
-
-void ep_node_rec_copy(struct ep_node_rec *p_dest_rec,
-		      struct ep_node_rec *p_src_rec)
-{
-	memcpy(&p_dest_rec->node_info, &p_src_rec->node_info, sizeof(*p_dest_rec) -
-	       offsetof(struct ep_node_rec, node_info));
-}
-
-void ep_node_rec_delete(struct ep_node_rec *p_ep_node_rec)
-{
-	free(p_ep_node_rec);
-}
-
-void ep_node_rec_delete_pfn(cl_map_item_t * p_map_item)
-{
-	struct ep_node_rec *p_node_rec;
-
-	p_node_rec = (struct ep_node_rec *) p_map_item;
-	ep_node_rec_delete(p_node_rec);
+	p_rec->node_guid = osm_node_get_node_guid(p_node);
+	p_rec->vendor_id = ib_node_info_get_vendor_id(&p_node->node_info);
+	p_rec->device_id = p_node->node_info.device_id;
+	if (p_node->node_info.node_type == IB_NODE_TYPE_SWITCH)
+		p_rec->is_enhanced_sp0 =
+			ib_switch_info_is_enhanced_port0(&p_node->sw->switch_info);
+	else
+		p_rec->is_enhanced_sp0 = 0;
+	p_rec->node_type = p_node->node_info.node_type;
+	memcpy(p_rec->description, p_node->node_desc.description, sizeof(p_rec->description));
 }
 
 struct ep_link_rec *ep_link_rec_init(osm_physp_t * p_physp)

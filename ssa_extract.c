@@ -61,16 +61,17 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 	uint8_t out_port, in_port, num_ports;
 	uint8_t n;
 #endif
-	struct ep_node_rec *p_node_rec;
 	struct ep_map_rec *p_map_rec;
 	struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl_rec;
+	struct ep_node_tbl_rec *p_node_tbl_rec;
 	struct ep_port_rec *p_port_rec;
 	struct ep_link_rec *p_link_rec;
 	struct ep_lft_block_rec *p_lft_block_rec;
 	struct ep_lft_top_rec *p_lft_top_rec;
 	uint64_t ep_rec_key;
 	uint64_t guid_to_lid_offset = 0;
-	uint32_t guids;
+	uint64_t node_offset = 0;
+	uint32_t guids, nodes;
 	uint16_t lids, lid_ho, max_block;
 	uint16_t i;
 #ifdef SSA_PLUGIN_VERBOSE_LOGGING
@@ -89,6 +90,21 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 	p_ssa->enable_quirks = (uint8_t) p_subn->opt.enable_quirks;
 	p_ssa->allow_both_pkeys = (uint8_t) p_subn->opt.allow_both_pkeys;
 
+	nodes = (uint32_t) cl_qmap_count(&p_subn->node_guid_tbl);
+	if (!p_ssa->p_node_tbl) {
+		p_ssa->p_node_tbl = (struct ep_node_tbl_rec *)
+				malloc(sizeof(*p_ssa->p_node_tbl) * nodes);
+		if (!p_ssa->p_node_tbl) {
+			/* add memory allocation failure handling */
+			ssa_log(SSA_LOG_VERBOSE, "NODE rec memory allocation failed");
+		}
+	}
+
+	p_node_tbl_rec = (struct ep_node_tbl_rec *) malloc(sizeof(*p_node_tbl_rec));
+	if (!p_node_tbl_rec) {
+			/* TODO: add memory allocation failure handling */
+	}
+
 	p_next_node = (osm_node_t *)cl_qmap_head(&p_subn->node_guid_tbl);
 	while (p_next_node !=
 	       (osm_node_t *)cl_qmap_end(&p_subn->node_guid_tbl)) {
@@ -105,20 +121,19 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 			osm_node_get_type(p_node),
 			buffer);
 #endif
-
-		/* add to node table (ep_node_tbl) */
-		p_node_rec = ep_node_rec_init(p_node);
-		if (p_node_rec) {
-			cl_qmap_insert(&p_ssa->ep_node_tbl,	/* dump_db ??? */
-				       osm_node_get_node_guid(p_node),
-				       &p_node_rec->map_item);
-			/* handle error !!! */
-
-		} else {
-			ssa_log(SSA_LOG_VERBOSE, "Node rec memory allocation for "
-				"Node GUID 0x%" PRIx64 " failed\n",
-				cl_ntoh64(osm_node_get_node_guid(p_node)));
+		/* add to node table (p_node_tbl) */
+		ep_node_tbl_rec_init(p_node, p_node_tbl_rec);
+		memcpy(&p_ssa->p_node_tbl[node_offset], p_node_tbl_rec,
+		       sizeof(*p_node_tbl_rec));
+		p_map_rec = ep_map_rec_init(node_offset);
+		if (!p_map_rec) {
+			/* add memory allocation failure handling */
+			ssa_log(SSA_LOG_VERBOSE, "Quick MAP rec memory allocation failed");
 		}
+		node_offset++;
+		cl_qmap_insert(&p_ssa->ep_node_tbl,
+			       osm_node_get_node_guid(p_node),
+			       &p_map_rec->map_item);
 
 		/* TODO: add more cases when full dump is needed */
 		if (!first_time_subnet_up)
@@ -360,8 +375,8 @@ void ssa_db_validate_lft(struct ssa_events *ssa)
  */
 void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 {
-	struct ep_node_rec *p_node, *p_next_node;
 	struct ep_guid_to_lid_tbl_rec guid_to_lid_tbl_rec;
+	struct ep_node_tbl_rec node_tbl_rec;
 	struct ep_port_rec *p_port_rec, *p_next_port_rec;
 	struct ep_link_rec *p_link, *p_next_link;
 	const ib_pkey_table_t *block;
@@ -382,18 +397,16 @@ void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 		p_ssa_db->enable_quirks ? "en" : "dis",
 		p_ssa_db->allow_both_pkeys ? "en" : "dis");
 
-	p_next_node = (struct ep_node_rec *)cl_qmap_head(&p_ssa_db->ep_node_tbl);
-	while (p_next_node !=
-	       (struct ep_node_rec *)cl_qmap_end(&p_ssa_db->ep_node_tbl)) {
-		p_node = p_next_node;
-		p_next_node = (struct ep_node_rec *)cl_qmap_next(&p_node->map_item);
-		if (p_node->node_info.node_type == IB_NODE_TYPE_SWITCH)
-			sprintf(buffer, " with %s Switch Port 0\n", p_node->is_enhanced_sp0 ? "Enhanced" : "Base");
+	for (i = 0; i < cl_qmap_count(&p_ssa_db->ep_node_tbl); i++) {
+		node_tbl_rec = p_ssa_db->p_node_tbl[i];
+		if (node_tbl_rec.node_type == IB_NODE_TYPE_SWITCH)
+			sprintf(buffer, " with %s Switch Port 0\n",
+				node_tbl_rec.is_enhanced_sp0 ? "Enhanced" : "Base");
 		else
 			sprintf(buffer, "\n");
 		ssa_log(SSA_LOG_VERBOSE, "Node GUID 0x%" PRIx64 " Type %d%s",
-			cl_ntoh64(p_node->node_info.node_guid),
-			p_node->node_info.node_type,
+			cl_ntoh64(node_tbl_rec.node_guid),
+			node_tbl_rec.node_type,
 			buffer);
 	}
 
@@ -459,7 +472,6 @@ void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 void ssa_db_remove(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 {
 	struct ep_port_rec *p_port_rec, *p_next_port_rec;
-	struct ep_node_rec *p_node, *p_next_node;
 	struct ep_link_rec *p_link, *p_next_link;
 	struct ep_map_rec *p_map_rec, *p_map_rec_next;
 
@@ -479,14 +491,14 @@ void ssa_db_remove(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 		ep_map_rec_delete(p_map_rec);
 	}
 
-	p_next_node = (struct ep_node_rec *)cl_qmap_head(&p_ssa_db->ep_node_tbl);
-	while (p_next_node !=
-	       (struct ep_node_rec *)cl_qmap_end(&p_ssa_db->ep_node_tbl)) {
-		p_node = p_next_node;
-		p_next_node = (struct ep_node_rec *)cl_qmap_next(&p_node->map_item);
+	p_map_rec_next = (struct ep_map_rec *)cl_qmap_head(&p_ssa_db->ep_node_tbl);
+	while (p_map_rec_next !=
+	       (struct ep_map_rec *)cl_qmap_end(&p_ssa_db->ep_node_tbl)) {
+		p_map_rec = p_map_rec_next;
+		p_map_rec_next = (struct ep_map_rec *)cl_qmap_next(&p_map_rec->map_item);
 		cl_qmap_remove_item(&p_ssa_db->ep_node_tbl,
-				    &p_node->map_item);
-		ep_node_rec_delete(p_node);
+				    &p_map_rec->map_item);
+		ep_map_rec_delete(p_map_rec);
 	}
 
 	p_next_port_rec = (struct ep_port_rec *)cl_qmap_head(&p_ssa_db->ep_port_tbl);

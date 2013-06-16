@@ -59,25 +59,18 @@ struct ep_guid_to_lid_tbl_rec {
 	uint8_t		pad[4];
 };
 
+struct ep_node_tbl_rec {
+	uint64_t	node_guid;
+	uint32_t	vendor_id;
+	uint16_t	device_id;
+	uint8_t		is_enhanced_sp0;
+	uint8_t		node_type;
+	uint8_t		description[IB_NODE_DESCRIPTION_SIZE];
+};
+
 struct ep_map_rec {
 	cl_map_item_t	map_item;
 	uint64_t	offset;
-};
-
-struct ep_node_rec {
-	cl_map_item_t map_item;
-#if 1
-	/* or just device_id, vendor_id, enh SP0 ? */
-	ib_node_info_t node_info;
-#else
-	/* or just is_tavor ? */
-	uint32_t vendor_id;	/* needed for Tavor MTU */
-	uint16_t device_id;	/* needed for Tavor MTU */
-	uint16_t pad;
-#endif
-	ib_node_desc_t node_desc;
-	uint8_t is_enhanced_sp0;
-	uint8_t pad[3];
 };
 
 struct ep_pkey_rec {
@@ -136,9 +129,10 @@ struct ssa_db_lft {
 struct ssa_db {
 	/* mutex ??? */
 	struct ep_guid_to_lid_tbl_rec	*p_guid_to_lid_tbl;
+	struct ep_node_tbl_rec		*p_node_tbl;
 
 	cl_qmap_t ep_guid_to_lid_tbl;	/* port GUID -> offset */
-	cl_qmap_t ep_node_tbl;		/* node GUID based */
+	cl_qmap_t ep_node_tbl;		/* node GUID -> offset */
 	cl_qmap_t ep_port_tbl;		/* LID + port_num based*/
 	cl_qmap_t ep_link_tbl;		/* LID + port_num based */
 
@@ -177,10 +171,7 @@ void ep_guid_to_lid_tbl_rec_init(osm_port_t *p_port,
 				 struct ep_guid_to_lid_tbl_rec * p_rec);
 
 /**********************NODE records**************************************/
-struct ep_node_rec *ep_node_rec_init(osm_node_t *p_osm_node);
-void ep_node_rec_copy(struct ep_node_rec *p_dest_rec, struct ep_node_rec *p_src_rec);
-void ep_node_rec_delete(struct ep_node_rec *p_ep_node_rec);
-void ep_node_rec_delete_pfn(cl_map_item_t *p_map_item);
+void ep_node_tbl_rec_init(osm_node_t *p_node, struct ep_node_tbl_rec * p_rec);
 
 /**********************LINK records**************************************/
 struct ep_link_rec *ep_link_rec_init(osm_physp_t *p_physp);

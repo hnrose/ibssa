@@ -41,6 +41,8 @@ static const struct db_table_def def_tbl[] = {
 	{ 1, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SSA_TABLE_ID_GUID_TO_LID, 0 }, "GUID to LID", sizeof(struct ep_guid_to_lid_tbl_rec), 0 },
 	{ 1, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, 0 },
 							"GUID to LID fields", sizeof(struct db_field_def), SSA_TABLE_ID_GUID_TO_LID },
+	{ 1, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SSA_TABLE_ID_NODE, 0 }, "NODE", sizeof(struct ep_node_tbl_rec), 0 },
+	{ 1, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, 0 }, "NODE fields", sizeof(struct db_field_def), SSA_TABLE_ID_NODE },
 	{ 0 }
 };
 
@@ -49,6 +51,12 @@ static const struct db_field_def field_tbl[] = {
 	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, SSA_FIELD_ID_GUID_TO_LID_LID }, "lid", 16, 64 },
 	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, SSA_FIELD_ID_GUID_TO_LID_LMC }, "lmc", 8, 80 },
 	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, SSA_FIELD_ID_GUID_TO_LID_IS_SWITCH }, "is_switch", 8, 88 },
+	{ 1, 0, DBF_TYPE_NET64, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_NODE_GUID }, "node_guid", 64, 0 },
+	{ 1, 0, DBF_TYPE_NET32, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_VENDOR_ID }, "vendor_id", 32, 64 },
+	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_DEVICE_ID }, "device_id", 16, 96 },
+	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_IS_ENHANCED_SP0 }, "is_enhanced_sp0", 8, 112 },
+	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_NODE_TYPE }, "node_type", 8, 120 },
+	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_IS_ENHANCED_SP0 }, "description", 8 * IB_NODE_DESCRIPTION_SIZE, 128 },
 	{ 0 }
 };
 
@@ -217,9 +225,43 @@ void ssa_db_diff_tables_init(struct ssa_db_diff * p_ssa_db_diff)
 						     p_field_def->field_size, p_field_def->field_offset);
 	}
 	/**********************************************************************/
+
+	/*************************** NODE *************************************/
+	/*
+	 * node dataset initialization
+	 */
+	ssa_db_diff_dataset_init(&p_ssa_db_diff->db_node,
+				 0, sizeof(p_ssa_db_diff->db_node),
+				 0, 0, SSA_TABLE_ID_NODE, 0,
+				 0, 0, 0, 0);
+	/*
+	 * node field dataset initialization
+	 */
+	ssa_db_diff_dataset_init(&p_ssa_db_diff->db_node_field_def,
+				 0, sizeof(p_ssa_db_diff->db_node_field_def),
+				 0, 0, SSA_TABLE_ID_NODE_FIELD_DEF, 0,
+				 0, 0, 0, 0);
+
+	p_ssa_db_diff->p_node_field_tbl = (struct db_field_def *)
+			malloc(sizeof(*p_ssa_db_diff->p_node_field_tbl) * SSA_FIELD_ID_NODE_MAX);
+	if (!p_ssa_db_diff->p_node_field_tbl) {
+		/* add handling memory allocation failure */
+	}
+
+	for (p_field_def = field_tbl; p_field_def->version; p_field_def++) {
+		if (p_field_def->id.table == SSA_TABLE_ID_NODE_FIELD_DEF) {
+			ssa_db_diff_field_def_insert(p_ssa_db_diff->p_node_field_tbl,
+						     &p_ssa_db_diff->db_node_field_def,
+						     p_field_def->version, p_field_def->type,
+						     p_field_def->id.db, p_field_def->id.table,
+						     p_field_def->id.field, p_field_def->name,
+						     p_field_def->field_size, p_field_def->field_offset);
+		}
+	}
+	/**********************************************************************/
 }
 
-struct ssa_db_diff *ssa_db_diff_init(uint64_t guid_to_lid_num_recs)
+struct ssa_db_diff *ssa_db_diff_init(uint64_t guid_to_lid_num_recs, uint64_t node_num_recs)
 {
 	struct ssa_db_diff *p_ssa_db_diff;
 
@@ -231,6 +273,13 @@ struct ssa_db_diff *ssa_db_diff_init(uint64_t guid_to_lid_num_recs)
 			malloc(sizeof(*p_ssa_db_diff->p_guid_to_lid_tbl) * guid_to_lid_num_recs);
 
 		if (!p_ssa_db_diff->p_guid_to_lid_tbl) {
+			/* TODO: add handling memory allocation failure */
+		}
+
+		p_ssa_db_diff->p_node_tbl = (struct ep_node_tbl_rec *)
+			malloc(sizeof(*p_ssa_db_diff->p_node_tbl) * node_num_recs);
+
+		if (!p_ssa_db_diff->p_node_tbl) {
 			/* TODO: add handling memory allocation failure */
 		}
 
@@ -255,7 +304,9 @@ void ssa_db_diff_tables_destroy(struct ssa_db_diff * p_ssa_db_diff)
 	if (!p_ssa_db_diff)
 		return;
 
+	free(p_ssa_db_diff->p_node_tbl);
 	free(p_ssa_db_diff->p_guid_to_lid_tbl);
+	free(p_ssa_db_diff->p_node_field_tbl);
 	free(p_ssa_db_diff->p_guid_to_lid_field_tbl);
 	free(p_ssa_db_diff->p_def_tbl);
 }
@@ -272,9 +323,9 @@ void ssa_db_diff_destroy(struct ssa_db_diff * p_ssa_db_diff)
 		ssa_qmap_apply_func(&p_ssa_db_diff->ep_guid_to_lid_tbl_removed,
 				   ep_map_rec_delete_pfn);
 		ssa_qmap_apply_func(&p_ssa_db_diff->ep_node_tbl_added,
-				   ep_node_rec_delete_pfn);
+				   ep_map_rec_delete_pfn);
 		ssa_qmap_apply_func(&p_ssa_db_diff->ep_node_tbl_removed,
-				   ep_node_rec_delete_pfn);
+				   ep_map_rec_delete_pfn);
 		ssa_qmap_apply_func(&p_ssa_db_diff->ep_port_tbl_added,
 				   ep_port_rec_delete_pfn);
 		ssa_qmap_apply_func(&p_ssa_db_diff->ep_port_tbl_removed,
@@ -432,36 +483,67 @@ static int ssa_db_guid_to_lid_cmp(cl_map_item_t * p_item_old,
 
 /** =========================================================================
  */
-static void ssa_db_node_insert(cl_qmap_t * p_map,
+static void ssa_db_node_insert(OUT cl_qmap_t *p_map,
+			       OUT struct db_dataset *p_dataset,
+			       OUT void **p_data_tbl,
 			       uint64_t key,
-			       cl_map_item_t * p_item)
+			       IN cl_map_item_t * p_item,
+			       IN void *p_data_tbl_src)
 {
-	struct ep_node_rec *p_node_rec;
-	p_node_rec = (struct ep_node_rec *)
-			     malloc(sizeof(*p_node_rec));
-	if (!p_node_rec) {
+	struct ep_map_rec *p_map_rec_new, *p_map_rec_old;
+	struct ep_node_tbl_rec *p_node_tbl_rec_dest;
+	struct ep_node_tbl_rec *p_node_tbl_rec_src;
+
+	p_node_tbl_rec_dest = (struct ep_node_tbl_rec *) *p_data_tbl;
+	p_node_tbl_rec_src = (struct ep_node_tbl_rec *) p_data_tbl_src;
+
+	p_map_rec_new = (struct ep_map_rec *)
+			     malloc(sizeof(*p_map_rec_new));
+	if (!p_map_rec_new) {
 		/* handle failure - bad memory allocation */
 	}
-	ep_node_rec_copy(p_node_rec, (struct ep_node_rec *) p_item);
-	cl_qmap_insert(p_map, key, &p_node_rec->map_item);
+	p_map_rec_new->offset = p_dataset->set_count;
+	cl_qmap_insert(p_map, key, &p_map_rec_new->map_item);
+
+	if (!p_node_tbl_rec_dest) {
+		/* handle failure - bad memory allocation */
+	}
+
+	p_map_rec_old = (struct ep_map_rec *) p_item;
+	memcpy(&p_node_tbl_rec_dest[p_dataset->set_count],
+	       &p_node_tbl_rec_src[p_map_rec_old->offset],
+	       sizeof(*p_node_tbl_rec_dest));
+	*p_data_tbl = p_node_tbl_rec_dest;
+	p_dataset->set_size += sizeof(*p_node_tbl_rec_dest);
+	p_dataset->set_count++;
 }
 
 /** =========================================================================
  */
 static int ssa_db_node_cmp(cl_map_item_t * p_item_old,
-			   cl_map_item_t * p_item_new)
+			   IN void *p_data_tbl_old,
+			   IN cl_map_item_t * p_item_new,
+			   IN void *p_data_tbl_new)
 {
-	struct ep_node_rec *p_rec_old = (struct ep_node_rec *) p_item_old;
-	struct ep_node_rec *p_rec_new = (struct ep_node_rec *) p_item_new;
+	struct ep_map_rec *p_map_rec_old =
+			(struct ep_map_rec *) p_item_old;
+	struct ep_map_rec *p_map_rec_new =
+			(struct ep_map_rec *) p_item_new;
+	struct ep_node_tbl_rec *p_tbl_rec_old =
+			(struct ep_node_tbl_rec *) p_data_tbl_old;
+	struct ep_node_tbl_rec *p_tbl_rec_new =
+			(struct ep_node_tbl_rec *) p_data_tbl_new;
 	int res = 0;
 
-	if (memcmp(&p_rec_old->node_info, &p_rec_new->node_info,
-		   sizeof(p_rec_new->node_info)))
-		res = 1;
-	if (memcmp(&p_rec_old->node_desc, &p_rec_new->node_desc,
-		   sizeof(p_rec_new->node_desc)))
-		res = 1;
-	if (p_rec_old->is_enhanced_sp0 != p_rec_new->is_enhanced_sp0)
+	p_tbl_rec_old += p_map_rec_old->offset;
+	p_tbl_rec_new += p_map_rec_new->offset;
+
+	if (p_tbl_rec_old->vendor_id != p_tbl_rec_new->vendor_id ||
+	    p_tbl_rec_old->device_id != p_tbl_rec_new->device_id ||
+	    p_tbl_rec_old->is_enhanced_sp0 != p_tbl_rec_new->is_enhanced_sp0 ||
+	    p_tbl_rec_old->node_type != p_tbl_rec_new->node_type ||
+	    memcmp(p_tbl_rec_old->description, p_tbl_rec_new->description,
+		   IB_NODE_DESCRIPTION_SIZE))
 		res = 1;
 
 	return res;
@@ -719,12 +801,16 @@ static void ssa_db_diff_compare_subnet_tables(struct ssa_db * p_previous_db,
 	/*
 	 * Comparing ep_node_rec records
 	 */
-	dirty |= ssa_db_diff_table_cmp(&p_previous_db->ep_node_tbl,
-				      &p_current_db->ep_node_tbl,
-				      ssa_db_node_insert,
-				      ssa_db_node_cmp,
-				      &p_ssa_db_diff->ep_node_tbl_added,
-				      &p_ssa_db_diff->ep_node_tbl_removed);
+	dirty |= ssa_db_diff_table_cmp_v2(&p_previous_db->ep_node_tbl,
+					  &p_current_db->ep_node_tbl,
+					  p_previous_db->p_node_tbl,
+					  p_current_db->p_node_tbl,
+					  ssa_db_node_insert,
+					  ssa_db_node_cmp,
+					  &p_ssa_db_diff->ep_node_tbl_added,
+					  &p_ssa_db_diff->ep_node_tbl_removed,
+					  &p_ssa_db_diff->db_node,
+					  (void **) &p_ssa_db_diff->p_node_tbl);
 
 	dirty = dirty << 1;
 	/*
@@ -817,21 +903,25 @@ static void ssa_db_diff_dump_field_rec(struct ssa_events * ssa,
 /** =========================================================================
  */
 static void ssa_db_diff_dump_node_rec(struct ssa_events * ssa,
-				      cl_map_item_t * p_item)
+				      cl_map_item_t * p_item,
+				      void * p_tbl)
 {
-	struct ep_node_rec *p_node_rec = (struct ep_node_rec *) p_item;
+	struct ep_map_rec *p_map_rec = (struct ep_map_rec *) p_item;
+	struct ep_node_tbl_rec *p_node_tbl_rec, node_tbl_rec;
 	char buffer[64];
 
-	if (p_node_rec) {
-		if (p_node_rec->node_info.node_type == IB_NODE_TYPE_SWITCH)
+	assert(p_map_rec);
+
+	p_node_tbl_rec = (struct ep_node_tbl_rec *) p_tbl;
+	if (p_node_tbl_rec) {
+		node_tbl_rec = p_node_tbl_rec[p_map_rec->offset];
+		if (node_tbl_rec.node_type == IB_NODE_TYPE_SWITCH)
 			sprintf(buffer, " with %s Switch Port 0\n",
-				p_node_rec->is_enhanced_sp0 ? "Enhanced" : "Base");
+				node_tbl_rec.is_enhanced_sp0 ? "Enhanced" : "Base");
 		else
 			sprintf(buffer, "\n");
 		ssa_log(SSA_LOG_VERBOSE, "Node GUID 0x%" PRIx64 " Type %d%s",
-			cl_ntoh64(p_node_rec->node_info.node_guid),
-			p_node_rec->node_info.node_type,
-			buffer);
+			cl_ntoh64(node_tbl_rec.node_guid), node_tbl_rec.node_type, buffer);
 	}
 }
 
@@ -1001,12 +1091,17 @@ static void ssa_db_diff_dump(struct ssa_events * ssa,
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "NODE records:\n");
 	ssa_log(ssa_log_level, "-----------------------------------\n");
+	ssa_log(ssa_log_level, "NODE field definitions:\n");
+	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->p_node_field_tbl, SSA_FIELD_ID_NODE_MAX);
+	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "Added records:\n");
-	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_node_tbl_added,
-			      ssa, ssa_db_diff_dump_node_rec);
+	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_node_tbl_added,
+				 ssa, ssa_db_diff_dump_node_rec,
+				 p_ssa_db_diff->p_node_tbl);
 	ssa_log(ssa_log_level, "Removed records:\n");
-	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_node_tbl_removed, ssa,
-			      ssa_db_diff_dump_node_rec);
+	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_node_tbl_removed,
+				 ssa, ssa_db_diff_dump_node_rec,
+				 p_ssa_db_diff->p_node_tbl);
 
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "GUID to LID records:\n");
@@ -1133,7 +1228,7 @@ struct ssa_db_diff *ssa_db_compare(struct ssa_events * ssa,
 				   struct ssa_database * ssa_db)
 {
 	struct ssa_db_diff *p_ssa_db_diff = NULL;
-	uint64_t guid_to_lid_num_recs;
+	uint64_t guid_to_lid_num_recs, node_num_recs;
 
 	ssa_log(SSA_LOG_VERBOSE, "[\n");
 
@@ -1147,8 +1242,10 @@ struct ssa_db_diff *ssa_db_compare(struct ssa_events * ssa,
 
 	guid_to_lid_num_recs = cl_qmap_count(&ssa_db->p_current_db->ep_guid_to_lid_tbl) +
 			cl_qmap_count(&ssa_db->p_previous_db->ep_guid_to_lid_tbl);
+	node_num_recs = cl_qmap_count(&ssa_db->p_current_db->ep_node_tbl) +
+			cl_qmap_count(&ssa_db->p_previous_db->ep_node_tbl);
 
-	p_ssa_db_diff = ssa_db_diff_init(guid_to_lid_num_recs);
+	p_ssa_db_diff = ssa_db_diff_init(guid_to_lid_num_recs, node_num_recs);
 	if (!p_ssa_db_diff) {
 		/* error handling */
 		ssa_log(SSA_LOG_ALL, "SMDB Comparison: bad diff struct initialization\n");
