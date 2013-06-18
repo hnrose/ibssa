@@ -57,27 +57,27 @@ BEGIN_C_DECLS
 
 enum ssa_db_diff_table_id {
 	SSA_TABLE_ID_TABLE_DEF = -1,
-	SSA_TABLE_ID_GUID_TO_LID = 1,
+	SSA_TABLE_ID_GUID_TO_LID = 0,
 	SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF,
 	SSA_TABLE_ID_NODE,
 	SSA_TABLE_ID_NODE_FIELD_DEF,
-	SSA_TABLE_ID_MAX = SSA_TABLE_ID_NODE_FIELD_DEF
+	SSA_TABLE_ID_MAX
 };
 
 enum ssa_db_diff_guid_to_lid_fields {
-	SSA_FIELD_ID_GUID_TO_LID_GUID = 1,
+	SSA_FIELD_ID_GUID_TO_LID_GUID,
 	SSA_FIELD_ID_GUID_TO_LID_LID,
 	SSA_FIELD_ID_GUID_TO_LID_LMC,
 	SSA_FIELD_ID_GUID_TO_LID_IS_SWITCH,
-	SSA_FIELD_ID_GUID_TO_LID_MAX = SSA_FIELD_ID_GUID_TO_LID_IS_SWITCH
+	SSA_FIELD_ID_GUID_TO_LID_MAX
 };
 
 enum ssa_db_diff_node_fields {
-	SSA_FIELD_ID_NODE_NODE_GUID = 1,
+	SSA_FIELD_ID_NODE_NODE_GUID,
 	SSA_FIELD_ID_NODE_IS_ENHANCED_SP0,
 	SSA_FIELD_ID_NODE_NODE_TYPE,
 	SSA_FIELD_ID_NODE_DESCRIPTION,
-	SSA_FIELD_ID_NODE_MAX = SSA_FIELD_ID_NODE_DESCRIPTION
+	SSA_FIELD_ID_NODE_MAX
 };
 
 /* used for making comparison between two ssa databases */
@@ -87,15 +87,9 @@ struct ssa_db_diff {
 	struct db_dataset		db_table_def;
 	struct db_table_def		*p_def_tbl;
 
-	struct db_dataset		db_guid_to_lid_field_def;
-	struct db_field_def		*p_guid_to_lid_field_tbl;
-	struct db_dataset		db_guid_to_lid;
-	struct ep_guid_to_lid_tbl_rec	*p_guid_to_lid_tbl;
-
-	struct db_dataset		db_node_field_def;
-	struct db_field_def		*p_node_field_tbl;
-	struct db_dataset		db_node;
-	struct ep_node_tbl_rec		*p_node_tbl;
+	/* data tables */
+	struct db_dataset		db_tables[SSA_TABLE_ID_MAX];
+	void				*p_tables[SSA_TABLE_ID_MAX];
 
 	/***** guid_to_lid_tbl changes tracking **********/
 	cl_qmap_t ep_guid_to_lid_tbl_added;

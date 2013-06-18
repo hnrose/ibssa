@@ -46,6 +46,14 @@ static const struct db_table_def def_tbl[] = {
 	{ 0 }
 };
 
+static const struct db_dataset dataset_tbl[] = {
+	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_GUID_TO_LID, 0 }, 0, 0, 0, 0 },
+	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, 0 }, 0, 0, 0, 0 },
+	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_NODE, 0 }, 0, 0, 0, 0 },
+	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, 0 }, 0, 0, 0, 0 },
+	{ 0 }
+};
+
 static const struct db_field_def field_tbl[] = {
 	{ 1, 0, DBF_TYPE_NET64, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, SSA_FIELD_ID_GUID_TO_LID_GUID }, "guid", 64, 0 },
 	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, SSA_FIELD_ID_GUID_TO_LID_LID }, "lid", 16, 64 },
@@ -55,6 +63,17 @@ static const struct db_field_def field_tbl[] = {
 	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_IS_ENHANCED_SP0 }, "is_enhanced_sp0", 8, 64 },
 	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_NODE_TYPE }, "node_type", 8, 72 },
 	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_IS_ENHANCED_SP0 }, "description", 8 * IB_NODE_DESCRIPTION_SIZE, 80 },
+	{ 0 }
+};
+
+struct db_field {
+	enum ssa_db_diff_table_id	table_id;
+	uint8_t				fields_num;
+};
+
+static const struct db_field field_per_table[] = {
+	{ SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, SSA_FIELD_ID_GUID_TO_LID_MAX},
+	{ SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_MAX},
 	{ 0 }
 };
 
@@ -158,7 +177,9 @@ void ssa_db_diff_field_def_insert(struct db_field_def * p_tbl,
 void ssa_db_diff_tables_init(struct ssa_db_diff * p_ssa_db_diff)
 {
 	const struct db_table_def *p_tbl_def;
+	const struct db_dataset *p_dataset;
 	const struct db_field_def *p_field_def;
+	const struct db_field *p_field;
 
 	/*
 	 * db_def initialization
@@ -192,71 +213,32 @@ void ssa_db_diff_tables_init(struct ssa_db_diff * p_ssa_db_diff)
 					     p_tbl_def->id.field, p_tbl_def->name,
 					     p_tbl_def->record_size, p_tbl_def->ref_table_id);
 
-	/*************************** GUID to LID ******************************/
-	/*
-	 * guid_to_lid dataset initialization
-	 */
-	ssa_db_diff_dataset_init(&p_ssa_db_diff->db_guid_to_lid,
-				 0, sizeof(p_ssa_db_diff->db_guid_to_lid),
-				 0, 0, SSA_TABLE_ID_GUID_TO_LID, 0,
-				 0, 0, 0, 0);
-	/*
-	 * guid_to_lid field dataset initialization
-	 */
-	ssa_db_diff_dataset_init(&p_ssa_db_diff->db_guid_to_lid_field_def,
-				 0, sizeof(p_ssa_db_diff->db_guid_to_lid_field_def),
-				 0, 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, 0,
-				 0, 0, 0, 0);
+	/* data tables datasets initialization */
+	for (p_dataset = dataset_tbl; p_dataset->version; p_dataset++)
+		ssa_db_diff_dataset_init(&p_ssa_db_diff->db_tables[p_dataset->id.table],
+					 p_dataset->version, p_dataset->size,
+					 p_dataset->access, p_dataset->id.db,
+					 p_dataset->id.table, p_dataset->id.field,
+					 p_dataset->epoch, p_dataset->set_size,
+					 p_dataset->set_offset, p_dataset->set_count);
 
-	p_ssa_db_diff->p_guid_to_lid_field_tbl = (struct db_field_def *)
-		malloc(sizeof(*p_ssa_db_diff->p_guid_to_lid_field_tbl) * SSA_FIELD_ID_GUID_TO_LID_MAX);
-	if (!p_ssa_db_diff->p_guid_to_lid_field_tbl) {
-		/* add handling memory allocation failure */
-	}
-	for (p_field_def = field_tbl; p_field_def->version; p_field_def++) {
-		if (p_field_def->id.table == SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF)
-			ssa_db_diff_field_def_insert(p_ssa_db_diff->p_guid_to_lid_field_tbl,
-						     &p_ssa_db_diff->db_guid_to_lid_field_def,
-						     p_field_def->version, p_field_def->type,
-						     p_field_def->id.db, p_field_def->id.table,
-						     p_field_def->id.field, p_field_def->name,
-						     p_field_def->field_size, p_field_def->field_offset);
-	}
-	/**********************************************************************/
-
-	/*************************** NODE *************************************/
-	/*
-	 * node dataset initialization
-	 */
-	ssa_db_diff_dataset_init(&p_ssa_db_diff->db_node,
-				 0, sizeof(p_ssa_db_diff->db_node),
-				 0, 0, SSA_TABLE_ID_NODE, 0,
-				 0, 0, 0, 0);
-	/*
-	 * node field dataset initialization
-	 */
-	ssa_db_diff_dataset_init(&p_ssa_db_diff->db_node_field_def,
-				 0, sizeof(p_ssa_db_diff->db_node_field_def),
-				 0, 0, SSA_TABLE_ID_NODE_FIELD_DEF, 0,
-				 0, 0, 0, 0);
-
-	p_ssa_db_diff->p_node_field_tbl = (struct db_field_def *)
-			malloc(sizeof(*p_ssa_db_diff->p_node_field_tbl) * SSA_FIELD_ID_NODE_MAX);
-	if (!p_ssa_db_diff->p_node_field_tbl) {
-		/* add handling memory allocation failure */
-	}
-
-	for (p_field_def = field_tbl; p_field_def->version; p_field_def++) {
-		if (p_field_def->id.table == SSA_TABLE_ID_NODE_FIELD_DEF) {
-			ssa_db_diff_field_def_insert(p_ssa_db_diff->p_node_field_tbl,
-						     &p_ssa_db_diff->db_node_field_def,
-						     p_field_def->version, p_field_def->type,
-						     p_field_def->id.db, p_field_def->id.table,
-						     p_field_def->id.field, p_field_def->name,
-						     p_field_def->field_size, p_field_def->field_offset);
+	/* field tables initialization */
+	for (p_field = field_per_table; p_field->table_id; p_field++) {
+		p_ssa_db_diff->p_tables[p_field->table_id] =
+			malloc(sizeof(struct db_field_def) * p_field->fields_num);
+		if (!p_ssa_db_diff->p_tables[p_field->table_id]) {
+			/* add handling memory allocation failure */
+		}
+		for (p_field_def = field_tbl; p_field_def->version; p_field_def++) {
+			if (p_field_def->id.table == p_field->table_id)
+				ssa_db_diff_field_def_insert(p_ssa_db_diff->p_tables[p_field->table_id],
+							     &p_ssa_db_diff->db_tables[p_field->table_id],
+							     p_field_def->version, p_field_def->type,
+							     p_field_def->id.db, p_field_def->id.table,
+							     p_field_def->id.field, p_field_def->name,
+							     p_field_def->field_size, p_field_def->field_offset);
 		}
 	}
-	/**********************************************************************/
 }
 
 struct ssa_db_diff *ssa_db_diff_init(uint64_t guid_to_lid_num_recs, uint64_t node_num_recs)
@@ -267,17 +249,17 @@ struct ssa_db_diff *ssa_db_diff_init(uint64_t guid_to_lid_num_recs, uint64_t nod
 	if (p_ssa_db_diff) {
 		ssa_db_diff_tables_init(p_ssa_db_diff);
 
-		p_ssa_db_diff->p_guid_to_lid_tbl = (struct ep_guid_to_lid_tbl_rec *)
-			malloc(sizeof(*p_ssa_db_diff->p_guid_to_lid_tbl) * guid_to_lid_num_recs);
+		p_ssa_db_diff->p_tables[SSA_TABLE_ID_GUID_TO_LID] =
+			malloc(sizeof(struct ep_guid_to_lid_tbl_rec) * guid_to_lid_num_recs);
 
-		if (!p_ssa_db_diff->p_guid_to_lid_tbl) {
+		if (!p_ssa_db_diff->p_tables[SSA_TABLE_ID_GUID_TO_LID]) {
 			/* TODO: add handling memory allocation failure */
 		}
 
-		p_ssa_db_diff->p_node_tbl = (struct ep_node_tbl_rec *)
-			malloc(sizeof(*p_ssa_db_diff->p_node_tbl) * node_num_recs);
+		p_ssa_db_diff->p_tables[SSA_TABLE_ID_NODE] =
+			malloc(sizeof(struct ep_node_tbl_rec) * node_num_recs);
 
-		if (!p_ssa_db_diff->p_node_tbl) {
+		if (!p_ssa_db_diff->p_tables[SSA_TABLE_ID_NODE]) {
 			/* TODO: add handling memory allocation failure */
 		}
 
@@ -299,14 +281,13 @@ struct ssa_db_diff *ssa_db_diff_init(uint64_t guid_to_lid_num_recs, uint64_t nod
  */
 void ssa_db_diff_tables_destroy(struct ssa_db_diff * p_ssa_db_diff)
 {
+	int i;
+
 	if (!p_ssa_db_diff)
 		return;
 
-	free(p_ssa_db_diff->p_node_tbl);
-	free(p_ssa_db_diff->p_guid_to_lid_tbl);
-	free(p_ssa_db_diff->p_node_field_tbl);
-	free(p_ssa_db_diff->p_guid_to_lid_field_tbl);
-	free(p_ssa_db_diff->p_def_tbl);
+	for (i = 0; i < SSA_TABLE_ID_MAX; i++)
+		free(p_ssa_db_diff->p_tables[i]);
 }
 
 /** =========================================================================
@@ -783,8 +764,8 @@ static void ssa_db_diff_compare_subnet_tables(struct ssa_db * p_previous_db,
 					  ssa_db_guid_to_lid_cmp,
 					  &p_ssa_db_diff->ep_guid_to_lid_tbl_added,
 					  &p_ssa_db_diff->ep_guid_to_lid_tbl_removed,
-					  &p_ssa_db_diff->db_guid_to_lid,
-					  (void **) &p_ssa_db_diff->p_guid_to_lid_tbl);
+					  &p_ssa_db_diff->db_tables[SSA_TABLE_ID_GUID_TO_LID],
+					  (void **) &p_ssa_db_diff->p_tables[SSA_TABLE_ID_GUID_TO_LID]);
 
 	dirty = dirty << 1;
 	/*
@@ -798,8 +779,8 @@ static void ssa_db_diff_compare_subnet_tables(struct ssa_db * p_previous_db,
 					  ssa_db_node_cmp,
 					  &p_ssa_db_diff->ep_node_tbl_added,
 					  &p_ssa_db_diff->ep_node_tbl_removed,
-					  &p_ssa_db_diff->db_node,
-					  (void **) &p_ssa_db_diff->p_node_tbl);
+					  &p_ssa_db_diff->db_tables[SSA_TABLE_ID_NODE],
+					  (void **) &p_ssa_db_diff->p_tables[SSA_TABLE_ID_NODE]);
 
 	dirty = dirty << 1;
 	/*
@@ -1076,31 +1057,33 @@ static void ssa_db_diff_dump(struct ssa_events * ssa,
 	ssa_log(ssa_log_level, "NODE records:\n");
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "NODE field definitions:\n");
-	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->p_node_field_tbl, SSA_FIELD_ID_NODE_MAX);
+	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->p_tables[SSA_TABLE_ID_NODE_FIELD_DEF],
+				   SSA_FIELD_ID_NODE_MAX);
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "Added records:\n");
 	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_node_tbl_added,
 				 ssa, ssa_db_diff_dump_node_rec,
-				 p_ssa_db_diff->p_node_tbl);
+				 p_ssa_db_diff->p_tables[SSA_TABLE_ID_NODE]);
 	ssa_log(ssa_log_level, "Removed records:\n");
 	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_node_tbl_removed,
 				 ssa, ssa_db_diff_dump_node_rec,
-				 p_ssa_db_diff->p_node_tbl);
+				 p_ssa_db_diff->p_tables[SSA_TABLE_ID_NODE]);
 
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "GUID to LID records:\n");
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "GUID to LID field definitions:\n");
-	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->p_guid_to_lid_field_tbl, SSA_FIELD_ID_GUID_TO_LID_MAX);
+	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->p_tables[SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF],
+				   SSA_FIELD_ID_GUID_TO_LID_MAX);
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "Added records:\n");
 	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_guid_to_lid_tbl_added,
 				 ssa, ssa_db_diff_dump_guid_to_lid_rec,
-				 p_ssa_db_diff->p_guid_to_lid_tbl);
+				 p_ssa_db_diff->p_tables[SSA_TABLE_ID_GUID_TO_LID]);
 	ssa_log(ssa_log_level, "Removed records:\n");
 	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_guid_to_lid_tbl_removed,
 				 ssa, ssa_db_diff_dump_guid_to_lid_rec,
-				 p_ssa_db_diff->p_guid_to_lid_tbl);
+				 p_ssa_db_diff->p_tables[SSA_TABLE_ID_GUID_TO_LID]);
 
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "PORT records:\n");
