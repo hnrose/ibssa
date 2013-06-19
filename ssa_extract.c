@@ -87,7 +87,6 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 	p_ssa->sm_state = p_subn->sm_state;
 	p_ssa->lmc = p_subn->opt.lmc;
 	p_ssa->subnet_timeout = p_subn->opt.subnet_timeout;
-	p_ssa->enable_quirks = (uint8_t) p_subn->opt.enable_quirks;
 	p_ssa->allow_both_pkeys = (uint8_t) p_subn->opt.allow_both_pkeys;
 
 	nodes = (uint32_t) cl_qmap_count(&p_subn->node_guid_tbl);
@@ -392,9 +391,8 @@ void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 
 	/* First, most Fabric/SM related parameters */
 	ssa_log(SSA_LOG_VERBOSE, "Subnet prefix 0x%" PRIx64 "\n", p_ssa_db->subnet_prefix);
-	ssa_log(SSA_LOG_VERBOSE, "LMC %u Subnet timeout %u Quirks %sabled Both Pkeys %sabled\n",
+	ssa_log(SSA_LOG_VERBOSE, "LMC %u Subnet timeout %u Both Pkeys %sabled\n",
 		p_ssa_db->lmc, p_ssa_db->subnet_timeout,
-		p_ssa_db->enable_quirks ? "en" : "dis",
 		p_ssa_db->allow_both_pkeys ? "en" : "dis");
 
 	for (i = 0; i < cl_qmap_count(&p_ssa_db->ep_node_tbl); i++) {

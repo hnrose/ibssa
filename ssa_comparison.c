@@ -364,14 +364,12 @@ static void ssa_db_diff_compare_subnet_opts(struct ssa_db * p_previous_db,
 		p_ssa_db_diff->sm_state = p_current_db->sm_state;
 		p_ssa_db_diff->lmc = p_current_db->lmc;
 		p_ssa_db_diff->subnet_timeout = p_current_db->subnet_timeout;
-		p_ssa_db_diff->enable_quirks = p_current_db->enable_quirks;
 		p_ssa_db_diff->allow_both_pkeys = p_current_db->allow_both_pkeys;
 
 		p_ssa_db_diff->change_mask |= SSA_DB_CHANGEMASK_SUBNET_PREFIX;
 		p_ssa_db_diff->change_mask |= SSA_DB_CHANGEMASK_SM_STATE;
 		p_ssa_db_diff->change_mask |= SSA_DB_CHANGEMASK_LMC;
 		p_ssa_db_diff->change_mask |= SSA_DB_CHANGEMASK_SUBNET_TIMEOUT;
-		p_ssa_db_diff->change_mask |= SSA_DB_CHANGEMASK_ENABLE_QUIRKS;
 		p_ssa_db_diff->change_mask |= SSA_DB_CHANGEMASK_ALLOW_BOTH_PKEYS;
 
 		dirty = 1;
@@ -397,11 +395,6 @@ static void ssa_db_diff_compare_subnet_opts(struct ssa_db * p_previous_db,
 	if (p_previous_db->subnet_timeout != p_current_db->subnet_timeout) {
 		p_ssa_db_diff->subnet_timeout = p_current_db->subnet_timeout;
 		p_ssa_db_diff->change_mask |= SSA_DB_CHANGEMASK_SUBNET_TIMEOUT;
-		dirty = 1;
-	}
-	if (p_previous_db->enable_quirks != p_current_db->enable_quirks) {
-		p_ssa_db_diff->enable_quirks = p_current_db->enable_quirks;
-		p_ssa_db_diff->change_mask |= SSA_DB_CHANGEMASK_ENABLE_QUIRKS;
 		dirty = 1;
 	}
 	if (p_previous_db->allow_both_pkeys != p_current_db->allow_both_pkeys) {
@@ -861,11 +854,6 @@ static void ssa_db_diff_dump_fabric_params(struct ssa_events * ssa,
 	if (p_ssa_db_diff->change_mask & SSA_DB_CHANGEMASK_SUBNET_TIMEOUT) {
 		ssa_log(SSA_LOG_VERBOSE, "Subnet timeout: %u\n",
 			p_ssa_db_diff->subnet_timeout);
-		is_changed = 1;
-	}
-	if (p_ssa_db_diff->change_mask & SSA_DB_CHANGEMASK_ENABLE_QUIRKS) {
-		ssa_log(SSA_LOG_VERBOSE, "Quirks %sabled\n",
-			p_ssa_db_diff->enable_quirks ? "en" : "dis");
 		is_changed = 1;
 	}
 	if (p_ssa_db_diff->change_mask & SSA_DB_CHANGEMASK_ALLOW_BOTH_PKEYS) {

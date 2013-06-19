@@ -140,7 +140,6 @@ struct ssa_db {
 	uint8_t sm_state;
 	uint8_t lmc;
 	uint8_t subnet_timeout;
-	boolean_t enable_quirks;
 	boolean_t allow_both_pkeys;
 	/* boolean_t qos; */
 	/* prefix_routes */

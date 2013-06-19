@@ -53,7 +53,6 @@ BEGIN_C_DECLS
 #define SSA_DB_CHANGEMASK_SM_STATE 		(((uint16_t)1)<<1)
 #define SSA_DB_CHANGEMASK_LMC 			(((uint16_t)1)<<2)
 #define SSA_DB_CHANGEMASK_SUBNET_TIMEOUT 	(((uint16_t)1)<<3)
-#define SSA_DB_CHANGEMASK_ENABLE_QUIRKS		(((uint16_t)1)<<4)
 #define SSA_DB_CHANGEMASK_ALLOW_BOTH_PKEYS	(((uint16_t)1)<<5)
 
 enum ssa_db_diff_table_id {
