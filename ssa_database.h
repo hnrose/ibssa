@@ -61,11 +61,10 @@ struct ep_guid_to_lid_tbl_rec {
 
 struct ep_node_tbl_rec {
 	uint64_t	node_guid;
-	uint32_t	vendor_id;
-	uint16_t	device_id;
 	uint8_t		is_enhanced_sp0;
 	uint8_t		node_type;
 	uint8_t		description[IB_NODE_DESCRIPTION_SIZE];
+	uint8_t		pad[6];
 };
 
 struct ep_map_rec {

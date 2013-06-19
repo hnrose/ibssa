@@ -52,11 +52,9 @@ static const struct db_field_def field_tbl[] = {
 	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, SSA_FIELD_ID_GUID_TO_LID_LMC }, "lmc", 8, 80 },
 	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, SSA_FIELD_ID_GUID_TO_LID_IS_SWITCH }, "is_switch", 8, 88 },
 	{ 1, 0, DBF_TYPE_NET64, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_NODE_GUID }, "node_guid", 64, 0 },
-	{ 1, 0, DBF_TYPE_NET32, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_VENDOR_ID }, "vendor_id", 32, 64 },
-	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_DEVICE_ID }, "device_id", 16, 96 },
-	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_IS_ENHANCED_SP0 }, "is_enhanced_sp0", 8, 112 },
-	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_NODE_TYPE }, "node_type", 8, 120 },
-	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_IS_ENHANCED_SP0 }, "description", 8 * IB_NODE_DESCRIPTION_SIZE, 128 },
+	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_IS_ENHANCED_SP0 }, "is_enhanced_sp0", 8, 64 },
+	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_NODE_TYPE }, "node_type", 8, 72 },
+	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_IS_ENHANCED_SP0 }, "description", 8 * IB_NODE_DESCRIPTION_SIZE, 80 },
 	{ 0 }
 };
 
@@ -538,9 +536,7 @@ static int ssa_db_node_cmp(cl_map_item_t * p_item_old,
 	p_tbl_rec_old += p_map_rec_old->offset;
 	p_tbl_rec_new += p_map_rec_new->offset;
 
-	if (p_tbl_rec_old->vendor_id != p_tbl_rec_new->vendor_id ||
-	    p_tbl_rec_old->device_id != p_tbl_rec_new->device_id ||
-	    p_tbl_rec_old->is_enhanced_sp0 != p_tbl_rec_new->is_enhanced_sp0 ||
+	if (p_tbl_rec_old->is_enhanced_sp0 != p_tbl_rec_new->is_enhanced_sp0 ||
 	    p_tbl_rec_old->node_type != p_tbl_rec_new->node_type ||
 	    memcmp(p_tbl_rec_old->description, p_tbl_rec_new->description,
 		   IB_NODE_DESCRIPTION_SIZE))

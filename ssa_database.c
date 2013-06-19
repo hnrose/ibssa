@@ -129,8 +129,6 @@ void ep_guid_to_lid_tbl_rec_init(osm_port_t *p_port,
 void ep_node_tbl_rec_init(osm_node_t *p_node, struct ep_node_tbl_rec *p_rec)
 {
 	p_rec->node_guid = osm_node_get_node_guid(p_node);
-	p_rec->vendor_id = ib_node_info_get_vendor_id(&p_node->node_info);
-	p_rec->device_id = p_node->node_info.device_id;
 	if (p_node->node_info.node_type == IB_NODE_TYPE_SWITCH)
 		p_rec->is_enhanced_sp0 =
 			ib_switch_info_is_enhanced_port0(&p_node->sw->switch_info);
@@ -138,6 +136,7 @@ void ep_node_tbl_rec_init(osm_node_t *p_node, struct ep_node_tbl_rec *p_rec)
 		p_rec->is_enhanced_sp0 = 0;
 	p_rec->node_type = p_node->node_info.node_type;
 	memcpy(p_rec->description, p_node->node_desc.description, sizeof(p_rec->description));
+	memset(&p_rec->pad, 0, sizeof(p_rec->pad));
 }
 
 struct ep_link_rec *ep_link_rec_init(osm_physp_t * p_physp)
