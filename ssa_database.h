@@ -67,6 +67,14 @@ struct ep_node_tbl_rec {
 	uint8_t		pad[6];
 };
 
+struct ep_link_tbl_rec {
+	uint16_t	from_lid;
+	uint16_t	to_lid;
+	uint8_t		from_port_num;
+	uint8_t		to_port_num;
+	uint8_t		pad[2];
+};
+
 struct ep_map_rec {
 	cl_map_item_t	map_item;
 	uint64_t	offset;
@@ -100,11 +108,6 @@ struct ep_port_rec {
 	struct ep_pkey_rec ep_pkey_rec;
 };
 
-struct ep_link_rec {
-	cl_map_item_t map_item;
-	ib_link_record_t link_rec;
-};
-
 struct ep_lft_block_rec {
 	cl_map_item_t map_item;
 	uint16_t lid;
@@ -129,6 +132,7 @@ struct ssa_db {
 	/* mutex ??? */
 	struct ep_guid_to_lid_tbl_rec	*p_guid_to_lid_tbl;
 	struct ep_node_tbl_rec		*p_node_tbl;
+	struct ep_link_tbl_rec		*p_link_tbl;
 
 	cl_qmap_t ep_guid_to_lid_tbl;	/* port GUID -> offset */
 	cl_qmap_t ep_node_tbl;		/* node GUID -> offset */
@@ -172,10 +176,7 @@ void ep_guid_to_lid_tbl_rec_init(osm_port_t *p_port,
 void ep_node_tbl_rec_init(osm_node_t *p_node, struct ep_node_tbl_rec * p_rec);
 
 /**********************LINK records**************************************/
-struct ep_link_rec *ep_link_rec_init(osm_physp_t *p_physp);
-void ep_link_rec_copy(struct ep_link_rec *p_dest_rec, struct ep_link_rec *p_src_rec);
-void ep_link_rec_delete(struct ep_link_rec *p_ep_link_rec);
-void ep_link_rec_delete_pfn(cl_map_item_t *p_map_item);
+void ep_link_tbl_rec_init(osm_physp_t *p_physp, struct ep_link_tbl_rec * p_rec);
 
 /********************** LFT Block records*******************************/
 struct ep_lft_block_rec *ep_lft_block_rec_init(osm_switch_t *p_sw,

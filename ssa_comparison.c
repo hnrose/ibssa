@@ -43,6 +43,8 @@ static const struct db_table_def def_tbl[] = {
 							"GUID to LID fields", sizeof(struct db_field_def), SSA_TABLE_ID_GUID_TO_LID },
 	{ 1, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SSA_TABLE_ID_NODE, 0 }, "NODE", sizeof(struct ep_node_tbl_rec), 0 },
 	{ 1, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, 0 }, "NODE fields", sizeof(struct db_field_def), SSA_TABLE_ID_NODE },
+	{ 1, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SSA_TABLE_ID_LINK, 0 }, "LINK", sizeof(struct ep_link_tbl_rec), 0 },
+	{ 1, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SSA_TABLE_ID_LINK_FIELD_DEF, 0 }, "LINK fields", sizeof(struct db_field_def), SSA_TABLE_ID_LINK },
 	{ 0 }
 };
 
@@ -51,6 +53,8 @@ static const struct db_dataset dataset_tbl[] = {
 	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, 0 }, 0, 0, 0, 0 },
 	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_NODE, 0 }, 0, 0, 0, 0 },
 	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, 0 }, 0, 0, 0, 0 },
+	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_LINK, 0 }, 0, 0, 0, 0 },
+	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_LINK_FIELD_DEF, 0 }, 0, 0, 0, 0 },
 	{ 0 }
 };
 
@@ -63,6 +67,10 @@ static const struct db_field_def field_tbl[] = {
 	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_IS_ENHANCED_SP0 }, "is_enhanced_sp0", 8, 64 },
 	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_NODE_TYPE }, "node_type", 8, 72 },
 	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_IS_ENHANCED_SP0 }, "description", 8 * IB_NODE_DESCRIPTION_SIZE, 80 },
+	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_LINK_FIELD_DEF, SSA_FIELD_ID_LINK_FROM_LID }, "from_lid", 16, 0 },
+	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_LINK_FIELD_DEF, SSA_FIELD_ID_LINK_TO_LID }, "to_lid", 16, 16 },
+	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_LINK_FIELD_DEF, SSA_FIELD_ID_LINK_FROM_PORT_NUM }, "from_port_num", 8, 32 },
+	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_LINK_FIELD_DEF, SSA_FIELD_ID_LINK_TO_PORT_NUM }, "to_port_num", 8, 40 },
 	{ 0 }
 };
 
@@ -74,6 +82,7 @@ struct db_field {
 static const struct db_field field_per_table[] = {
 	{ SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, SSA_FIELD_ID_GUID_TO_LID_MAX},
 	{ SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_MAX},
+	{ SSA_TABLE_ID_LINK_FIELD_DEF, SSA_FIELD_ID_LINK_MAX},
 	{ 0 }
 };
 
@@ -241,7 +250,9 @@ void ssa_db_diff_tables_init(struct ssa_db_diff * p_ssa_db_diff)
 	}
 }
 
-struct ssa_db_diff *ssa_db_diff_init(uint64_t guid_to_lid_num_recs, uint64_t node_num_recs)
+struct ssa_db_diff *ssa_db_diff_init(uint64_t guid_to_lid_num_recs,
+				     uint64_t node_num_recs,
+				     uint64_t link_num_recs)
 {
 	struct ssa_db_diff *p_ssa_db_diff;
 
@@ -260,6 +271,13 @@ struct ssa_db_diff *ssa_db_diff_init(uint64_t guid_to_lid_num_recs, uint64_t nod
 			malloc(sizeof(struct ep_node_tbl_rec) * node_num_recs);
 
 		if (!p_ssa_db_diff->p_tables[SSA_TABLE_ID_NODE]) {
+			/* TODO: add handling memory allocation failure */
+		}
+
+		p_ssa_db_diff->p_tables[SSA_TABLE_ID_LINK] =
+			malloc(sizeof(struct ep_link_tbl_rec) * link_num_recs);
+
+		if (!p_ssa_db_diff->p_tables[SSA_TABLE_ID_LINK]) {
 			/* TODO: add handling memory allocation failure */
 		}
 
@@ -310,9 +328,9 @@ void ssa_db_diff_destroy(struct ssa_db_diff * p_ssa_db_diff)
 		ssa_qmap_apply_func(&p_ssa_db_diff->ep_port_tbl_removed,
 				   ep_port_rec_delete_pfn);
 		ssa_qmap_apply_func(&p_ssa_db_diff->ep_link_tbl_added,
-				   ep_link_rec_delete_pfn);
+				   ep_map_rec_delete_pfn);
 		ssa_qmap_apply_func(&p_ssa_db_diff->ep_link_tbl_removed,
-				   ep_link_rec_delete_pfn);
+				   ep_map_rec_delete_pfn);
 		ssa_qmap_apply_func(&p_ssa_db_diff->ep_lft_block_tbl,
 				   ep_lft_block_rec_delete_pfn);
 		ssa_qmap_apply_func(&p_ssa_db_diff->ep_lft_top_tbl,
@@ -565,31 +583,67 @@ static int ssa_db_port_cmp(cl_map_item_t * const p_item_old,
 
 /** =========================================================================
  */
-static void ssa_db_link_insert(cl_qmap_t * p_map,
+static void ssa_db_link_insert(cl_qmap_t *p_map,
+			       struct db_dataset *p_dataset,
+			       void **p_data_tbl,
 			       uint64_t key,
-			       cl_map_item_t * p_item)
+			       cl_map_item_t * p_item,
+			       void *p_data_tbl_src)
 {
-	struct ep_link_rec *p_link_rec;
-	p_link_rec = (struct ep_link_rec *)
-			     malloc(sizeof(*p_link_rec));
-	if (!p_link_rec) {
+	struct ep_map_rec *p_map_rec_new, *p_map_rec_old;
+	struct ep_link_tbl_rec *p_link_tbl_rec_dest;
+	struct ep_link_tbl_rec *p_link_tbl_rec_src;
+
+	p_link_tbl_rec_dest = (struct ep_link_tbl_rec *) *p_data_tbl;
+	p_link_tbl_rec_src = (struct ep_link_tbl_rec *) p_data_tbl_src;
+
+	p_map_rec_new = (struct ep_map_rec *)
+			     malloc(sizeof(*p_map_rec_new));
+	if (!p_map_rec_new) {
 		/* handle failure - bad memory allocation */
 	}
-	ep_link_rec_copy(p_link_rec, (struct ep_link_rec *) p_item);
-	cl_qmap_insert(p_map, key, &p_link_rec->map_item);
+
+	p_map_rec_new->offset = p_dataset->set_count;
+	cl_qmap_insert(p_map, key, &p_map_rec_new->map_item);
+
+	if (!p_link_tbl_rec_dest) {
+		ssa_log(SSA_LOG_ALL, "ILYA DEBUG: no LINK table was allocated\n");
+		/* handle failure - bad memory allocation */
+	}
+
+	p_map_rec_old = (struct ep_map_rec *) p_item;
+	memcpy(&p_link_tbl_rec_dest[p_dataset->set_count],
+	       &p_link_tbl_rec_src[p_map_rec_old->offset],
+	       sizeof(*p_link_tbl_rec_dest));
+	*p_data_tbl = p_link_tbl_rec_dest;
+	p_dataset->set_size += sizeof(*p_link_tbl_rec_dest);
+	p_dataset->set_count++;
 }
 
 /** =========================================================================
  */
 static int ssa_db_link_cmp(cl_map_item_t * p_item_old,
-			   cl_map_item_t * p_item_new)
+			   void *p_data_tbl_old,
+			   cl_map_item_t * p_item_new,
+			   void *p_data_tbl_new)
 {
-	struct ep_link_rec *p_rec_old = (struct ep_link_rec *) p_item_old;
-	struct ep_link_rec *p_rec_new = (struct ep_link_rec *) p_item_new;
+	struct ep_map_rec *p_map_rec_old =
+			(struct ep_map_rec *) p_item_old;
+	struct ep_map_rec *p_map_rec_new =
+			(struct ep_map_rec *) p_item_new;
+	struct ep_link_tbl_rec *p_tbl_rec_old =
+			(struct ep_link_tbl_rec *) p_data_tbl_old;
+	struct ep_link_tbl_rec *p_tbl_rec_new =
+			(struct ep_link_tbl_rec *) p_data_tbl_new;
 	int res = 0;
 
-	if (memcmp(&p_rec_old->link_rec, &p_rec_new->link_rec,
-		   sizeof(p_rec_new->link_rec)))
+	p_tbl_rec_old += p_map_rec_old->offset;
+	p_tbl_rec_old += p_map_rec_new->offset;
+
+	if ((p_tbl_rec_old->from_lid != p_tbl_rec_new->from_lid) ||
+	    (p_tbl_rec_old->to_lid != p_tbl_rec_new->to_lid) ||
+	    (p_tbl_rec_old->from_port_num != p_tbl_rec_new->from_port_num) ||
+	    (p_tbl_rec_old->to_port_num != p_tbl_rec_new->to_port_num))
 		res = 1;
 
 	return res;
@@ -786,12 +840,16 @@ static void ssa_db_diff_compare_subnet_tables(struct ssa_db * p_previous_db,
 	/*
 	 * Comparing ep_link_rec records
 	 */
-	dirty |= ssa_db_diff_table_cmp(&p_previous_db->ep_link_tbl,
-				      &p_current_db->ep_link_tbl,
-				      ssa_db_link_insert,
-				      ssa_db_link_cmp,
-				      &p_ssa_db_diff->ep_link_tbl_added,
-				      &p_ssa_db_diff->ep_link_tbl_removed);
+	dirty |= ssa_db_diff_table_cmp_v2(&p_previous_db->ep_link_tbl,
+					  &p_current_db->ep_link_tbl,
+					  p_previous_db->p_link_tbl,
+					  p_current_db->p_link_tbl,
+					  ssa_db_link_insert,
+					  ssa_db_link_cmp,
+					  &p_ssa_db_diff->ep_link_tbl_added,
+					  &p_ssa_db_diff->ep_link_tbl_removed,
+					  &p_ssa_db_diff->db_tables[SSA_TABLE_ID_LINK],
+					  (void **) &p_ssa_db_diff->p_tables[SSA_TABLE_ID_LINK]);
 
 	dirty = dirty << 1;
 	/*
@@ -983,16 +1041,24 @@ static void ssa_db_diff_dump_lft_block_rec(struct ssa_events * ssa,
 /** =========================================================================
  */
 static void ssa_db_diff_dump_link_rec(struct ssa_events * ssa,
-				      cl_map_item_t * p_item)
+				      cl_map_item_t * p_item,
+				      void * p_tbl)
 {
-	struct ep_link_rec *p_link_rec = (struct ep_link_rec *) p_item;
+	struct ep_map_rec *p_map_rec = (struct ep_map_rec *) p_item;
+	struct ep_link_tbl_rec *p_link_tbl_rec, link_tbl_rec;
 
-	if (p_link_rec)
+	if (!p_map_rec)
+		return;
+
+	p_link_tbl_rec = (struct ep_link_tbl_rec *) p_tbl;
+	if (p_link_tbl_rec) {
+		link_tbl_rec = p_link_tbl_rec[p_map_rec->offset];
 		ssa_log(SSA_LOG_VERBOSE, "From LID %u port %u to LID %u port %u\n",
-			cl_ntoh16(p_link_rec->link_rec.from_lid),
-			p_link_rec->link_rec.from_port_num,
-			cl_ntoh16(p_link_rec->link_rec.to_lid),
-			p_link_rec->link_rec.to_port_num);
+			cl_ntoh16(link_tbl_rec.from_lid),
+			link_tbl_rec.from_port_num,
+			cl_ntoh16(link_tbl_rec.to_lid),
+			link_tbl_rec.to_port_num);
+	}
 }
 
 /** =========================================================================
@@ -1110,12 +1176,18 @@ static void ssa_db_diff_dump(struct ssa_events * ssa,
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "Link Records:\n");
 	ssa_log(ssa_log_level, "-----------------------------------\n");
+	ssa_log(ssa_log_level, "LINK field definitions:\n");
+	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->p_tables[SSA_TABLE_ID_LINK_FIELD_DEF],
+				   SSA_FIELD_ID_LINK_MAX);
+	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "Added records:\n");
-	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_link_tbl_added,
-			      ssa, ssa_db_diff_dump_link_rec);
+	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_link_tbl_added,
+				 ssa, ssa_db_diff_dump_link_rec,
+				 p_ssa_db_diff->p_tables[SSA_TABLE_ID_LINK]);
 	ssa_log(ssa_log_level, "Removed records:\n");
-	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_link_tbl_removed,
-			      ssa, ssa_db_diff_dump_link_rec);
+	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_link_tbl_removed,
+				 ssa, ssa_db_diff_dump_link_rec,
+				 p_ssa_db_diff->p_tables[SSA_TABLE_ID_LINK]);
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "===================================\n");
 }
@@ -1195,7 +1267,7 @@ struct ssa_db_diff *ssa_db_compare(struct ssa_events * ssa,
 				   struct ssa_database * ssa_db)
 {
 	struct ssa_db_diff *p_ssa_db_diff = NULL;
-	uint64_t guid_to_lid_num_recs, node_num_recs;
+	uint64_t guid_to_lid_num_recs, node_num_recs, link_num_recs;
 
 	ssa_log(SSA_LOG_VERBOSE, "[\n");
 
@@ -1211,8 +1283,10 @@ struct ssa_db_diff *ssa_db_compare(struct ssa_events * ssa,
 			cl_qmap_count(&ssa_db->p_previous_db->ep_guid_to_lid_tbl);
 	node_num_recs = cl_qmap_count(&ssa_db->p_current_db->ep_node_tbl) +
 			cl_qmap_count(&ssa_db->p_previous_db->ep_node_tbl);
+	link_num_recs = cl_qmap_count(&ssa_db->p_current_db->ep_link_tbl) +
+			cl_qmap_count(&ssa_db->p_previous_db->ep_link_tbl);
 
-	p_ssa_db_diff = ssa_db_diff_init(guid_to_lid_num_recs, node_num_recs);
+	p_ssa_db_diff = ssa_db_diff_init(guid_to_lid_num_recs, node_num_recs, link_num_recs);
 	if (!p_ssa_db_diff) {
 		/* error handling */
 		ssa_log(SSA_LOG_ALL, "SMDB Comparison: bad diff struct initialization\n");

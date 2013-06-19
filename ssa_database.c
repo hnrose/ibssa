@@ -100,12 +100,13 @@ void ssa_db_delete(struct ssa_db *p_ssa_db)
 {
 	if (p_ssa_db) {
 		free(p_ssa_db->p_node_tbl);
+		free(p_ssa_db->p_link_tbl);
 		free(p_ssa_db->p_guid_to_lid_tbl);
 
 		ssa_qmap_apply_func(&p_ssa_db->ep_guid_to_lid_tbl, ep_map_rec_delete_pfn);
 		ssa_qmap_apply_func(&p_ssa_db->ep_node_tbl, ep_map_rec_delete_pfn);
 		ssa_qmap_apply_func(&p_ssa_db->ep_port_tbl, ep_port_rec_delete_pfn);
-		ssa_qmap_apply_func(&p_ssa_db->ep_link_tbl, ep_link_rec_delete_pfn);
+		ssa_qmap_apply_func(&p_ssa_db->ep_link_tbl, ep_map_rec_delete_pfn);
 
 		cl_qmap_remove_all(&p_ssa_db->ep_node_tbl);
 		cl_qmap_remove_all(&p_ssa_db->ep_guid_to_lid_tbl);
@@ -139,64 +140,29 @@ void ep_node_tbl_rec_init(osm_node_t *p_node, struct ep_node_tbl_rec *p_rec)
 	memset(&p_rec->pad, 0, sizeof(p_rec->pad));
 }
 
-struct ep_link_rec *ep_link_rec_init(osm_physp_t * p_physp)
+void ep_link_tbl_rec_init(osm_physp_t *p_physp, struct ep_link_tbl_rec *p_rec)
 {
-	struct ep_link_rec *p_ep_link_rec;
 	osm_physp_t *p_remote_physp;
 
-	p_ep_link_rec = (struct ep_link_rec *) malloc(sizeof(*p_ep_link_rec));
-	if (p_ep_link_rec) {
-		if (osm_node_get_type(p_physp->p_node) == IB_NODE_TYPE_SWITCH) {
-			p_ep_link_rec->link_rec.from_lid =
-				osm_node_get_base_lid(p_physp->p_node, 0);
-			p_ep_link_rec->link_rec.from_port_num =
-				osm_physp_get_port_num(p_physp);
-		} else {
-			p_ep_link_rec->link_rec.from_lid =
-				osm_physp_get_base_lid(p_physp);
-			p_ep_link_rec->link_rec.from_port_num = 0;
-		}
-
-		p_remote_physp = osm_physp_get_remote(p_physp);
-		if (!p_remote_physp) {
-			/* TODO: add handling for remote port missing */
-			free(p_ep_link_rec);
-			return NULL;
-		}
-
-		if (osm_node_get_type(p_remote_physp->p_node) ==
-							IB_NODE_TYPE_SWITCH) {
-			p_ep_link_rec->link_rec.to_lid =
-				osm_node_get_base_lid(p_remote_physp->p_node, 0);
-			p_ep_link_rec->link_rec.to_port_num =
-				osm_physp_get_port_num(p_remote_physp);
-		} else {
-			p_ep_link_rec->link_rec.to_lid =
-				osm_physp_get_base_lid(p_remote_physp);
-			p_ep_link_rec->link_rec.to_port_num = 0;
-		}
+	if (osm_node_get_type(p_physp->p_node) == IB_NODE_TYPE_SWITCH) {
+		p_rec->from_lid = osm_node_get_base_lid(p_physp->p_node, 0);
+		p_rec->from_port_num = osm_physp_get_port_num(p_physp);
+	} else {
+		p_rec->from_lid = osm_physp_get_base_lid(p_physp);
+		p_rec->from_port_num = 0;
 	}
-	return p_ep_link_rec;
-}
 
-void ep_link_rec_copy(struct ep_link_rec *p_dest_rec,
-		      struct ep_link_rec *p_src_rec)
-{
-	memcpy(&p_dest_rec->link_rec, &p_src_rec->link_rec,
-	       sizeof(p_dest_rec->link_rec));
-}
+	p_remote_physp = osm_physp_get_remote(p_physp);
 
-void ep_link_rec_delete(struct ep_link_rec *p_ep_link_rec)
-{
-	free(p_ep_link_rec);
-}
-
-void ep_link_rec_delete_pfn(cl_map_item_t *p_map_item)
-{
-	struct ep_link_rec *p_link_rec;
-
-	p_link_rec = (struct ep_link_rec *) p_map_item;
-	ep_link_rec_delete(p_link_rec);
+	if (osm_node_get_type(p_remote_physp->p_node) ==
+						IB_NODE_TYPE_SWITCH) {
+		p_rec->to_lid = osm_node_get_base_lid(p_remote_physp->p_node, 0);
+		p_rec->to_port_num =osm_physp_get_port_num(p_remote_physp);
+	} else {
+		p_rec->to_lid = osm_physp_get_base_lid(p_remote_physp);
+		p_rec->to_port_num = 0;
+	}
+	memset(&p_rec->pad, 0, sizeof(p_rec->pad));
 }
 
 struct ep_lft_block_rec *ep_lft_block_rec_init(osm_switch_t * p_sw,

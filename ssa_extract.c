@@ -65,15 +65,18 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 	struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl_rec;
 	struct ep_node_tbl_rec *p_node_tbl_rec;
 	struct ep_port_rec *p_port_rec;
-	struct ep_link_rec *p_link_rec;
+	struct ep_link_tbl_rec *p_link_tbl_rec;
 	struct ep_lft_block_rec *p_lft_block_rec;
 	struct ep_lft_top_rec *p_lft_top_rec;
 	uint64_t ep_rec_key;
 	uint64_t guid_to_lid_offset = 0;
 	uint64_t node_offset = 0;
+	uint64_t link_offset = 0;
+	uint64_t links;
 	uint32_t guids, nodes;
 	uint16_t lids, lid_ho, max_block;
 	uint16_t i;
+	uint8_t switch_max_port_num = 0;
 #ifdef SSA_PLUGIN_VERBOSE_LOGGING
 	uint8_t is_fdr10_active;
 #endif
@@ -134,6 +137,11 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 			       osm_node_get_node_guid(p_node),
 			       &p_map_rec->map_item);
 
+		if (osm_node_get_type(p_node) == IB_NODE_TYPE_SWITCH)
+			switch_max_port_num =
+				(switch_max_port_num > p_node->sw->num_ports) ?
+					switch_max_port_num : p_node->sw->num_ports;
+
 		/* TODO: add more cases when full dump is needed */
 		if (!first_time_subnet_up)
 			continue;
@@ -182,6 +190,22 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 	p_guid_to_lid_tbl_rec = (struct ep_guid_to_lid_tbl_rec *)
 		malloc(sizeof(*p_guid_to_lid_tbl_rec));
 	if (!p_guid_to_lid_tbl_rec) {
+			/* TODO: add memory allocation failure handling */
+	}
+
+	links = guids + cl_qmap_count(&p_subn->sw_guid_tbl) * switch_max_port_num;
+	if (!p_ssa->p_link_tbl) {
+		p_ssa->p_link_tbl = (struct ep_link_tbl_rec *)
+				malloc(sizeof(*p_ssa->p_link_tbl) * links);
+		if (!p_ssa->p_link_tbl) {
+			/* add memory allocation failure handling */
+			ssa_log(SSA_LOG_VERBOSE, "Link rec memory allocation failed");
+		}
+	}
+
+	p_link_tbl_rec = (struct ep_link_tbl_rec *)
+		malloc(sizeof(*p_link_tbl_rec));
+	if (!p_link_tbl_rec) {
 			/* TODO: add memory allocation failure handling */
 	}
 
@@ -299,11 +323,17 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 						"Port GUID 0x%" PRIx64 " failed\n",
 						cl_ntoh64(osm_physp_get_port_guid(p_physp)));
 
-				p_link_rec = ep_link_rec_init(p_physp);
-				if (p_link_rec)
+				if (!osm_physp_get_remote(p_physp))
+					continue;
+
+				ep_link_tbl_rec_init(p_physp, p_link_tbl_rec);
+				memcpy(&p_ssa->p_link_tbl[link_offset],
+				       p_link_tbl_rec, sizeof(*p_link_tbl_rec));
+				p_map_rec = ep_map_rec_init(link_offset++);
+				if (p_map_rec)
 					cl_qmap_insert(&p_ssa->ep_link_tbl,
 						       ep_rec_key,
-						       &p_link_rec->map_item);
+						       &p_map_rec->map_item);
 			}
 		} else {
 			p_physp = p_port->p_physp;
@@ -319,14 +349,21 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 					"Port GUID 0x%" PRIx64 " failed\n",
 					cl_ntoh64(osm_physp_get_port_guid(p_physp)));
 
-			p_link_rec = ep_link_rec_init(p_physp);
-			if (p_link_rec)
-				cl_qmap_insert(&p_ssa->ep_link_tbl,
-					       ep_rec_key,
-					       &p_link_rec->map_item);
+				if (!osm_physp_get_remote(p_physp))
+					continue;
+
+				ep_link_tbl_rec_init(p_physp, p_link_tbl_rec);
+				memcpy(&p_ssa->p_link_tbl[link_offset],
+				       p_link_tbl_rec, sizeof(*p_link_tbl_rec));
+				p_map_rec = ep_map_rec_init(link_offset++);
+				if (p_map_rec)
+					cl_qmap_insert(&p_ssa->ep_link_tbl,
+						       ep_rec_key,
+						       &p_map_rec->map_item);
 		}
 	}
 
+	free(p_link_tbl_rec);
 	free(p_guid_to_lid_tbl_rec);
 	free(p_node_tbl_rec);
 
@@ -377,8 +414,8 @@ void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 {
 	struct ep_guid_to_lid_tbl_rec guid_to_lid_tbl_rec;
 	struct ep_node_tbl_rec node_tbl_rec;
+	struct ep_link_tbl_rec link_tbl_rec;
 	struct ep_port_rec *p_port_rec, *p_next_port_rec;
-	struct ep_link_rec *p_link, *p_next_link;
 	const ib_pkey_table_t *block;
 	char buffer[64];
 	uint64_t i;
@@ -453,14 +490,11 @@ void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 		}
 	}
 
-	p_next_link = (struct ep_link_rec *)cl_qmap_head(&p_ssa_db->ep_link_tbl);
-	while (p_next_link !=
-	       (struct ep_link_rec *)cl_qmap_end(&p_ssa_db->ep_link_tbl)) {
-		p_link = p_next_link;
-		p_next_link = (struct ep_link_rec *)cl_qmap_next(&p_link->map_item);
+	for (i = 0; i < cl_qmap_count(&p_ssa_db->ep_link_tbl); i++) {
+		link_tbl_rec = p_ssa_db->p_link_tbl[i];
 		ssa_log(SSA_LOG_VERBOSE, "Link Record: from LID %u port %u to LID %u port %u\n",
-			cl_ntoh16(p_link->link_rec.from_lid), p_link->link_rec.from_port_num,
-			cl_ntoh16(p_link->link_rec.to_lid), p_link->link_rec.to_port_num);
+			cl_ntoh16(link_tbl_rec.from_lid), link_tbl_rec.from_port_num,
+			cl_ntoh16(link_tbl_rec.to_lid), link_tbl_rec.to_port_num);
 	}
 
 	ssa_log(SSA_LOG_VERBOSE, "]\n");
@@ -471,7 +505,6 @@ void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 void ssa_db_remove(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 {
 	struct ep_port_rec *p_port_rec, *p_next_port_rec;
-	struct ep_link_rec *p_link, *p_next_link;
 	struct ep_map_rec *p_map_rec, *p_map_rec_next;
 
 	if (!p_ssa_db || !p_ssa_db->initialized)
@@ -510,14 +543,14 @@ void ssa_db_remove(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 		ep_port_rec_delete(p_port_rec);
 	}
 
-	p_next_link = (struct ep_link_rec *) cl_qmap_head(&p_ssa_db->ep_link_tbl);
-	while (p_next_link !=
-	       (struct ep_link_rec *) cl_qmap_end(&p_ssa_db->ep_link_tbl)) {
-		p_link = p_next_link;
-		p_next_link = (struct ep_link_rec *) cl_qmap_next(&p_link->map_item);
+	p_map_rec_next = (struct ep_map_rec *)cl_qmap_head(&p_ssa_db->ep_link_tbl);
+	while (p_map_rec_next !=
+	       (struct ep_map_rec *)cl_qmap_end(&p_ssa_db->ep_link_tbl)) {
+		p_map_rec = p_map_rec_next;
+		p_map_rec_next = (struct ep_map_rec *)cl_qmap_next(&p_map_rec->map_item);
 		cl_qmap_remove_item(&p_ssa_db->ep_link_tbl,
-				    &p_link->map_item);
-		ep_link_rec_delete(p_link);
+				    &p_map_rec->map_item);
+		ep_map_rec_delete(p_map_rec);
 	}
 
 	p_ssa_db->initialized = 0;
