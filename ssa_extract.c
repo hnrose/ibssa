@@ -328,6 +328,7 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 	}
 
 	free(p_guid_to_lid_tbl_rec);
+	free(p_node_tbl_rec);
 
 	p_ssa->initialized = 1;
 
