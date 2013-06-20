@@ -75,37 +75,23 @@ struct ep_link_tbl_rec {
 	uint8_t		pad[2];
 };
 
+struct ep_port_tbl_rec {
+	uint16_t	max_pkeys;
+	uint16_t	used_blocks;
+	uint16_t	port_lid;
+	uint8_t		port_num;
+	uint8_t		mtu_cap;
+	uint8_t		link_speed_ext;
+	uint8_t		link_speed;
+	uint8_t		link_width_active;
+	uint8_t		vl_enforce;
+	uint8_t		is_fdr10_active;
+	uint8_t		pad[3];
+};
+
 struct ep_map_rec {
 	cl_map_item_t	map_item;
 	uint64_t	offset;
-};
-
-struct ep_pkey_rec {
-	/* port number only needed for switch external ports, not if only end ports */
-	/* actual pkey table blocks or pkeys map ? */
-#if 1
-	uint16_t max_pkeys;     /* from NodeInfo.PartitionCap */
-	uint16_t used_blocks;
-	ib_pkey_table_t pkey_tbl[0];
-#else
-	cl_map_t pkeys;
-#endif
-};
-
-struct ep_port_rec {
-	cl_map_item_t map_item;
-	/* or just (subnet prefix), cap mask, port state ?, active speeds, active width, and mtu cap ? */
-	/*** PORT INFO ****/
-	uint8_t neighbor_mtu;
-	uint8_t link_speed_ext;
-	uint8_t link_speed;
-	uint8_t link_width_active;
-	uint8_t vl_enforce;
-	/******************/
-	uint8_t is_fdr10_active;
-	uint8_t pad[3];
-	cl_ptr_vector_t slvl_by_port;	/* the length is different for switch or host port */
-	struct ep_pkey_rec ep_pkey_rec;
 };
 
 struct ep_lft_block_rec {
@@ -133,6 +119,7 @@ struct ssa_db {
 	struct ep_guid_to_lid_tbl_rec	*p_guid_to_lid_tbl;
 	struct ep_node_tbl_rec		*p_node_tbl;
 	struct ep_link_tbl_rec		*p_link_tbl;
+	struct ep_port_tbl_rec		*p_port_tbl;
 
 	cl_qmap_t ep_guid_to_lid_tbl;	/* port GUID -> offset */
 	cl_qmap_t ep_node_tbl;		/* node GUID -> offset */
@@ -178,6 +165,9 @@ void ep_node_tbl_rec_init(osm_node_t *p_node, struct ep_node_tbl_rec * p_rec);
 /**********************LINK records**************************************/
 void ep_link_tbl_rec_init(osm_physp_t *p_physp, struct ep_link_tbl_rec * p_rec);
 
+/**********************PORT records**************************************/
+void ep_port_tbl_rec_init(osm_physp_t *p_physp, struct ep_port_tbl_rec * p_rec);
+
 /********************** LFT Block records*******************************/
 struct ep_lft_block_rec *ep_lft_block_rec_init(osm_switch_t *p_sw,
 					       uint16_t lid, uint16_t block);
@@ -196,12 +186,6 @@ inline uint64_t ep_lft_top_rec_gen_key(uint16_t lid);
 void ep_lft_top_rec_delete(struct ep_lft_top_rec *p_lft_top_rec);
 void ep_lft_top_rec_delete_pfn(cl_map_item_t * p_map_item);
 void ep_lft_top_rec_qmap_clear(cl_qmap_t *p_map);
-
-/**********************PORT records**************************************/
-struct ep_port_rec *ep_port_rec_init(osm_physp_t *p_physp);
-void ep_port_rec_copy(struct ep_port_rec *p_dest_rec, struct ep_port_rec *p_src_rec);
-void ep_port_rec_delete(struct ep_port_rec *p_ep_port_rec);
-void ep_port_rec_delete_pfn(cl_map_item_t *p_map_item);
 /***********************************************************************/
 
 uint64_t ep_rec_gen_key(uint16_t lid, uint8_t port_num);

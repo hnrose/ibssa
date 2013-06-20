@@ -99,13 +99,14 @@ struct ssa_db *ssa_db_init()
 void ssa_db_delete(struct ssa_db *p_ssa_db)
 {
 	if (p_ssa_db) {
-		free(p_ssa_db->p_node_tbl);
+		free(p_ssa_db->p_port_tbl);
 		free(p_ssa_db->p_link_tbl);
 		free(p_ssa_db->p_guid_to_lid_tbl);
+		free(p_ssa_db->p_node_tbl);
 
 		ssa_qmap_apply_func(&p_ssa_db->ep_guid_to_lid_tbl, ep_map_rec_delete_pfn);
 		ssa_qmap_apply_func(&p_ssa_db->ep_node_tbl, ep_map_rec_delete_pfn);
-		ssa_qmap_apply_func(&p_ssa_db->ep_port_tbl, ep_port_rec_delete_pfn);
+		ssa_qmap_apply_func(&p_ssa_db->ep_port_tbl, ep_map_rec_delete_pfn);
 		ssa_qmap_apply_func(&p_ssa_db->ep_link_tbl, ep_map_rec_delete_pfn);
 
 		cl_qmap_remove_all(&p_ssa_db->ep_node_tbl);
@@ -162,6 +163,22 @@ void ep_link_tbl_rec_init(osm_physp_t *p_physp, struct ep_link_tbl_rec *p_rec)
 		p_rec->to_lid = osm_physp_get_base_lid(p_remote_physp);
 		p_rec->to_port_num = 0;
 	}
+	memset(&p_rec->pad, 0, sizeof(p_rec->pad));
+}
+
+void ep_port_tbl_rec_init(osm_physp_t *p_physp, struct ep_port_tbl_rec *p_rec)
+{
+	p_rec->max_pkeys		= p_physp->p_node->node_info.partition_cap;
+	p_rec->used_blocks		= p_physp->pkeys.used_blocks;
+	p_rec->port_lid			= osm_physp_get_base_lid(p_physp);
+	p_rec->port_num			= osm_physp_get_port_num(p_physp);
+	p_rec->mtu_cap			= p_physp->port_info.mtu_cap;
+	p_rec->link_speed_ext		= p_physp->port_info.link_speed_ext;
+	p_rec->link_speed		= p_physp->port_info.link_speed;
+	p_rec->link_width_active	= p_physp->port_info.link_width_active;
+	p_rec->vl_enforce		= p_physp->port_info.vl_enforce;
+	p_rec->is_fdr10_active		= p_physp->ext_port_info.link_speed_active & FDR10;
+
 	memset(&p_rec->pad, 0, sizeof(p_rec->pad));
 }
 
@@ -277,121 +294,6 @@ void ep_lft_top_rec_qmap_clear(cl_qmap_t * p_map)
 	}
 }
 
-struct ep_port_rec *ep_port_rec_init(osm_physp_t *p_physp)
-{
-	struct ep_port_rec *p_ep_port_rec;
-	ib_pkey_table_t *pkey_tbl;
-	ib_slvl_table_t *p_slvl_tbl, *p_slvl_tbl_new;
-	cl_status_t status;
-	uint16_t used_blocks = p_physp->pkeys.used_blocks;
-	uint16_t block_index;
-	uint8_t slvl_rec = cl_ptr_vector_get_size(&p_physp->slvl_by_port);
-	uint8_t i;
-
-	p_ep_port_rec = (struct ep_port_rec *) malloc(sizeof(*p_ep_port_rec) +
-						      sizeof(p_ep_port_rec->ep_pkey_rec.pkey_tbl[0]) * used_blocks);
-	if (p_ep_port_rec) {
-		/* PORT INFO */
-		p_ep_port_rec->neighbor_mtu		= ib_port_info_get_neighbor_mtu(&p_physp->port_info);
-		p_ep_port_rec->link_speed_ext		= p_physp->port_info.link_speed_ext;
-		p_ep_port_rec->link_speed		= p_physp->port_info.link_speed;
-		p_ep_port_rec->link_width_active	= p_physp->port_info.link_width_active;
-		p_ep_port_rec->vl_enforce		= p_physp->port_info.vl_enforce;
-
-		/* slvl tables vector initialization */
-		status = cl_ptr_vector_init(&p_ep_port_rec->slvl_by_port, slvl_rec, 1);
-		if (status != CL_SUCCESS) {
-			/* handle failure !!! */
-		}
-		for (i = 0; i < slvl_rec; i++) {
-			cl_ptr_vector_at(&p_physp->slvl_by_port, i, (void*)&p_slvl_tbl);
-			if (!p_slvl_tbl)
-				continue;
-			p_slvl_tbl_new = (ib_slvl_table_t *) malloc(sizeof(*p_slvl_tbl_new));
-			if (!p_slvl_tbl_new) {
-				/* handle failure !!! */
-			}
-			memcpy(p_slvl_tbl_new, p_slvl_tbl, sizeof(*p_slvl_tbl_new));
-			cl_ptr_vector_set(&p_ep_port_rec->slvl_by_port, i, p_slvl_tbl_new);
-		}
-
-		p_ep_port_rec->is_fdr10_active =
-			p_physp->ext_port_info.link_speed_active & FDR10;
-		p_ep_port_rec->ep_pkey_rec.max_pkeys =
-			cl_ntoh16(p_physp->p_node->node_info.partition_cap);
-		p_ep_port_rec->ep_pkey_rec.used_blocks = used_blocks;
-		for (block_index = 0; block_index < used_blocks;
-		     block_index++) {
-			pkey_tbl = osm_pkey_tbl_block_get(osm_physp_get_pkey_tbl(p_physp), block_index);
-			if (pkey_tbl)
-				memcpy(&p_ep_port_rec->ep_pkey_rec.pkey_tbl[block_index],
-				       pkey_tbl,
-				       sizeof(p_ep_port_rec->ep_pkey_rec.pkey_tbl[0]));
-			else {
-				/* handle failure !!! */
-
-			}
-		}
-	}
-	return p_ep_port_rec;
-}
-
-void ep_port_rec_copy(struct ep_port_rec *p_dest_rec,
-		      struct ep_port_rec *p_src_rec)
-{
-	ib_slvl_table_t *p_slvl_tbl, *p_slvl_tbl_new;
-	uint16_t used_blocks;
-	uint8_t i, slvl_num;
-
-	/* PORT INFO data */
-	p_dest_rec->neighbor_mtu		= p_src_rec->neighbor_mtu;
-	p_dest_rec->link_speed_ext		= p_src_rec->link_speed_ext;
-	p_dest_rec->link_speed			= p_src_rec->link_speed;
-	p_dest_rec->link_width_active		= p_src_rec->link_width_active;
-	p_dest_rec->vl_enforce			= p_src_rec->vl_enforce;
-
-	p_dest_rec->is_fdr10_active = p_src_rec->is_fdr10_active;
-
-	slvl_num = cl_ptr_vector_get_size(&p_src_rec->slvl_by_port);
-	cl_ptr_vector_init(&p_dest_rec->slvl_by_port, slvl_num, 1);
-	for (i = 0; i < slvl_num; i++) {
-		p_slvl_tbl = cl_ptr_vector_get(&p_src_rec->slvl_by_port, i);
-		p_slvl_tbl_new = (ib_slvl_table_t *) malloc(sizeof(*p_slvl_tbl_new));
-		if (!p_slvl_tbl_new) {
-			/* handle failure !!! */
-		}
-		memcpy(p_slvl_tbl_new, p_slvl_tbl, sizeof(*p_slvl_tbl_new));
-		cl_ptr_vector_set(&p_dest_rec->slvl_by_port, i, p_slvl_tbl_new);
-	}
-
-	used_blocks = p_src_rec->ep_pkey_rec.used_blocks;
-	p_dest_rec->ep_pkey_rec.max_pkeys = p_src_rec->ep_pkey_rec.max_pkeys;
-	p_dest_rec->ep_pkey_rec.used_blocks = used_blocks;
-	memcpy(p_dest_rec->ep_pkey_rec.pkey_tbl, p_src_rec->ep_pkey_rec.pkey_tbl,
-	       sizeof(p_dest_rec->ep_pkey_rec.pkey_tbl[0]) * used_blocks);
-}
-
-void ep_port_rec_delete(struct ep_port_rec *p_ep_port_rec)
-{
-	size_t i, num_slvl;
-	if (!p_ep_port_rec)
-		return;
-
-	/* TODO:: fix size to capacity */
-	num_slvl = cl_ptr_vector_get_size(&p_ep_port_rec->slvl_by_port);
-	for (i = 0; i < num_slvl; i++)
-		free(cl_ptr_vector_get(&p_ep_port_rec->slvl_by_port, i));
-	cl_ptr_vector_destroy(&p_ep_port_rec->slvl_by_port);
-	free(p_ep_port_rec);
-}
-
-void ep_port_rec_delete_pfn(cl_map_item_t * p_map_item)
-{
-	struct ep_port_rec *p_port_rec;
-
-	p_port_rec = (struct ep_port_rec *) p_map_item;
-	ep_port_rec_delete(p_port_rec);
-}
 
 uint64_t ep_rec_gen_key(uint16_t lid, uint8_t port_num)
 {
