@@ -65,6 +65,7 @@ enum ssa_db_diff_table_id {
 	SSA_TABLE_ID_LINK_FIELD_DEF,
 	SSA_TABLE_ID_PORT,
 	SSA_TABLE_ID_PORT_FIELD_DEF,
+	SSA_TABLE_ID_PKEY,
 	SSA_TABLE_ID_MAX
 };
 
@@ -147,12 +148,13 @@ struct ssa_db_diff {
 	uint8_t enable_quirks;
 	uint8_t allow_both_pkeys;
 
-	/* TODO: add support for changes in SLVL, PKEYs and in future for QoS and LFTs */
+	/* TODO: add support for changes in SLVL and in future for QoS and LFTs */
 	uint8_t dirty;
 };
 
 struct ssa_db_diff *ssa_db_diff_init(uint64_t guid_to_lid_num_recs, uint64_t node_num_recs,
-				     uint64_t link_num_recs, uint64_t port_num_recs);
+				     uint64_t link_num_recs, uint64_t port_num_recs,
+				     uint64_t pkey_num_recs);
 void ssa_db_diff_destroy(struct ssa_db_diff * p_ssa_db_diff);
 struct ssa_db_diff *ssa_db_compare(struct ssa_events * ssa,
 				   struct ssa_database * ssa_db);

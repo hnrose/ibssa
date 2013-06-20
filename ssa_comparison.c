@@ -47,6 +47,7 @@ static const struct db_table_def def_tbl[] = {
 	{ 1, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SSA_TABLE_ID_LINK_FIELD_DEF, 0 }, "LINK fields", sizeof(struct db_field_def), SSA_TABLE_ID_LINK },
 	{ 1, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SSA_TABLE_ID_PORT, 0 }, "PORT", sizeof(struct ep_port_tbl_rec), 0 },
 	{ 1, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, 0 }, "PORT fields", sizeof(struct db_field_def), SSA_TABLE_ID_PORT },
+	{ 1, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SSA_TABLE_ID_PKEY, 0 }, "PKEY", DB_VARIABLE_SIZE, SSA_TABLE_ID_PORT },
 	{ 0 }
 };
 
@@ -59,6 +60,7 @@ static const struct db_dataset dataset_tbl[] = {
 	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_LINK_FIELD_DEF, 0 }, 0, 0, 0, 0 },
 	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_PORT, 0 }, 0, 0, 0, 0 },
 	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, 0 }, 0, 0, 0, 0 },
+	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_PKEY, 0 }, 0, 0, 0, 0 },
 	{ 0 }
 };
 
@@ -268,7 +270,8 @@ void ssa_db_diff_tables_init(struct ssa_db_diff * p_ssa_db_diff)
 struct ssa_db_diff *ssa_db_diff_init(uint64_t guid_to_lid_num_recs,
 				     uint64_t node_num_recs,
 				     uint64_t link_num_recs,
-				     uint64_t port_num_recs)
+				     uint64_t port_num_recs,
+				     uint64_t pkey_num_recs)
 {
 	struct ssa_db_diff *p_ssa_db_diff;
 
@@ -301,6 +304,13 @@ struct ssa_db_diff *ssa_db_diff_init(uint64_t guid_to_lid_num_recs,
 			malloc(sizeof(struct ep_port_tbl_rec) * port_num_recs);
 
 		if (!p_ssa_db_diff->p_tables[SSA_TABLE_ID_PORT]) {
+			/* TODO: add handling memory allocation failure */
+		}
+
+		p_ssa_db_diff->p_tables[SSA_TABLE_ID_PKEY] =
+			malloc(sizeof(uint16_t) * pkey_num_recs);
+
+		if (!p_ssa_db_diff->p_tables[SSA_TABLE_ID_PKEY]) {
 			/* TODO: add handling memory allocation failure */
 		}
 
@@ -565,13 +575,21 @@ static int ssa_db_node_cmp(cl_map_item_t * p_item_old,
 static void ssa_db_port_insert(cl_qmap_t *p_map,
 			       struct db_dataset *p_dataset,
 			       void **p_data_tbl,
+			       struct db_dataset *p_ref_dataset,
+			       void **p_data_ref_tbl,
+			       uint64_t *p_offset,
 			       uint64_t key,
 			       cl_map_item_t * p_item,
-			       void *p_data_tbl_src)
+			       void *p_data_tbl_src,
+			       void *p_data_ref_tbl_src)
 {
 	struct ep_map_rec *p_map_rec_new, *p_map_rec_old;
 	struct ep_port_tbl_rec *p_port_tbl_rec_dest;
 	struct ep_port_tbl_rec *p_port_tbl_rec_src;
+	uint64_t offset_src;
+	uint16_t size_pkey_tbl_src;
+	uint16_t *p_pkey_tbl_dest;
+	uint16_t *p_pkey_tbl_src;
 
 	p_port_tbl_rec_dest = (struct ep_port_tbl_rec *) *p_data_tbl;
 	p_port_tbl_rec_src = (struct ep_port_tbl_rec *) p_data_tbl_src;
@@ -596,14 +614,35 @@ static void ssa_db_port_insert(cl_qmap_t *p_map,
 	*p_data_tbl = p_port_tbl_rec_dest;
 	p_dataset->set_size += sizeof(*p_port_tbl_rec_dest);
 	p_dataset->set_count++;
+
+	if (p_data_ref_tbl && p_ref_dataset &&
+	    p_data_ref_tbl_src && p_offset) {
+		p_pkey_tbl_dest = (uint16_t *) *p_data_ref_tbl;
+		p_pkey_tbl_src = (uint16_t *) p_data_ref_tbl_src;
+
+		offset_src = p_port_tbl_rec_src[p_map_rec_old->offset].pkey_tbl_offset;
+		size_pkey_tbl_src = p_port_tbl_rec_src[p_map_rec_old->offset].pkeys;
+
+		if (size_pkey_tbl_src == 0)
+			return;
+
+		memcpy(&p_pkey_tbl_dest[*p_offset], &p_pkey_tbl_src[offset_src],
+		       size_pkey_tbl_src * sizeof(uint16_t));
+		p_port_tbl_rec_dest[p_dataset->set_count - 1].pkey_tbl_offset = *p_offset;
+		p_port_tbl_rec_dest[p_dataset->set_count - 1].pkeys = size_pkey_tbl_src;
+		p_ref_dataset->set_size += size_pkey_tbl_src;
+		*p_offset += size_pkey_tbl_src;
+	}
 }
 
 /** =========================================================================
  */
 static int ssa_db_port_cmp(cl_map_item_t * p_item_old,
 			   void *p_data_tbl_old,
+			   void *p_data_ref_tbl_old,
 			   cl_map_item_t * p_item_new,
-			   void *p_data_tbl_new)
+			   void *p_data_tbl_new,
+			   void *p_data_ref_tbl_new)
 {
 	struct ep_map_rec *p_map_rec_old =
 			(struct ep_map_rec *) p_item_old;
@@ -613,13 +652,16 @@ static int ssa_db_port_cmp(cl_map_item_t * p_item_old,
 			(struct ep_port_tbl_rec *) p_data_tbl_old;
 	struct ep_port_tbl_rec *p_tbl_rec_new =
 			(struct ep_port_tbl_rec *) p_data_tbl_new;
+	uint16_t *p_tbl_ref_rec_old = (uint16_t *) p_data_ref_tbl_old;
+	uint16_t *p_tbl_ref_rec_new = (uint16_t *) p_data_ref_tbl_new;
 	int res = 0;
 
 	p_tbl_rec_old += p_map_rec_old->offset;
 	p_tbl_rec_old += p_map_rec_new->offset;
+	p_tbl_ref_rec_old += p_tbl_rec_old->pkey_tbl_offset;
+	p_tbl_ref_rec_new += p_tbl_rec_new->pkey_tbl_offset;
 
-	if ((p_tbl_rec_old->max_pkeys != p_tbl_rec_new->max_pkeys) ||
-	    (p_tbl_rec_old->used_blocks != p_tbl_rec_new->used_blocks) ||
+	if ((p_tbl_rec_old->pkeys != p_tbl_rec_new->pkeys) ||
 	    (p_tbl_rec_old->port_lid != p_tbl_rec_new->port_lid) ||
 	    (p_tbl_rec_old->neighbor_mtu != p_tbl_rec_new->neighbor_mtu) ||
 	    (p_tbl_rec_old->link_speed_ext != p_tbl_rec_new->link_speed_ext) ||
@@ -627,6 +669,12 @@ static int ssa_db_port_cmp(cl_map_item_t * p_item_old,
 	    (p_tbl_rec_old->link_width_active != p_tbl_rec_new->link_width_active) ||
 	    (p_tbl_rec_old->vl_enforce != p_tbl_rec_new->vl_enforce) ||
 	    (p_tbl_rec_old->is_fdr10_active != p_tbl_rec_new->is_fdr10_active))
+		res = 1;
+
+	/* comparying pkeys */
+	if (res == 0 && p_data_ref_tbl_old && p_data_ref_tbl_new &&
+	    memcmp(&p_tbl_ref_rec_old, &p_tbl_ref_rec_new,
+		   p_tbl_rec_old->pkeys * sizeof(uint16_t)))
 		res = 1;
 
 	return res;
@@ -773,6 +821,90 @@ static uint8_t ssa_db_diff_table_cmp_v2(cl_qmap_t * p_map_old,
 
 /** =========================================================================
  */
+static uint8_t ssa_db_diff_var_size_table_cmp(cl_qmap_t * p_map_old,
+					      cl_qmap_t * p_map_new,
+					      void *p_data_tbl_old,
+					      void *p_data_ref_tbl_old,
+					      void *p_data_tbl_new,
+					      void *p_data_ref_tbl_new,
+					      void (*qmap_insert_pfn)
+						       (cl_qmap_t *, struct db_dataset *,
+							void **, struct db_dataset *,
+							void **, uint64_t *, uint64_t,
+							cl_map_item_t *,
+							void *, void *),
+					      int (*cmp_pfn)
+							(cl_map_item_t *, void *,
+							 void *, cl_map_item_t *,
+							 void *, void *),
+					      cl_qmap_t * p_map_added,
+					      cl_qmap_t * p_map_removed,
+					      struct db_dataset *p_dataset,
+					      void **p_data_tbl,
+					      struct db_dataset *p_ref_dataset,
+					      void **p_data_ref_tbl)
+{
+	cl_map_item_t *p_item_old, *p_item_new;
+	uint64_t key_old, key_new;
+	uint64_t ref_tbl_offset = 0;
+	uint8_t dirty = 0;
+
+	p_item_old = cl_qmap_head(p_map_old);
+	p_item_new = cl_qmap_head(p_map_new);
+	while (p_item_old != cl_qmap_end(p_map_old) && p_item_new != cl_qmap_end(p_map_new)) {
+		key_old = cl_qmap_key(p_item_old);
+		key_new = cl_qmap_key(p_item_new);
+		if (key_old < key_new) {
+			qmap_insert_pfn(p_map_removed, p_dataset, p_data_tbl, NULL,
+					NULL, NULL, key_old, p_item_old,
+					p_data_tbl_old, NULL);
+			p_item_old = cl_qmap_next(p_item_old);
+			dirty = 1;
+		} else if (key_old > key_new) {
+			qmap_insert_pfn(p_map_added, p_dataset, p_data_tbl, p_ref_dataset,
+					p_data_ref_tbl, &ref_tbl_offset, key_new,
+					p_item_new, p_data_tbl_new, p_data_ref_tbl_new);
+			p_item_new = cl_qmap_next(p_item_new);
+			dirty = 1;
+		} else {
+			if (cmp_pfn(p_item_old, p_data_tbl_old, p_data_ref_tbl_old,
+				    p_item_new, p_data_tbl_new, p_data_ref_tbl_new)) {
+				qmap_insert_pfn(p_map_removed, p_dataset, p_data_tbl, NULL,
+						NULL, NULL, key_old, p_item_old,
+						p_data_tbl_old, NULL);
+				qmap_insert_pfn(p_map_added, p_dataset, p_data_tbl, p_ref_dataset,
+						p_data_ref_tbl, &ref_tbl_offset, key_new,
+						p_item_new, p_data_tbl_new, p_data_ref_tbl_new);
+				dirty = 1;
+			}
+			p_item_old = cl_qmap_next(p_item_old);
+			p_item_new = cl_qmap_next(p_item_new);
+		}
+	}
+
+	while (p_item_new != cl_qmap_end(p_map_new)) {
+		key_new = cl_qmap_key(p_item_new);
+		qmap_insert_pfn(p_map_added, p_dataset, p_data_tbl, p_ref_dataset,
+				p_data_ref_tbl, &ref_tbl_offset, key_new,
+				p_item_new, p_data_tbl_new, p_data_ref_tbl_new);
+		p_item_new = cl_qmap_next(p_item_new);
+		dirty = 1;
+	}
+
+	while (p_item_old != cl_qmap_end(p_map_old)) {
+		key_old = cl_qmap_key(p_item_old);
+		qmap_insert_pfn(p_map_removed, p_dataset, p_data_tbl, NULL,
+				NULL, NULL, key_old, p_item_old,
+				p_data_tbl_old, NULL);
+		p_item_old = cl_qmap_next(p_item_old);
+		dirty = 1;
+	}
+
+	return dirty;
+}
+
+/** =========================================================================
+ */
 static void ssa_db_diff_compare_subnet_tables(struct ssa_db * p_previous_db,
 					      struct ssa_db * p_current_db,
 					      struct ssa_db_diff * const p_ssa_db_diff)
@@ -851,16 +983,20 @@ static void ssa_db_diff_compare_subnet_tables(struct ssa_db * p_previous_db,
 	/*
 	 * Comparing ep_port_rec records
 	 */
-	dirty |= ssa_db_diff_table_cmp_v2(&p_previous_db->ep_port_tbl,
-					  &p_current_db->ep_port_tbl,
-					  p_previous_db->p_port_tbl,
-					  p_current_db->p_port_tbl,
-					  ssa_db_port_insert,
-					  ssa_db_port_cmp,
-					  &p_ssa_db_diff->ep_port_tbl_added,
-					  &p_ssa_db_diff->ep_port_tbl_removed,
-					  &p_ssa_db_diff->db_tables[SSA_TABLE_ID_PORT],
-					  (void **) &p_ssa_db_diff->p_tables[SSA_TABLE_ID_PORT]);
+	dirty |= ssa_db_diff_var_size_table_cmp(&p_previous_db->ep_port_tbl,
+						&p_current_db->ep_port_tbl,
+						p_previous_db->p_port_tbl,
+						p_previous_db->p_pkey_tbl,
+						p_current_db->p_port_tbl,
+						p_current_db->p_pkey_tbl,
+						ssa_db_port_insert,
+						ssa_db_port_cmp,
+						&p_ssa_db_diff->ep_port_tbl_added,
+						&p_ssa_db_diff->ep_port_tbl_removed,
+						&p_ssa_db_diff->db_tables[SSA_TABLE_ID_PORT],
+						(void **) &p_ssa_db_diff->p_tables[SSA_TABLE_ID_PORT],
+						&p_ssa_db_diff->db_tables[SSA_TABLE_ID_PKEY],
+						(void **) &p_ssa_db_diff->p_tables[SSA_TABLE_ID_PKEY]);
 
 	if (dirty)
 		p_ssa_db_diff->dirty = 1;
@@ -991,10 +1127,10 @@ static void ssa_db_diff_dump_port_rec(struct ssa_events * ssa,
 			port_tbl_rec.port_num);
 		ssa_log(SSA_LOG_VERBOSE, "FDR10 %s active\n",
 			port_tbl_rec.is_fdr10_active ? "" : "not");
-		ssa_log(SSA_LOG_VERBOSE, "PartitionCap %u\n",
-			cl_ntoh16(port_tbl_rec.max_pkeys));
-		ssa_log(SSA_LOG_VERBOSE, "PKey Table %u used blocks\n",
-			port_tbl_rec.used_blocks);
+		ssa_log(SSA_LOG_VERBOSE, "PKeys %u\n",
+			port_tbl_rec.pkeys);
+		ssa_log(SSA_LOG_VERBOSE, "PKey Table offset %u \n",
+			port_tbl_rec.pkey_tbl_offset);
 	}
 }
 
@@ -1258,7 +1394,7 @@ struct ssa_db_diff *ssa_db_compare(struct ssa_events * ssa,
 {
 	struct ssa_db_diff *p_ssa_db_diff = NULL;
 	uint64_t guid_to_lid_num_recs, node_num_recs;
-	uint64_t link_num_recs, port_num_recs;
+	uint64_t link_num_recs, port_num_recs, pkey_num_recs;
 
 	ssa_log(SSA_LOG_VERBOSE, "[\n");
 
@@ -1278,9 +1414,10 @@ struct ssa_db_diff *ssa_db_compare(struct ssa_events * ssa,
 			cl_qmap_count(&ssa_db->p_previous_db->ep_link_tbl);
 	port_num_recs = cl_qmap_count(&ssa_db->p_current_db->ep_port_tbl) +
 			cl_qmap_count(&ssa_db->p_previous_db->ep_port_tbl);
+	pkey_num_recs = ssa_db->p_current_db->pkey_tbl_rec_num;
 
 	p_ssa_db_diff = ssa_db_diff_init(guid_to_lid_num_recs, node_num_recs,
-					 link_num_recs, port_num_recs);
+					 link_num_recs, port_num_recs, pkey_num_recs);
 	if (!p_ssa_db_diff) {
 		/* error handling */
 		ssa_log(SSA_LOG_ALL, "SMDB Comparison: bad diff struct initialization\n");

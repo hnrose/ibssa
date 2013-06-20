@@ -76,8 +76,8 @@ struct ep_link_tbl_rec {
 };
 
 struct ep_port_tbl_rec {
-	uint16_t	max_pkeys;
-	uint16_t	used_blocks;
+	uint64_t	pkey_tbl_offset;
+	uint16_t	pkeys;
 	uint16_t	port_lid;
 	uint8_t		port_num;
 	uint8_t		neighbor_mtu;
@@ -86,7 +86,7 @@ struct ep_port_tbl_rec {
 	uint8_t		link_width_active;
 	uint8_t		vl_enforce;
 	uint8_t		is_fdr10_active;
-	uint8_t		pad[3];
+	uint8_t		pad[5];
 };
 
 struct ep_map_rec {
@@ -120,6 +120,8 @@ struct ssa_db {
 	struct ep_node_tbl_rec		*p_node_tbl;
 	struct ep_link_tbl_rec		*p_link_tbl;
 	struct ep_port_tbl_rec		*p_port_tbl;
+	uint16_t			*p_pkey_tbl;
+	uint64_t			pkey_tbl_rec_num;
 
 	cl_qmap_t ep_guid_to_lid_tbl;	/* port GUID -> offset */
 	cl_qmap_t ep_node_tbl;		/* node GUID -> offset */

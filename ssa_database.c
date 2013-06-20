@@ -99,6 +99,7 @@ struct ssa_db *ssa_db_init()
 void ssa_db_delete(struct ssa_db *p_ssa_db)
 {
 	if (p_ssa_db) {
+		free(p_ssa_db->p_pkey_tbl);
 		free(p_ssa_db->p_port_tbl);
 		free(p_ssa_db->p_link_tbl);
 		free(p_ssa_db->p_guid_to_lid_tbl);
@@ -168,8 +169,8 @@ void ep_link_tbl_rec_init(osm_physp_t *p_physp, struct ep_link_tbl_rec *p_rec)
 
 void ep_port_tbl_rec_init(osm_physp_t *p_physp, struct ep_port_tbl_rec *p_rec)
 {
-	p_rec->max_pkeys		= p_physp->p_node->node_info.partition_cap;
-	p_rec->used_blocks		= p_physp->pkeys.used_blocks;
+	p_rec->pkey_tbl_offset		= 0;
+	p_rec->pkeys			= 0;
 	p_rec->port_lid			= osm_physp_get_base_lid(p_physp);
 	p_rec->port_num			= osm_physp_get_port_num(p_physp);
 	p_rec->neighbor_mtu		= ib_port_info_get_neighbor_mtu(&p_physp->port_info);
