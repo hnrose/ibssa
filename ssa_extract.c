@@ -74,9 +74,9 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 	uint64_t link_offset = 0;
 	uint64_t links;
 	uint32_t guids, nodes;
+	uint32_t switch_ports_num = 0;
 	uint16_t lids, lid_ho, max_block;
 	uint16_t i;
-	uint8_t switch_max_port_num = 0;
 #ifdef SSA_PLUGIN_VERBOSE_LOGGING
 	uint8_t is_fdr10_active;
 #endif
@@ -138,9 +138,7 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 			       &p_map_rec->map_item);
 
 		if (osm_node_get_type(p_node) == IB_NODE_TYPE_SWITCH)
-			switch_max_port_num =
-				(switch_max_port_num > p_node->sw->num_ports) ?
-					switch_max_port_num : p_node->sw->num_ports;
+			switch_ports_num += p_node->sw->num_ports;
 
 		/* TODO: add more cases when full dump is needed */
 		if (!first_time_subnet_up)
@@ -193,7 +191,7 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 			/* TODO: add memory allocation failure handling */
 	}
 
-	links = guids + cl_qmap_count(&p_subn->sw_guid_tbl) * switch_max_port_num;
+	links = guids + switch_ports_num;
 	if (!p_ssa->p_link_tbl) {
 		p_ssa->p_link_tbl = (struct ep_link_tbl_rec *)
 				malloc(sizeof(*p_ssa->p_link_tbl) * links);
