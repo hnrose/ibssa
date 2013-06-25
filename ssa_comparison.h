@@ -66,6 +66,8 @@ enum ssa_db_diff_table_id {
 	SSA_TABLE_ID_PORT,
 	SSA_TABLE_ID_PORT_FIELD_DEF,
 	SSA_TABLE_ID_PKEY,
+	SSA_TABLE_ID_LFT_TOP,
+	SSA_TABLE_ID_LFT_TOP_FIELD_DEF,
 	SSA_TABLE_ID_MAX
 };
 
@@ -106,6 +108,14 @@ enum ssa_db_diff_port_fields {
 	SSA_FIELD_ID_PORT_IS_FDR10_ACTIVE,
 	SSA_FIELD_ID_PORT_MAX
 };
+
+enum ssa_db_diff_lft_top_fields {
+	SSA_FIELD_ID_LFT_TOP_LID,
+	SSA_FIELD_ID_LFT_TOP_LFT_TOP,
+	SSA_FIELD_ID_LFT_TOP_MAX
+};
+
+#define SSA_TABLE_BLOCK_SIZE			1024
 
 /* used for making comparison between two ssa databases */
 struct ssa_db_diff {
@@ -154,7 +164,7 @@ struct ssa_db_diff {
 
 struct ssa_db_diff *ssa_db_diff_init(uint64_t guid_to_lid_num_recs, uint64_t node_num_recs,
 				     uint64_t link_num_recs, uint64_t port_num_recs,
-				     uint64_t pkey_num_recs);
+				     uint64_t pkey_num_recs, uint64_t lft_top_num_recs);
 void ssa_db_diff_destroy(struct ssa_db_diff * p_ssa_db_diff);
 struct ssa_db_diff *ssa_db_compare(struct ssa_events * ssa,
 				   struct ssa_database * ssa_db);

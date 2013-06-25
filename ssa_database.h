@@ -89,6 +89,12 @@ struct ep_port_tbl_rec {
 	uint8_t		pad[5];
 };
 
+struct ep_lft_top_tbl_rec {
+	uint16_t	lid;
+	uint16_t	lft_top;
+	uint8_t		pad[4];
+};
+
 struct ep_map_rec {
 	cl_map_item_t	map_item;
 	uint64_t	offset;
@@ -101,13 +107,10 @@ struct ep_lft_block_rec {
 	uint8_t block[IB_SMP_DATA_SIZE];
 };
 
-struct ep_lft_top_rec {
-	cl_map_item_t map_item;
-	uint16_t lid;
-	uint16_t lft_top;
-};
-
 struct ssa_db_lft {
+	struct ep_lft_top_tbl_rec	*p_db_lft_top_tbl;
+	struct ep_lft_top_tbl_rec	*p_dump_lft_top_tbl;
+
 	cl_qmap_t ep_db_lft_block_tbl;		/* LID + block_num based */
 	cl_qmap_t ep_db_lft_top_tbl;		/* LID based */
 	cl_qmap_t ep_dump_lft_block_tbl;	/* LID + block_num based */
@@ -181,19 +184,16 @@ void ep_lft_block_rec_delete_pfn(cl_map_item_t * p_map_item);
 void ep_lft_block_rec_qmap_clear(cl_qmap_t *p_map);
 
 /********************** LFT Top records*********************************/
-struct ep_lft_top_rec *ep_lft_top_rec_init(uint16_t lid, uint16_t lft_top);
-void ep_lft_top_rec_copy(struct ep_lft_top_rec * p_dest_rec,
-			 struct ep_lft_top_rec * p_src_rec);
-inline uint64_t ep_lft_top_rec_gen_key(uint16_t lid);
-void ep_lft_top_rec_delete(struct ep_lft_top_rec *p_lft_top_rec);
-void ep_lft_top_rec_delete_pfn(cl_map_item_t * p_map_item);
-void ep_lft_top_rec_qmap_clear(cl_qmap_t *p_map);
+void ep_lft_top_tbl_rec_init(uint16_t lid, uint16_t lft_top,
+			     struct ep_lft_top_tbl_rec *p_rec);
+
 /***********************************************************************/
 
 uint64_t ep_rec_gen_key(uint16_t lid, uint8_t port_num);
 struct ep_map_rec *ep_map_rec_init(uint64_t offset);
 void ep_map_rec_delete(struct ep_map_rec *p_map_rec);
 void ep_map_rec_delete_pfn(cl_map_item_t *p_map_item);
+void ep_qmap_clear(cl_qmap_t *p_map);
 void ssa_qmap_apply_func(cl_qmap_t *p_qmap, void (*destroy_pfn)(cl_map_item_t *));
 END_C_DECLS
 #endif				/* _SSA_DATABASE_H_ */

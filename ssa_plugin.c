@@ -239,9 +239,11 @@ static void report(void *_ssa, osm_epi_event_id_t event_id, void *event_data)
 	struct ssa_events *ssa = (struct ssa_events *) _ssa;
 	struct ssa_db_diff *p_ssa_db_diff;
 	struct ep_lft_block_rec *p_lft_block, *p_lft_block_old;
-	struct ep_lft_top_rec *p_lft_top, *p_lft_top_old;
+	struct ep_lft_top_tbl_rec *p_lft_top_tbl_rec;
+	struct ep_map_rec *p_map_rec, *p_map_rec_tmp;
 	osm_epi_lft_change_event_t *p_lft_change;
 	uint64_t key;
+	uint64_t rec_num;
 	uint16_t lid, block_num;
 
 	switch (event_id) {
@@ -271,21 +273,39 @@ static void report(void *_ssa, osm_epi_event_id_t event_id, void *event_data)
 					}
 				}
 			} else if (p_lft_change->flags == LFT_CHANGED_LFT_TOP) {
-				key = ep_lft_top_rec_gen_key(lid);
+				p_lft_top_tbl_rec = (struct ep_lft_top_tbl_rec *) malloc(sizeof(*p_lft_top_tbl_rec));
+				if (!p_lft_top_tbl_rec) {
+						/* TODO: add memory allocation failure handling */
+				}
+				rec_num = cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_top_tbl);
+				if (rec_num % SSA_TABLE_BLOCK_SIZE == 0) {
+					ssa_db->p_lft_db->p_dump_lft_top_tbl = (struct ep_lft_top_tbl_rec *)
+							realloc(&ssa_db->p_lft_db->p_dump_lft_top_tbl[0],
+								(rec_num / SSA_TABLE_BLOCK_SIZE + 1) *
+								SSA_TABLE_BLOCK_SIZE *
+								sizeof(*ssa_db->p_lft_db->p_dump_lft_top_tbl));
+				}
+
 				ssa_log(SSA_LOG_VERBOSE, "LFT change top event received "
 							 "for LID %u New Top %u\n",
 							 lid, p_lft_change->lft_top);
-				p_lft_top = ep_lft_top_rec_init(lid, p_lft_change->lft_top);
-				if (p_lft_top) {
-					p_lft_top_old = (struct ep_lft_top_rec *)
-							cl_qmap_insert(&ssa_db->p_lft_db->ep_dump_lft_top_tbl,
-								       key, &p_lft_top->map_item);
-					if (p_lft_top_old != p_lft_top) {
-						/* in case of existing record with the same key */
-						p_lft_top_old->lft_top = p_lft_top->lft_top;
-						ep_lft_top_rec_delete(p_lft_top);
-					}
+
+				ep_lft_top_tbl_rec_init(lid, p_lft_change->lft_top, p_lft_top_tbl_rec);
+				key = (uint64_t) lid;
+				p_map_rec = ep_map_rec_init(rec_num);
+				p_map_rec_tmp = (struct ep_map_rec *)
+					cl_qmap_insert(&ssa_db->p_lft_db->ep_dump_lft_top_tbl,
+						       key, &p_map_rec->map_item);
+
+				if (p_map_rec != p_map_rec_tmp) {
+					/* in case of a record with the same key already exist */
+					rec_num = p_map_rec_tmp->offset;
+					free(p_map_rec);
 				}
+
+				memcpy(&ssa_db->p_lft_db->p_dump_lft_top_tbl[rec_num],
+				       p_lft_top_tbl_rec, sizeof(*p_lft_top_tbl_rec));
+				free(p_lft_top_tbl_rec);
 			} else {
 				ssa_log(SSA_LOG_ALL, "Unknown LFT change event (%d)\n", p_lft_change->flags);
 				osm_log(ssa->osmlog, OSM_LOG_ERROR,
