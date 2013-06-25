@@ -496,12 +496,12 @@ static int ssa_db_guid_to_lid_cmp(cl_map_item_t * p_item_old,
 
 /** =========================================================================
  */
-static void ssa_db_node_insert(OUT cl_qmap_t *p_map,
-			       OUT struct db_dataset *p_dataset,
-			       OUT void **p_data_tbl,
+static void ssa_db_node_insert(cl_qmap_t *p_map,
+			       struct db_dataset *p_dataset,
+			       void **p_data_tbl,
 			       uint64_t key,
-			       IN cl_map_item_t * p_item,
-			       IN void *p_data_tbl_src)
+			       cl_map_item_t * p_item,
+			       void *p_data_tbl_src)
 {
 	struct ep_map_rec *p_map_rec_new, *p_map_rec_old;
 	struct ep_node_tbl_rec *p_node_tbl_rec_dest;
@@ -534,9 +534,9 @@ static void ssa_db_node_insert(OUT cl_qmap_t *p_map,
 /** =========================================================================
  */
 static int ssa_db_node_cmp(cl_map_item_t * p_item_old,
-			   IN void *p_data_tbl_old,
-			   IN cl_map_item_t * p_item_new,
-			   IN void *p_data_tbl_new)
+			   void *p_data_tbl_old,
+			   cl_map_item_t * p_item_new,
+			   void *p_data_tbl_new)
 {
 	struct ep_map_rec *p_map_rec_old =
 			(struct ep_map_rec *) p_item_old;
