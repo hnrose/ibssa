@@ -79,7 +79,7 @@ static const struct db_field_def field_tbl[] = {
 	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_USED_BLOCKS }, "used_blocks", 16, 16 },
 	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_PORT_LID }, "port_lid", 16, 32 },
 	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_PORT_NUM }, "port_num", 8, 48 },
-	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_MTU_CAP }, "mtu_cap", 8, 56 },
+	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_NEIGHBOR_MTU }, "neighbor_mtu", 8, 56 },
 	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_LINK_SPEED_EXT }, "link_speed_ext", 8, 64 },
 	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_LINK_SPEED }, "link_speed", 8, 72 },
 	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_LINK_WIDTH_ACTIVE }, "link_width_active", 8, 80 },
@@ -621,7 +621,7 @@ static int ssa_db_port_cmp(cl_map_item_t * p_item_old,
 	if ((p_tbl_rec_old->max_pkeys != p_tbl_rec_new->max_pkeys) ||
 	    (p_tbl_rec_old->used_blocks != p_tbl_rec_new->used_blocks) ||
 	    (p_tbl_rec_old->port_lid != p_tbl_rec_new->port_lid) ||
-	    (p_tbl_rec_old->mtu_cap != p_tbl_rec_new->mtu_cap) ||
+	    (p_tbl_rec_old->neighbor_mtu != p_tbl_rec_new->neighbor_mtu) ||
 	    (p_tbl_rec_old->link_speed_ext != p_tbl_rec_new->link_speed_ext) ||
 	    (p_tbl_rec_old->link_speed != p_tbl_rec_new->link_speed) ||
 	    (p_tbl_rec_old->link_width_active != p_tbl_rec_new->link_width_active) ||

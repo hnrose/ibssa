@@ -80,7 +80,7 @@ struct ep_port_tbl_rec {
 	uint16_t	used_blocks;
 	uint16_t	port_lid;
 	uint8_t		port_num;
-	uint8_t		mtu_cap;
+	uint8_t		neighbor_mtu;
 	uint8_t		link_speed_ext;
 	uint8_t		link_speed;
 	uint8_t		link_width_active;
