@@ -244,7 +244,8 @@ static void report(void *_ssa, osm_epi_event_id_t event_id, void *event_data)
 	osm_epi_lft_change_event_t *p_lft_change;
 	uint64_t key;
 	uint64_t rec_num;
-	uint16_t lid, block_num;
+	uint16_t block_num;
+	be16_t lid;
 
 	switch (event_id) {
 	case OSM_EVENT_ID_TRAP:
@@ -253,7 +254,7 @@ static void report(void *_ssa, osm_epi_event_id_t event_id, void *event_data)
 	case OSM_EVENT_ID_LFT_CHANGE:
 		p_lft_change = (osm_epi_lft_change_event_t *) event_data;
 		if (p_lft_change && p_lft_change->p_sw) {
-			lid = cl_ntoh16(osm_node_get_base_lid(p_lft_change->p_sw->p_node, 0));
+			lid = osm_node_get_base_lid(p_lft_change->p_sw->p_node, 0);
 			if (p_lft_change->flags == LFT_CHANGED_BLOCK) {
 				p_lft_block_tbl_rec =
 					(struct ep_lft_block_tbl_rec *) malloc(sizeof(*p_lft_block_tbl_rec));
