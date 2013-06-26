@@ -67,7 +67,7 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 	struct ep_node_tbl_rec *p_node_tbl_rec;
 	struct ep_port_tbl_rec *p_port_tbl_rec;
 	struct ep_link_tbl_rec *p_link_tbl_rec;
-	struct ep_lft_block_rec *p_lft_block_rec;
+	struct ep_lft_block_tbl_rec *p_lft_block_tbl_rec;
 	struct ep_lft_top_tbl_rec *p_lft_top_tbl_rec;
 	uint64_t ep_rec_key;
 	uint64_t guid_to_lid_offset = 0;
@@ -77,7 +77,8 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 	uint64_t pkey_base_offset = 0;
 	uint64_t pkey_cur_offset = 0;
 	uint64_t lft_top_offset = 0;
-	uint64_t links, ports, pkeys;
+	uint64_t lft_block_offset = 0;
+	uint64_t links, ports, pkeys, lft_blocks;
 	uint32_t guids, nodes;
 	uint32_t switch_ports_num = 0, port_pkeys_num = 0;
 	uint16_t lft_tops;
@@ -126,6 +127,22 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 
 	p_lft_top_tbl_rec = (struct ep_lft_top_tbl_rec *) malloc(sizeof(*p_lft_top_tbl_rec));
 	if (!p_lft_top_tbl_rec) {
+			/* TODO: add memory allocation failure handling */
+	}
+
+	lft_blocks = ((lids % IB_SMP_DATA_SIZE) ? (lids / IB_SMP_DATA_SIZE + 1) : (lids / IB_SMP_DATA_SIZE));
+	lft_blocks = (uint64_t) lft_tops * lft_blocks * (1 << p_ssa->lmc);
+	if (!ssa_db->p_lft_db->p_db_lft_block_tbl) {
+		ssa_db->p_lft_db->p_db_lft_block_tbl = (struct ep_lft_block_tbl_rec *)
+			malloc(sizeof(*ssa_db->p_lft_db->p_db_lft_block_tbl) * lft_blocks);
+		if (!ssa_db->p_lft_db->p_db_lft_block_tbl) {
+			/* add memory allocation failure handling */
+			ssa_log(SSA_LOG_VERBOSE, "LFT block rec memory allocation failed");
+		}
+	}
+
+	p_lft_block_tbl_rec = (struct ep_lft_block_tbl_rec *) malloc(sizeof(*p_lft_block_tbl_rec));
+	if (!p_lft_block_tbl_rec) {
 			/* TODO: add memory allocation failure handling */
 	}
 
@@ -184,14 +201,15 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 				       ep_rec_key, &p_map_rec->map_item);
 
 			for(i = 0; i < max_block; i++) {
-				p_lft_block_rec = ep_lft_block_rec_init(p_node->sw,
-									lid, i);
-				if (!p_lft_block_rec) {
-					/* add handling memory allocation failure */
-				}
-				ep_rec_key = ep_lft_block_rec_gen_key(lid, i);
+				ep_rec_key = ep_rec_gen_key(lid, i);
+				ep_lft_block_tbl_rec_init(p_node->sw, lid, i, p_lft_block_tbl_rec);
+
+				memcpy(&ssa_db->p_lft_db->p_db_lft_block_tbl[lft_block_offset],
+				       p_lft_block_tbl_rec, sizeof(*p_lft_block_tbl_rec));
+
+				p_map_rec = ep_map_rec_init(lft_block_offset++);
 				cl_qmap_insert(&ssa_db->p_lft_db->ep_db_lft_block_tbl,
-					       ep_rec_key, &p_lft_block_rec->map_item);
+					       ep_rec_key, &p_map_rec->map_item);
 			}
 		}
 	}
@@ -446,6 +464,7 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 	free(p_port_tbl_rec);
 	free(p_link_tbl_rec);
 	free(p_guid_to_lid_tbl_rec);
+	free(p_lft_block_tbl_rec);
 	free(p_lft_top_tbl_rec);
 	free(p_node_tbl_rec);
 
@@ -460,23 +479,18 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
  */
 void ssa_db_validate_lft(struct ssa_events *ssa)
 {
-	struct ep_lft_block_rec *p_lft_block, *p_next_lft_block;
+	struct ep_lft_block_tbl_rec lft_block_tbl_rec;
 	struct ep_lft_top_tbl_rec lft_top_tbl_rec;
 	int i;
 
 	if (!first_time_subnet_up)
 		return;
 
-	p_next_lft_block = (struct ep_lft_block_rec *)
-				cl_qmap_head(&ssa_db->p_lft_db->ep_db_lft_block_tbl);
-	while (p_next_lft_block != (struct ep_lft_block_rec *)
-				cl_qmap_end(&ssa_db->p_lft_db->ep_db_lft_block_tbl)) {
-		p_lft_block = p_next_lft_block;
-		p_next_lft_block = (struct ep_lft_block_rec *)
-					cl_qmap_next(&p_lft_block->map_item);
+	for (i = 0; i < cl_qmap_count(&ssa_db->p_lft_db->ep_db_lft_block_tbl); i++) {
+		lft_block_tbl_rec = ssa_db->p_lft_db->p_db_lft_block_tbl[i];
 		ssa_log(SSA_LOG_VERBOSE, "LFT Block Record: LID %u Block num %u\n",
-			cl_ntoh16(p_lft_block->lid),
-			p_lft_block->block_num);
+			cl_ntoh16(lft_block_tbl_rec.lid),
+			lft_block_tbl_rec.block_num);
 	}
 
 	for (i = 0; i < cl_qmap_count(&ssa_db->p_lft_db->ep_db_lft_top_tbl); i++) {

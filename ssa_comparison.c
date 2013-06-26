@@ -50,6 +50,8 @@ static const struct db_table_def def_tbl[] = {
 	{ 1, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SSA_TABLE_ID_PKEY, 0 }, "PKEY", DB_VARIABLE_SIZE, SSA_TABLE_ID_PORT },
 	{ 1, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SSA_TABLE_ID_LFT_TOP, 0 }, "LFT TOP", sizeof(struct ep_lft_top_tbl_rec), 0 },
 	{ 1, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SSA_TABLE_ID_LFT_TOP_FIELD_DEF, 0 }, "LFT TOP fields", sizeof(struct db_field_def), SSA_TABLE_ID_LFT_TOP },
+	{ 1, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SSA_TABLE_ID_LFT_BLOCK, 0 }, "LFT BLOCK", sizeof(struct ep_lft_block_tbl_rec), 0 },
+	{ 1, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF, 0 }, "LFT BLOCK fields", sizeof(struct db_field_def), SSA_TABLE_ID_LFT_BLOCK },
 	{ 0 }
 };
 
@@ -65,6 +67,8 @@ static const struct db_dataset dataset_tbl[] = {
 	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_PKEY, 0 }, 0, 0, 0, 0 },
 	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_LFT_TOP, 0 }, 0, 0, 0, 0 },
 	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_LFT_TOP_FIELD_DEF, 0 }, 0, 0, 0, 0 },
+	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_LFT_BLOCK, 0 }, 0, 0, 0, 0 },
+	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF, 0 }, 0, 0, 0, 0 },
 	{ 0 }
 };
 
@@ -93,6 +97,9 @@ static const struct db_field_def field_tbl[] = {
 	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_IS_FDR10_ACTIVE }, "is_fdr10_active", 8, 96 },
 	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_LFT_TOP_FIELD_DEF, SSA_FIELD_ID_LFT_TOP_LID }, "lid", 16, 0 },
 	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_LFT_TOP_FIELD_DEF, SSA_FIELD_ID_LFT_TOP_LFT_TOP }, "lft_top", 16, 16 },
+	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF, SSA_FIELD_ID_LFT_BLOCK_LID }, "lid", 16, 0 },
+	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF, SSA_FIELD_ID_LFT_BLOCK_BLOCK_NUM }, "block_num", 16, 16 },
+	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF, SSA_FIELD_ID_LFT_BLOCK_BLOCK }, "block", 8 * IB_SMP_DATA_SIZE, 32 },
 	{ 0 }
 };
 
@@ -107,6 +114,7 @@ static const struct db_field field_per_table[] = {
 	{ SSA_TABLE_ID_LINK_FIELD_DEF, SSA_FIELD_ID_LINK_MAX},
 	{ SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_MAX},
 	{ SSA_TABLE_ID_LFT_TOP_FIELD_DEF, SSA_FIELD_ID_LFT_TOP_MAX},
+	{ SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF, SSA_FIELD_ID_LFT_BLOCK_MAX},
 	{ 0 }
 };
 
@@ -279,7 +287,8 @@ struct ssa_db_diff *ssa_db_diff_init(uint64_t guid_to_lid_num_recs,
 				     uint64_t link_num_recs,
 				     uint64_t port_num_recs,
 				     uint64_t pkey_num_recs,
-				     uint64_t lft_top_num_recs)
+				     uint64_t lft_top_num_recs,
+				     uint64_t lft_block_num_recs)
 {
 	struct ssa_db_diff *p_ssa_db_diff;
 
@@ -326,6 +335,13 @@ struct ssa_db_diff *ssa_db_diff_init(uint64_t guid_to_lid_num_recs,
 			malloc(sizeof(uint16_t) * lft_top_num_recs);
 
 		if (!p_ssa_db_diff->p_tables[SSA_TABLE_ID_LFT_TOP]) {
+			/* TODO: add handling memory allocation failure */
+		}
+
+		p_ssa_db_diff->p_tables[SSA_TABLE_ID_LFT_BLOCK] =
+			malloc(sizeof(struct ep_lft_block_tbl_rec) * lft_block_num_recs);
+
+		if (!p_ssa_db_diff->p_tables[SSA_TABLE_ID_LFT_BLOCK]) {
 			/* TODO: add handling memory allocation failure */
 		}
 
@@ -380,7 +396,7 @@ void ssa_db_diff_destroy(struct ssa_db_diff * p_ssa_db_diff)
 		ssa_qmap_apply_func(&p_ssa_db_diff->ep_link_tbl_removed,
 				   ep_map_rec_delete_pfn);
 		ssa_qmap_apply_func(&p_ssa_db_diff->ep_lft_block_tbl,
-				   ep_lft_block_rec_delete_pfn);
+				   ep_map_rec_delete_pfn);
 		ssa_qmap_apply_func(&p_ssa_db_diff->ep_lft_top_tbl,
 				   ep_map_rec_delete_pfn);
 
@@ -1171,13 +1187,20 @@ static void ssa_db_diff_dump_lft_top_rec(struct ssa_events * ssa,
 /** =========================================================================
  */
 static void ssa_db_diff_dump_lft_block_rec(struct ssa_events * ssa,
-					   cl_map_item_t * p_item)
+					   cl_map_item_t * p_item,
+					   void * p_tbl)
 {
-	struct ep_lft_block_rec *p_lft_block_rec = (struct ep_lft_block_rec *) p_item;
+	struct ep_map_rec *p_map_rec = (struct ep_map_rec *) p_item;
+	struct ep_lft_block_tbl_rec *p_lft_block_tbl_rec, lft_block_tbl_rec;
 
-	if (p_lft_block_rec)
-		ssa_log(SSA_LOG_VERBOSE, "LID %u LFT block # %u\n",
-			cl_ntoh16(p_lft_block_rec->lid), p_lft_block_rec->block_num);
+	assert(p_map_rec);
+
+	p_lft_block_tbl_rec = (struct ep_lft_block_tbl_rec *) p_tbl;
+	if (p_lft_block_tbl_rec) {
+		lft_block_tbl_rec = p_lft_block_tbl_rec[p_map_rec->offset];
+		ssa_log(SSA_LOG_VERBOSE, "LID %u block #%u\n",
+			cl_ntoh16(lft_block_tbl_rec.lid), lft_block_tbl_rec.block_num);
+	}
 }
 
 /** =========================================================================
@@ -1219,27 +1242,6 @@ static void ssa_db_diff_dump_qmap_v2(cl_qmap_t * p_qmap,
                 p_map_item = p_map_item_next;
                 p_map_item_next = cl_qmap_next(p_map_item);
                 pfn_dump(ssa, p_map_item, p_tbl);
-		is_changed = 1;
-	}
-
-	if (!is_changed)
-		ssa_log(SSA_LOG_VERBOSE, "No changes\n");
-}
-
-/** =========================================================================
- */
-static void ssa_db_diff_dump_qmap(cl_qmap_t * p_qmap,
-				  struct ssa_events * ssa,
-				  void (*pfn_dump)(struct ssa_events *, cl_map_item_t *))
-{
-	cl_map_item_t *p_map_item, *p_map_item_next;
-	uint8_t is_changed = 0;
-
-        p_map_item_next = cl_qmap_head(p_qmap);
-        while (p_map_item_next != cl_qmap_end(p_qmap)) {
-                p_map_item = p_map_item_next;
-                p_map_item_next = cl_qmap_next(p_map_item);
-                pfn_dump(ssa, p_map_item);
 		is_changed = 1;
 	}
 
@@ -1312,8 +1314,13 @@ static void ssa_db_diff_dump(struct ssa_events * ssa,
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "LFT block records:\n");
 	ssa_log(ssa_log_level, "-----------------------------------\n");
-	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_lft_block_tbl,
-			      ssa, ssa_db_diff_dump_lft_block_rec);
+	ssa_log(ssa_log_level, "LFT block field definitions:\n");
+	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->p_tables[SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF],
+				   SSA_FIELD_ID_LFT_BLOCK_MAX);
+	ssa_log(ssa_log_level, "-----------------------------------\n");
+	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_lft_block_tbl,
+				 ssa, ssa_db_diff_dump_lft_block_rec,
+				 p_ssa_db_diff->p_tables[SSA_TABLE_ID_LFT_BLOCK]);
 
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "LFT top records:\n");
@@ -1348,34 +1355,48 @@ static void ssa_db_diff_dump(struct ssa_events * ssa,
 
 /** =========================================================================
  */
-static void ep_lft_block_qmap_copy(cl_qmap_t *p_dest_qmap, cl_qmap_t * p_src_qmap)
+static void ep_lft_block_qmap_copy(cl_qmap_t *p_dest_qmap,
+				   struct db_dataset *p_dest_dataset,
+				   struct ep_lft_block_tbl_rec *p_dest_tbl,
+				   cl_qmap_t *p_src_qmap,
+				   struct ep_lft_block_tbl_rec *p_src_tbl)
 {
-	struct ep_lft_block_rec *p_lft_block_rec, *p_lft_block_rec_next;
-	struct ep_lft_block_rec *p_lft_block_rec_old, *p_lft_block_rec_new;
+	struct ep_map_rec *p_map_rec, *p_map_rec_next;
+	struct ep_map_rec *p_map_rec_new, *p_map_rec_tmp;
+	struct ep_lft_block_tbl_rec *p_lft_block_tbl_rec;
+	uint64_t offset;
 
-	p_lft_block_rec_next = (struct ep_lft_block_rec *) cl_qmap_head(p_src_qmap);
-	while (p_lft_block_rec_next !=
-	       (struct ep_lft_block_rec *) cl_qmap_end(p_src_qmap)) {
-		p_lft_block_rec = p_lft_block_rec_next;
-		p_lft_block_rec_next = (struct ep_lft_block_rec *)
-				   cl_qmap_next(&p_lft_block_rec->map_item);
-		p_lft_block_rec_new = (struct ep_lft_block_rec *)
-				  malloc(sizeof(*p_lft_block_rec_new));
-		if (!p_lft_block_rec_new) {
-			/* handle failure - bad memory allocation */
-		}
-		ep_lft_block_rec_copy(p_lft_block_rec_new, p_lft_block_rec);
-		p_lft_block_rec_old =
-			(struct ep_lft_block_rec *) cl_qmap_insert(
-						p_dest_qmap,
-						cl_qmap_key(&p_lft_block_rec->map_item),
-						&p_lft_block_rec_new->map_item);
-		if (p_lft_block_rec_old != p_lft_block_rec_new) {
-			/* in case of existing record with the same key */
-			cl_qmap_remove(p_dest_qmap, cl_qmap_key(&p_lft_block_rec->map_item));
-			ep_lft_block_rec_delete(p_lft_block_rec_old);
-			cl_qmap_insert(p_dest_qmap, cl_qmap_key(&p_lft_block_rec->map_item),
-				       &p_lft_block_rec_new->map_item);
+	p_map_rec_next = (struct ep_map_rec *) cl_qmap_head(p_src_qmap);
+	while (p_map_rec_next !=
+	       (struct ep_map_rec *) cl_qmap_end(p_src_qmap)) {
+		p_map_rec = p_map_rec_next;
+		p_map_rec_next = (struct ep_map_rec *)
+				   cl_qmap_next(&p_map_rec->map_item);
+		p_lft_block_tbl_rec = &p_src_tbl[p_map_rec->offset];
+
+		p_map_rec_tmp = (struct ep_map_rec *)
+			cl_qmap_get(p_dest_qmap, cl_qmap_key(&p_map_rec->map_item));
+
+		if (p_map_rec_tmp != (struct ep_map_rec *) cl_qmap_end(p_dest_qmap)) {
+			/* in case of existing record */
+			memcpy(&p_dest_tbl[p_map_rec_tmp->offset],
+			       p_lft_block_tbl_rec, sizeof(*p_lft_block_tbl_rec));
+		} else {
+			/* in case of new record added */
+			if (p_dest_dataset) {
+				offset = p_dest_dataset->set_count;
+				p_dest_dataset->set_size += sizeof(*p_lft_block_tbl_rec);
+				p_dest_dataset->set_count++;
+			} else {
+				offset = cl_qmap_count(p_dest_qmap);
+			}
+
+			p_map_rec_new = ep_map_rec_init(offset);
+			cl_qmap_insert(p_dest_qmap, cl_qmap_key(&p_map_rec->map_item),
+				       &p_map_rec_new->map_item);
+
+			memcpy(&p_dest_tbl[offset],
+			       p_lft_block_tbl_rec, sizeof(*p_lft_block_tbl_rec));
 		}
 	}
 }
@@ -1436,7 +1457,7 @@ struct ssa_db_diff *ssa_db_compare(struct ssa_events * ssa,
 	struct ssa_db_diff *p_ssa_db_diff = NULL;
 	uint64_t guid_to_lid_num_recs, node_num_recs;
 	uint64_t link_num_recs, port_num_recs, pkey_num_recs;
-	uint64_t lft_top_num_recs;
+	uint64_t lft_top_num_recs, lft_block_num_recs;
 
 	ssa_log(SSA_LOG_VERBOSE, "[\n");
 
@@ -1459,10 +1480,12 @@ struct ssa_db_diff *ssa_db_compare(struct ssa_events * ssa,
 	pkey_num_recs = ssa_db->p_current_db->pkey_tbl_rec_num;
 	lft_top_num_recs = cl_qmap_count(&ssa_db->p_lft_db->ep_db_lft_top_tbl) +
 			cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_top_tbl);
+	lft_block_num_recs = cl_qmap_count(&ssa_db->p_lft_db->ep_db_lft_block_tbl) +
+			cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_block_tbl);
 
 	p_ssa_db_diff = ssa_db_diff_init(guid_to_lid_num_recs, node_num_recs,
 					 link_num_recs, port_num_recs, pkey_num_recs,
-					 lft_top_num_recs);
+					 lft_top_num_recs, lft_block_num_recs);
 	if (!p_ssa_db_diff) {
 		/* error handling */
 		ssa_log(SSA_LOG_ALL, "SMDB Comparison: bad diff struct initialization\n");
@@ -1475,12 +1498,16 @@ struct ssa_db_diff *ssa_db_compare(struct ssa_events * ssa,
 					  ssa_db->p_current_db, p_ssa_db_diff);
 
 	if (first_time_subnet_up) {
-		ep_lft_block_qmap_copy(&p_ssa_db_diff->ep_lft_block_tbl, &ssa_db->p_lft_db->ep_db_lft_block_tbl);
+		ep_lft_block_qmap_copy(&p_ssa_db_diff->ep_lft_block_tbl, &p_ssa_db_diff->db_tables[SSA_TABLE_ID_LFT_BLOCK],
+				     p_ssa_db_diff->p_tables[SSA_TABLE_ID_LFT_BLOCK], &ssa_db->p_lft_db->ep_db_lft_block_tbl,
+				     ssa_db->p_lft_db->p_db_lft_block_tbl);
 		ep_lft_top_qmap_copy(&p_ssa_db_diff->ep_lft_top_tbl, &p_ssa_db_diff->db_tables[SSA_TABLE_ID_LFT_TOP],
 				     p_ssa_db_diff->p_tables[SSA_TABLE_ID_LFT_TOP], &ssa_db->p_lft_db->ep_db_lft_top_tbl,
 				     ssa_db->p_lft_db->p_db_lft_top_tbl);
 	} else {
-		ep_lft_block_qmap_copy(&p_ssa_db_diff->ep_lft_block_tbl, &ssa_db->p_lft_db->ep_dump_lft_block_tbl);
+		ep_lft_block_qmap_copy(&p_ssa_db_diff->ep_lft_block_tbl, &p_ssa_db_diff->db_tables[SSA_TABLE_ID_LFT_BLOCK],
+				     p_ssa_db_diff->p_tables[SSA_TABLE_ID_LFT_BLOCK], &ssa_db->p_lft_db->ep_dump_lft_block_tbl,
+				     ssa_db->p_lft_db->p_dump_lft_block_tbl);
 		ep_lft_top_qmap_copy(&p_ssa_db_diff->ep_lft_top_tbl, &p_ssa_db_diff->db_tables[SSA_TABLE_ID_LFT_TOP],
 				     p_ssa_db_diff->p_tables[SSA_TABLE_ID_LFT_TOP], &ssa_db->p_lft_db->ep_dump_lft_top_tbl,
 				     ssa_db->p_lft_db->p_dump_lft_top_tbl);
@@ -1492,13 +1519,22 @@ struct ssa_db_diff *ssa_db_compare(struct ssa_events * ssa,
 							 cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_top_tbl)) *
 							 sizeof(*ssa_db->p_lft_db->p_db_lft_top_tbl));
 		}
+		if (cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_block_tbl) > 0) {
+			ssa_db->p_lft_db->p_db_lft_block_tbl = (struct ep_lft_block_tbl_rec *)
+						realloc(&ssa_db->p_lft_db->p_db_lft_block_tbl[0],
+							(cl_qmap_count(&ssa_db->p_lft_db->ep_db_lft_block_tbl) +
+							 cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_block_tbl)) *
+							 sizeof(*ssa_db->p_lft_db->p_db_lft_block_tbl));
+		}
 		/* Apply LFT block / top changes on existing LFT database */
-		ep_lft_block_qmap_copy(&ssa_db->p_lft_db->ep_db_lft_block_tbl, &ssa_db->p_lft_db->ep_dump_lft_block_tbl);
+		ep_lft_block_qmap_copy(&ssa_db->p_lft_db->ep_db_lft_block_tbl, NULL,
+				     ssa_db->p_lft_db->p_db_lft_block_tbl, &ssa_db->p_lft_db->ep_dump_lft_block_tbl,
+				     ssa_db->p_lft_db->p_dump_lft_block_tbl);
 		ep_lft_top_qmap_copy(&ssa_db->p_lft_db->ep_db_lft_top_tbl, NULL,
 				     ssa_db->p_lft_db->p_db_lft_top_tbl, &ssa_db->p_lft_db->ep_dump_lft_top_tbl,
 				     ssa_db->p_lft_db->p_dump_lft_top_tbl);
 		/* Clear LFT dump data */
-		ep_lft_block_rec_qmap_clear(&ssa_db->p_lft_db->ep_dump_lft_block_tbl);
+		ep_qmap_clear(&ssa_db->p_lft_db->ep_dump_lft_block_tbl);
 		ep_qmap_clear(&ssa_db->p_lft_db->ep_dump_lft_top_tbl);
 	}
 

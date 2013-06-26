@@ -95,21 +95,22 @@ struct ep_lft_top_tbl_rec {
 	uint8_t		pad[4];
 };
 
+struct ep_lft_block_tbl_rec {
+	be32_t		lid;
+	uint16_t	block_num;
+	uint8_t		block[IB_SMP_DATA_SIZE];
+};
+
 struct ep_map_rec {
 	cl_map_item_t	map_item;
 	uint64_t	offset;
 };
 
-struct ep_lft_block_rec {
-	cl_map_item_t map_item;
-	be16_t lid;
-	uint16_t block_num;
-	uint8_t block[IB_SMP_DATA_SIZE];
-};
-
 struct ssa_db_lft {
 	struct ep_lft_top_tbl_rec	*p_db_lft_top_tbl;
+	struct ep_lft_block_tbl_rec	*p_db_lft_block_tbl;
 	struct ep_lft_top_tbl_rec	*p_dump_lft_top_tbl;
+	struct ep_lft_block_tbl_rec	*p_dump_lft_block_tbl;
 
 	cl_qmap_t ep_db_lft_block_tbl;		/* LID + block_num based */
 	cl_qmap_t ep_db_lft_top_tbl;		/* LID based */
@@ -174,14 +175,8 @@ void ep_link_tbl_rec_init(osm_physp_t *p_physp, struct ep_link_tbl_rec * p_rec);
 void ep_port_tbl_rec_init(osm_physp_t *p_physp, struct ep_port_tbl_rec * p_rec);
 
 /********************** LFT Block records*******************************/
-struct ep_lft_block_rec *ep_lft_block_rec_init(osm_switch_t *p_sw,
-					       uint16_t lid, uint16_t block);
-void ep_lft_block_rec_copy(struct ep_lft_block_rec * p_dest_rec,
-			   struct ep_lft_block_rec * p_src_rec);
-inline uint64_t ep_lft_block_rec_gen_key(uint16_t lid, uint16_t block_num);
-void ep_lft_block_rec_delete(struct ep_lft_block_rec *p_lft_block_rec);
-void ep_lft_block_rec_delete_pfn(cl_map_item_t * p_map_item);
-void ep_lft_block_rec_qmap_clear(cl_qmap_t *p_map);
+void ep_lft_block_tbl_rec_init(osm_switch_t *p_sw, uint16_t lid, uint16_t block,
+			       struct ep_lft_block_tbl_rec * p_rec);
 
 /********************** LFT Top records*********************************/
 void ep_lft_top_tbl_rec_init(uint16_t lid, uint16_t lft_top,
@@ -189,7 +184,7 @@ void ep_lft_top_tbl_rec_init(uint16_t lid, uint16_t lft_top,
 
 /***********************************************************************/
 
-uint64_t ep_rec_gen_key(uint16_t lid, uint8_t port_num);
+uint64_t ep_rec_gen_key(uint16_t base, uint16_t index);
 struct ep_map_rec *ep_map_rec_init(uint64_t offset);
 void ep_map_rec_delete(struct ep_map_rec *p_map_rec);
 void ep_map_rec_delete_pfn(cl_map_item_t *p_map_item);
