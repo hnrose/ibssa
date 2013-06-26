@@ -166,9 +166,6 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 		if (!first_time_subnet_up)
 			continue;
 
-		ep_lft_block_rec_qmap_clear(&ssa_db->p_lft_db->ep_db_lft_block_tbl);
-		ep_qmap_clear(&ssa_db->p_lft_db->ep_db_lft_top_tbl);
-
 		/*		Adding LFT tables
 		 * When the first SMDB dump is performed, all LFTs
 		 * are added automatically, further dumps or changes
