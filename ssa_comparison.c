@@ -332,7 +332,7 @@ struct ssa_db_diff *ssa_db_diff_init(uint64_t guid_to_lid_num_recs,
 		}
 
 		p_ssa_db_diff->p_tables[SSA_TABLE_ID_LFT_TOP] =
-			malloc(sizeof(uint16_t) * lft_top_num_recs);
+			malloc(sizeof(struct ep_lft_top_tbl_rec) * lft_top_num_recs);
 
 		if (!p_ssa_db_diff->p_tables[SSA_TABLE_ID_LFT_TOP]) {
 			/* TODO: add handling memory allocation failure */
