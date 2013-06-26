@@ -42,7 +42,7 @@ struct ssa_database *ssa_database_init()
 		(struct ssa_database *) calloc(1, sizeof(struct ssa_database));
 	if (p_ssa_database) {
 		p_ssa_database->p_lft_db = (struct ssa_db_lft *)
-					malloc(sizeof(*p_ssa_database->p_lft_db));
+					calloc(1, sizeof(*p_ssa_database->p_lft_db));
 		if (p_ssa_database->p_lft_db) {
 			cl_qmap_init(&p_ssa_database->p_lft_db->ep_db_lft_block_tbl);
 			cl_qmap_init(&p_ssa_database->p_lft_db->ep_db_lft_top_tbl);
