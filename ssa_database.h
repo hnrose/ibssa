@@ -52,15 +52,15 @@
 BEGIN_C_DECLS
 
 struct ep_guid_to_lid_tbl_rec {
-	uint64_t	guid;
-	uint16_t	lid;
+	be64_t		guid;
+	be16_t		lid;
 	uint8_t		lmc;
 	uint8_t		is_switch;
 	uint8_t		pad[4];
 };
 
 struct ep_node_tbl_rec {
-	uint64_t	node_guid;
+	be64_t		node_guid;
 	uint8_t		is_enhanced_sp0;
 	uint8_t		node_type;
 	uint8_t		description[IB_NODE_DESCRIPTION_SIZE];
@@ -68,8 +68,8 @@ struct ep_node_tbl_rec {
 };
 
 struct ep_link_tbl_rec {
-	uint16_t	from_lid;
-	uint16_t	to_lid;
+	be16_t		from_lid;
+	be16_t		to_lid;
 	uint8_t		from_port_num;
 	uint8_t		to_port_num;
 	uint8_t		pad[2];
@@ -78,7 +78,7 @@ struct ep_link_tbl_rec {
 struct ep_port_tbl_rec {
 	uint64_t	pkey_tbl_offset;
 	uint16_t	pkeys;
-	uint16_t	port_lid;
+	be16_t		port_lid;
 	uint8_t		port_num;
 	uint8_t		neighbor_mtu;
 	uint8_t		link_speed_ext;
@@ -90,7 +90,7 @@ struct ep_port_tbl_rec {
 };
 
 struct ep_lft_top_tbl_rec {
-	uint16_t	lid;
+	be16_t		lid;
 	uint16_t	lft_top;
 	uint8_t		pad[4];
 };
@@ -102,7 +102,7 @@ struct ep_map_rec {
 
 struct ep_lft_block_rec {
 	cl_map_item_t map_item;
-	uint16_t lid;
+	be16_t lid;
 	uint16_t block_num;
 	uint8_t block[IB_SMP_DATA_SIZE];
 };

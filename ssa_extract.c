@@ -81,7 +81,7 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 	uint32_t guids, nodes;
 	uint32_t switch_ports_num = 0, port_pkeys_num = 0;
 	uint16_t lft_tops;
-	uint16_t lids, lid_ho, max_block;
+	uint16_t lids, lid, max_block;
 	uint16_t i;
 	uint16_t *p_pkey;
 #ifdef SSA_PLUGIN_VERBOSE_LOGGING
@@ -176,10 +176,10 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 		 */
 		if (osm_node_get_type(p_node) == IB_NODE_TYPE_SWITCH) {
 			max_block = p_node->sw->lft_size / IB_SMP_DATA_SIZE;
-			lid_ho = cl_ntoh16(osm_node_get_base_lid(p_node, 0));
-			ep_rec_key = (uint64_t) lid_ho;
+			lid = osm_node_get_base_lid(p_node, 0);
+			ep_rec_key = (uint64_t) lid;
 
-			ep_lft_top_tbl_rec_init(lid_ho, p_node->sw->lft_size, p_lft_top_tbl_rec);
+			ep_lft_top_tbl_rec_init(lid, p_node->sw->lft_size, p_lft_top_tbl_rec);
 			memcpy(&ssa_db->p_lft_db->p_db_lft_top_tbl[lft_top_offset],
 			       p_lft_top_tbl_rec, sizeof(*p_lft_top_tbl_rec));
 			p_map_rec = ep_map_rec_init(lft_top_offset++);
@@ -188,11 +188,11 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 
 			for(i = 0; i < max_block; i++) {
 				p_lft_block_rec = ep_lft_block_rec_init(p_node->sw,
-									lid_ho, i);
+									lid, i);
 				if (!p_lft_block_rec) {
 					/* add handling memory allocation failure */
 				}
-				ep_rec_key = ep_lft_block_rec_gen_key(lid_ho, i);
+				ep_rec_key = ep_lft_block_rec_gen_key(lid, i);
 				cl_qmap_insert(&ssa_db->p_lft_db->ep_db_lft_block_tbl,
 					       ep_rec_key, &p_lft_block_rec->map_item);
 			}
@@ -478,14 +478,14 @@ void ssa_db_validate_lft(struct ssa_events *ssa)
 		p_next_lft_block = (struct ep_lft_block_rec *)
 					cl_qmap_next(&p_lft_block->map_item);
 		ssa_log(SSA_LOG_VERBOSE, "LFT Block Record: LID %u Block num %u\n",
-			p_lft_block->lid,
+			cl_ntoh16(p_lft_block->lid),
 			p_lft_block->block_num);
 	}
 
 	for (i = 0; i < cl_qmap_count(&ssa_db->p_lft_db->ep_db_lft_top_tbl); i++) {
 		lft_top_tbl_rec = ssa_db->p_lft_db->p_db_lft_top_tbl[i];
 		ssa_log(SSA_LOG_VERBOSE, "LFT Top Record: LID %u New Top %u\n",
-			lft_top_tbl_rec.lid,
+			cl_ntoh16(lft_top_tbl_rec.lid),
 			lft_top_tbl_rec.lft_top);
 	}
 }
