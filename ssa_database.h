@@ -149,6 +149,8 @@ struct ssa_database {
 	struct ssa_db *p_previous_db;
 	struct ssa_db *p_dump_db;
 	struct ssa_db_lft *p_lft_db;
+	pthread_mutex_t lft_rec_list_lock;
+	cl_qlist_t lft_rec_list;
 };
 
 extern struct ssa_database *ssa_db;

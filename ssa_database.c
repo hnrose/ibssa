@@ -41,6 +41,8 @@ struct ssa_database *ssa_database_init()
 	struct ssa_database *p_ssa_database =
 		(struct ssa_database *) calloc(1, sizeof(struct ssa_database));
 	if (p_ssa_database) {
+		cl_qlist_init(&p_ssa_database->lft_rec_list);
+		pthread_mutex_init(&p_ssa_database->lft_rec_list_lock, NULL);
 		p_ssa_database->p_lft_db = (struct ssa_db_lft *)
 					calloc(1, sizeof(*p_ssa_database->p_lft_db));
 		if (p_ssa_database->p_lft_db) {
@@ -62,6 +64,8 @@ void ssa_database_delete(struct ssa_database *p_ssa_db)
 		ssa_db_delete(p_ssa_db->p_dump_db);
 		ssa_db_delete(p_ssa_db->p_previous_db);
 		ssa_db_delete(p_ssa_db->p_current_db);
+		pthread_mutex_destroy(&p_ssa_db->lft_rec_list_lock);
+
 		if (p_ssa_db->p_lft_db) {
 			ssa_qmap_apply_func(&p_ssa_db->p_lft_db->ep_db_lft_block_tbl,
 					    ep_map_rec_delete_pfn);

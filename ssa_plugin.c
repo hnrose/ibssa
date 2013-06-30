@@ -45,10 +45,16 @@
 #include <ssa_comparison.h>
 #include <ssa_extract.h>
 #include <stdarg.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 struct ssa_database *ssa_db = NULL;
 static FILE *flog;
 uint8_t first_time_subnet_up = 1;
+
+pthread_t	work_thread;
+int		fd[2];
 
 static const char *month_str[] = {
 	"Jan",
@@ -156,6 +162,8 @@ static const char *sm_state_str(int state)
 static void *construct(osm_opensm_t *osm)
 {
 	struct ssa_events *ssa = (struct ssa_events *) malloc(sizeof(*ssa));
+	int rc;
+
 	if (!ssa)
 		return (NULL);
 
@@ -198,6 +206,23 @@ static void *construct(osm_opensm_t *osm)
 		ssa_db_delete(ssa_db->p_current_db);
 		return (NULL);
 	}
+
+	rc = socketpair(AF_UNIX, SOCK_STREAM, 0, fd);
+	if (rc) {
+		ssa_log(SSA_LOG_ALL, "ERROR %d: error creating socketpair \n", rc);
+		ssa_database_delete(ssa_db);
+		return NULL;
+	}
+
+	rc = pthread_create(&work_thread, NULL, ssa_db_run, (void *) ssa);
+	if (rc) {
+		ssa_log(SSA_LOG_ALL, "ERROR %d: error creating work thread \n", rc);
+		ssa_database_delete(ssa_db);
+		close(fd[0]);
+		close(fd[1]);
+		return NULL;
+	}
+
 	return ((void *)ssa);
 }
 
@@ -206,6 +231,15 @@ static void *construct(osm_opensm_t *osm)
 static void destroy(void *_ssa)
 {
 	struct ssa_events *ssa = (struct ssa_events *) _ssa;
+	struct ssa_db_ctrl_msg msg;
+
+	msg.len = sizeof(msg);
+	msg.type = SSA_DB_EXIT;
+	write(fd[0], (char *) &msg, sizeof(msg));
+	pthread_join(work_thread, NULL);
+
+	close(fd[0]);
+	close(fd[1]);
 
 	ssa_log(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE, "SSA Plugin stopped\n");
 	ssa_database_delete(ssa_db);
@@ -237,15 +271,9 @@ static void handle_trap_event(struct ssa_events *ssa, ib_mad_notice_attr_t *p_nt
 static void report(void *_ssa, osm_epi_event_id_t event_id, void *event_data)
 {
 	struct ssa_events *ssa = (struct ssa_events *) _ssa;
-	struct ssa_db_diff *p_ssa_db_diff;
-	struct ep_lft_block_tbl_rec *p_lft_block_tbl_rec;
-	struct ep_lft_top_tbl_rec *p_lft_top_tbl_rec;
-	struct ep_map_rec *p_map_rec, *p_map_rec_tmp;
 	osm_epi_lft_change_event_t *p_lft_change;
-	uint64_t key;
-	uint64_t rec_num;
-	uint16_t block_num;
-	be16_t lid;
+	struct ssa_db_lft_change_rec *p_lft_change_rec;
+	struct ssa_db_ctrl_msg msg;
 
 	switch (event_id) {
 	case OSM_EVENT_ID_TRAP:
@@ -254,83 +282,19 @@ static void report(void *_ssa, osm_epi_event_id_t event_id, void *event_data)
 	case OSM_EVENT_ID_LFT_CHANGE:
 		p_lft_change = (osm_epi_lft_change_event_t *) event_data;
 		if (p_lft_change && p_lft_change->p_sw) {
-			lid = osm_node_get_base_lid(p_lft_change->p_sw->p_node, 0);
-			if (p_lft_change->flags == LFT_CHANGED_BLOCK) {
-				p_lft_block_tbl_rec =
-					(struct ep_lft_block_tbl_rec *) malloc(sizeof(*p_lft_block_tbl_rec));
-				if (!p_lft_block_tbl_rec) {
-						/* TODO: add memory allocation failure handling */
-				}
-				rec_num = cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_block_tbl);
-				if (rec_num % SSA_TABLE_BLOCK_SIZE == 0) {
-					ssa_db->p_lft_db->p_dump_lft_block_tbl = (struct ep_lft_block_tbl_rec *)
-							realloc(&ssa_db->p_lft_db->p_dump_lft_block_tbl[0],
-								(rec_num / SSA_TABLE_BLOCK_SIZE + 1) *
-								SSA_TABLE_BLOCK_SIZE *
-								sizeof(*ssa_db->p_lft_db->p_dump_lft_block_tbl));
-				}
-
-				block_num = p_lft_change->block_num;
-				ssa_log(SSA_LOG_VERBOSE, "LFT change block event received "
-							 "for LID %u Block %u\n",
-							 lid, block_num);
-
-				ep_lft_block_tbl_rec_init(p_lft_change->p_sw, lid, block_num, p_lft_block_tbl_rec);
-				key = ep_rec_gen_key(lid, block_num);
-
-				p_map_rec = ep_map_rec_init(rec_num);
-				p_map_rec_tmp = (struct ep_map_rec *)
-					cl_qmap_insert(&ssa_db->p_lft_db->ep_dump_lft_block_tbl,
-						       key, &p_map_rec->map_item);
-				if (p_map_rec != p_map_rec_tmp) {
-					/* in case of a record with the same key already exist */
-					rec_num = p_map_rec_tmp->offset;
-					free(p_map_rec);
-				}
-
-				memcpy(&ssa_db->p_lft_db->p_dump_lft_block_tbl[rec_num],
-				       p_lft_block_tbl_rec, sizeof(*p_lft_block_tbl_rec));
-				free(p_lft_block_tbl_rec);
-			} else if (p_lft_change->flags == LFT_CHANGED_LFT_TOP) {
-				p_lft_top_tbl_rec = (struct ep_lft_top_tbl_rec *) malloc(sizeof(*p_lft_top_tbl_rec));
-				if (!p_lft_top_tbl_rec) {
-						/* TODO: add memory allocation failure handling */
-				}
-				rec_num = cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_top_tbl);
-				if (rec_num % SSA_TABLE_BLOCK_SIZE == 0) {
-					ssa_db->p_lft_db->p_dump_lft_top_tbl = (struct ep_lft_top_tbl_rec *)
-							realloc(&ssa_db->p_lft_db->p_dump_lft_top_tbl[0],
-								(rec_num / SSA_TABLE_BLOCK_SIZE + 1) *
-								SSA_TABLE_BLOCK_SIZE *
-								sizeof(*ssa_db->p_lft_db->p_dump_lft_top_tbl));
-				}
-
-				ssa_log(SSA_LOG_VERBOSE, "LFT change top event received "
-							 "for LID %u New Top %u\n",
-							 lid, p_lft_change->lft_top);
-
-				ep_lft_top_tbl_rec_init(lid, p_lft_change->lft_top, p_lft_top_tbl_rec);
-				key = (uint64_t) lid;
-				p_map_rec = ep_map_rec_init(rec_num);
-				p_map_rec_tmp = (struct ep_map_rec *)
-					cl_qmap_insert(&ssa_db->p_lft_db->ep_dump_lft_top_tbl,
-						       key, &p_map_rec->map_item);
-
-				if (p_map_rec != p_map_rec_tmp) {
-					/* in case of a record with the same key already exist */
-					rec_num = p_map_rec_tmp->offset;
-					free(p_map_rec);
-				}
-
-				memcpy(&ssa_db->p_lft_db->p_dump_lft_top_tbl[rec_num],
-				       p_lft_top_tbl_rec, sizeof(*p_lft_top_tbl_rec));
-				free(p_lft_top_tbl_rec);
-			} else {
-				ssa_log(SSA_LOG_ALL, "Unknown LFT change event (%d)\n", p_lft_change->flags);
-				osm_log(ssa->osmlog, OSM_LOG_ERROR,
-					"Unknown LFT change event (%d) reported to SSA plugin\n",
-					p_lft_change->flags);
+			ssa_log(SSA_LOG_VERBOSE, "LFT change event for SW 0x%" PRIx64"\n",
+				ntohll(osm_node_get_node_guid(p_lft_change->p_sw->p_node)));
+			p_lft_change_rec = (struct ssa_db_lft_change_rec *)
+						malloc(sizeof(*p_lft_change_rec));
+			if (!p_lft_change_rec) {
+				/* TODO: handle failure in memory allocation */
 			}
+			memcpy(&p_lft_change_rec->lft_change, p_lft_change,
+			       sizeof(p_lft_change_rec->lft_change));
+
+			pthread_mutex_lock(&ssa_db->lft_rec_list_lock);
+			cl_qlist_insert_tail(&ssa_db->lft_rec_list, &p_lft_change_rec->list_item);
+			pthread_mutex_unlock(&ssa_db->lft_rec_list_lock);
 		}
 		break;
 	case OSM_EVENT_ID_SUBNET_UP:
@@ -340,23 +304,10 @@ static void report(void *_ssa, osm_epi_event_id_t event_id, void *event_data)
 
 		ssa_log(SSA_LOG_VERBOSE, "Subnet up event\n");
 
-		ssa_db->p_dump_db = ssa_db_extract(ssa);
-		/* For verification */
-		ssa_db_validate(ssa, ssa_db->p_dump_db);
-		ssa_db_validate_lft(ssa);
+		msg.len = sizeof(msg);
+		msg.type = SSA_DB_START_EXTRACT;
+		write(fd[0], (char *) &msg, sizeof(msg));
 
-		/* Updating SMDB versions */
-		ssa_db_update(ssa, ssa_db);
-
-		/* Getting SMDB changes from the last dump */
-		p_ssa_db_diff =
-			ssa_db_compare(ssa, ssa_db);
-		if (p_ssa_db_diff) {
-			ssa_log(SSA_LOG_VERBOSE, "SMDB was changed. Pushing the changes...\n");
-			/* TODO: Here the changes are pushed down through ditribution tree */
-			ssa_db_diff_destroy(p_ssa_db_diff);
-		}
-		first_time_subnet_up = 0;
 		break;
 	case OSM_EVENT_ID_STATE_CHANGE:
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE,

@@ -54,6 +54,11 @@ struct ssa_events {
 	osm_opensm_t *p_osm;
 };
 
+struct ssa_db_lft_change_rec {
+	cl_list_item_t			list_item;
+	osm_epi_lft_change_event_t	lft_change;
+};
+
 /* TODO: remove after migration with SSA framework */
 enum {
 	SSA_LOG_DEFAULT		= 1 << 0,

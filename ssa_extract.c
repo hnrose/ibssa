@@ -35,10 +35,16 @@
 #include <ssa_database.h>
 #include <ssa_plugin.h>
 #include <ssa_comparison.h>
+#include <ssa_extract.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <poll.h>
 
 extern char *port_state_str[];
 extern struct ssa_database *ssa_db;
 extern uint8_t first_time_subnet_up;
+extern int fd[2];
 
 /** =========================================================================
  */
@@ -643,4 +649,166 @@ void ssa_db_update(struct ssa_events *ssa,
 	ssa_db->p_dump_db = ssa_db_init();
 
 	ssa_log(SSA_LOG_VERBOSE, "]\n");
+}
+
+/** =========================================================================
+ */
+void ssa_db_lft_handle()
+{
+	struct ssa_db_lft_change_rec *p_lft_rec;
+	struct ep_lft_block_tbl_rec *p_lft_block_tbl_rec;
+	struct ep_lft_top_tbl_rec *p_lft_top_tbl_rec;
+	struct ep_map_rec *p_map_rec, *p_map_rec_tmp;
+	uint64_t rec_num, key;
+	uint16_t block_num;
+	be16_t lid;
+
+	pthread_mutex_lock(&ssa_db->lft_rec_list_lock);
+
+	while (!cl_is_qlist_empty(&ssa_db->lft_rec_list)) {
+		p_lft_rec = cl_item_obj(cl_qlist_head(&ssa_db->lft_rec_list),
+						      p_lft_rec, list_item);
+		lid = osm_node_get_base_lid(p_lft_rec->lft_change.p_sw->p_node, 0);
+		if (p_lft_rec->lft_change.flags == LFT_CHANGED_BLOCK) {
+			p_lft_block_tbl_rec =
+				(struct ep_lft_block_tbl_rec *) malloc(sizeof(*p_lft_block_tbl_rec));
+			if (!p_lft_block_tbl_rec) {
+					/* TODO: add memory allocation failure handling */
+			}
+			rec_num = cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_block_tbl);
+			if (rec_num % SSA_TABLE_BLOCK_SIZE == 0) {
+				ssa_db->p_lft_db->p_dump_lft_block_tbl = (struct ep_lft_block_tbl_rec *)
+						realloc(&ssa_db->p_lft_db->p_dump_lft_block_tbl[0],
+							(rec_num / SSA_TABLE_BLOCK_SIZE + 1) *
+							SSA_TABLE_BLOCK_SIZE *
+							sizeof(*ssa_db->p_lft_db->p_dump_lft_block_tbl));
+			}
+
+			block_num = p_lft_rec->lft_change.block_num;
+			ssa_log(SSA_LOG_VERBOSE, "LFT change block event received "
+						 "for LID %u Block %u\n",
+						 ntohs(lid), block_num);
+
+			ep_lft_block_tbl_rec_init(p_lft_rec->lft_change.p_sw, lid, block_num, p_lft_block_tbl_rec);
+			key = ep_rec_gen_key(lid, block_num);
+
+			p_map_rec = ep_map_rec_init(rec_num);
+			p_map_rec_tmp = (struct ep_map_rec *)
+				cl_qmap_insert(&ssa_db->p_lft_db->ep_dump_lft_block_tbl,
+					       key, &p_map_rec->map_item);
+			if (p_map_rec != p_map_rec_tmp) {
+				/* in case of a record with the same key already exist */
+				rec_num = p_map_rec_tmp->offset;
+				free(p_map_rec);
+			}
+
+			memcpy(&ssa_db->p_lft_db->p_dump_lft_block_tbl[rec_num],
+			       p_lft_block_tbl_rec, sizeof(*p_lft_block_tbl_rec));
+			free(p_lft_block_tbl_rec);
+		} else if (p_lft_rec->lft_change.flags == LFT_CHANGED_LFT_TOP) {
+			p_lft_top_tbl_rec = (struct ep_lft_top_tbl_rec *) malloc(sizeof(*p_lft_top_tbl_rec));
+			if (!p_lft_top_tbl_rec) {
+					/* TODO: add memory allocation failure handling */
+			}
+			rec_num = cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_top_tbl);
+			if (rec_num % SSA_TABLE_BLOCK_SIZE == 0) {
+				ssa_db->p_lft_db->p_dump_lft_top_tbl = (struct ep_lft_top_tbl_rec *)
+						realloc(&ssa_db->p_lft_db->p_dump_lft_top_tbl[0],
+							(rec_num / SSA_TABLE_BLOCK_SIZE + 1) *
+							SSA_TABLE_BLOCK_SIZE *
+							sizeof(*ssa_db->p_lft_db->p_dump_lft_top_tbl));
+			}
+
+			ssa_log(SSA_LOG_VERBOSE, "LFT change top event received "
+						 "for LID %u New Top %u\n",
+						 ntohs(lid), p_lft_rec->lft_change.lft_top);
+
+			ep_lft_top_tbl_rec_init(lid, p_lft_rec->lft_change.lft_top, p_lft_top_tbl_rec);
+			key = (uint64_t) lid;
+			p_map_rec = ep_map_rec_init(rec_num);
+			p_map_rec_tmp = (struct ep_map_rec *)
+				cl_qmap_insert(&ssa_db->p_lft_db->ep_dump_lft_top_tbl,
+					       key, &p_map_rec->map_item);
+
+			if (p_map_rec != p_map_rec_tmp) {
+				/* in case of a record with the same key already exist */
+				rec_num = p_map_rec_tmp->offset;
+				free(p_map_rec);
+			}
+
+			memcpy(&ssa_db->p_lft_db->p_dump_lft_top_tbl[rec_num],
+			       p_lft_top_tbl_rec, sizeof(*p_lft_top_tbl_rec));
+			free(p_lft_top_tbl_rec);
+		} else {
+			ssa_log(SSA_LOG_ALL, "Unknown LFT change event (%d)\n", p_lft_rec->lft_change.flags);
+		}
+
+		cl_qlist_remove_tail(&ssa_db->lft_rec_list);
+		free(p_lft_rec);
+        }
+
+	pthread_mutex_unlock(&ssa_db->lft_rec_list_lock);
+}
+
+/** =========================================================================
+ */
+void *ssa_db_run(void *data)
+{
+	struct ssa_events *p_ssa = (struct ssa_events *) data;
+	struct pollfd pfds[1];
+	struct ssa_db_ctrl_msg msg;
+	struct ssa_db_diff *p_ssa_db_diff;
+	int ret;
+
+	pfds[0].fd	= fd[1];
+	pfds[0].events	= POLLIN;
+	pfds[0].revents	= 0;
+
+	ssa_log(SSA_LOG_VERBOSE, "Starting working thread\n");
+
+	for (;;) {
+		ret = poll(pfds, 1, -1);
+		if (ret < 0) {
+			ssa_log(SSA_LOG_VERBOSE, "ERROR polling fds\n");
+			continue;
+		}
+
+		if (pfds[0].revents) {
+			read(fd[1], (char *) &msg, sizeof(msg));
+			if (msg.type == SSA_DB_START_EXTRACT) {
+				CL_PLOCK_ACQUIRE(&p_ssa->p_osm->lock);
+				ssa_db->p_dump_db = ssa_db_extract(p_ssa);
+				ssa_db_lft_handle();
+				CL_PLOCK_RELEASE(&p_ssa->p_osm->lock);
+
+				/* For verification */
+				ssa_db_validate(p_ssa, ssa_db->p_dump_db);
+				ssa_db_validate_lft(p_ssa);
+
+				/* Updating SMDB versions */
+				ssa_db_update(p_ssa, ssa_db);
+				p_ssa_db_diff =
+					ssa_db_compare(p_ssa, ssa_db);
+				if (p_ssa_db_diff) {
+					ssa_log(SSA_LOG_VERBOSE, "SMDB was changed. Pushing the changes...\n");
+					/* TODO: Here the changes are pushed down through distribution tree */
+					ssa_db_diff_destroy(p_ssa_db_diff);
+				}
+				first_time_subnet_up = 0;
+			} else if (msg.type == SSA_DB_LFT_CHANGE) {
+				ssa_log(SSA_LOG_VERBOSE, "Start handling LFT change events\n");
+				CL_PLOCK_ACQUIRE(&p_ssa->p_osm->lock);
+				ssa_db_lft_handle();
+				CL_PLOCK_RELEASE(&p_ssa->p_osm->lock);
+			} else if (msg.type == SSA_DB_EXIT) {
+				break;
+			} else {
+				ssa_log(SSA_LOG_VERBOSE, "ERROR: Unknown type of message\n");
+			}
+			pfds[0].revents = 0;
+                }
+        }
+
+	ssa_log(SSA_LOG_VERBOSE, "Exiting working thread\n");
+	pthread_exit(NULL);
 }

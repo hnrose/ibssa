@@ -44,11 +44,23 @@
 
 BEGIN_C_DECLS
 
+enum ssa_db_ctrl_msg_type {
+	SSA_DB_START_EXTRACT = 1,
+	SSA_DB_LFT_CHANGE,
+	SSA_DB_EXIT
+};
+
+struct ssa_db_ctrl_msg {
+	int				len;
+	enum ssa_db_ctrl_msg_type	type;
+	uint8_t				data[0];
+};
+
 struct ssa_db *ssa_db_extract(struct ssa_events *ssa);
 void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db);
 void ssa_db_validate_lft(struct ssa_events *ssa);
 void ssa_db_remove(struct ssa_events *ssa, struct ssa_db *p_ssa_db);
 void ssa_db_update(struct ssa_events *ssa, struct ssa_database *ssa_db);
-
+void *ssa_db_run(void *data);
 END_C_DECLS
 #endif				/* _SSA_EXTRACT_H_ */
