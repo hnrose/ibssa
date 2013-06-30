@@ -1112,7 +1112,7 @@ static void ssa_db_diff_dump_node_rec(struct ssa_events * ssa,
 		else
 			sprintf(buffer, "\n");
 		ssa_log(SSA_LOG_VERBOSE, "Node GUID 0x%" PRIx64 " Type %d%s",
-			cl_ntoh64(node_tbl_rec.node_guid), node_tbl_rec.node_type, buffer);
+			ntohll(node_tbl_rec.node_guid), node_tbl_rec.node_type, buffer);
 	}
 }
 
@@ -1131,8 +1131,8 @@ static void ssa_db_diff_dump_guid_to_lid_rec(struct ssa_events * ssa,
 	if (p_guid_to_lid_tbl_rec) {
 		guid_to_lid_tbl_rec = p_guid_to_lid_tbl_rec[p_map_rec->offset];
 		ssa_log(SSA_LOG_VERBOSE, "Port GUID 0x%" PRIx64 " LID %u LMC %u is_switch %d\n",
-			cl_ntoh64(guid_to_lid_tbl_rec.guid),
-			cl_ntoh16(guid_to_lid_tbl_rec.lid),
+			ntohll(guid_to_lid_tbl_rec.guid),
+			ntohs(guid_to_lid_tbl_rec.lid),
 			guid_to_lid_tbl_rec.lmc,
 			guid_to_lid_tbl_rec.is_switch);
 	}
@@ -1154,7 +1154,7 @@ static void ssa_db_diff_dump_port_rec(struct ssa_events * ssa,
 	if (p_port_tbl_rec) {
 		port_tbl_rec = p_port_tbl_rec[p_map_rec->offset];
 		ssa_log(SSA_LOG_VERBOSE, "Port LID %u Port Num %u\n",
-			cl_ntoh16(port_tbl_rec.port_lid),
+			ntohs(port_tbl_rec.port_lid),
 			port_tbl_rec.port_num);
 		ssa_log(SSA_LOG_VERBOSE, "FDR10 %s active\n",
 			port_tbl_rec.is_fdr10_active ? "" : "not");
@@ -1180,7 +1180,7 @@ static void ssa_db_diff_dump_lft_top_rec(struct ssa_events * ssa,
 	if (p_lft_top_tbl_rec) {
 		lft_top_tbl_rec = p_lft_top_tbl_rec[p_map_rec->offset];
 		ssa_log(SSA_LOG_VERBOSE, "LID %u new LFT top %u\n",
-			cl_ntoh16(p_lft_top_tbl_rec->lid), p_lft_top_tbl_rec->lft_top);
+			ntohs(p_lft_top_tbl_rec->lid), p_lft_top_tbl_rec->lft_top);
 	}
 }
 
@@ -1199,7 +1199,7 @@ static void ssa_db_diff_dump_lft_block_rec(struct ssa_events * ssa,
 	if (p_lft_block_tbl_rec) {
 		lft_block_tbl_rec = p_lft_block_tbl_rec[p_map_rec->offset];
 		ssa_log(SSA_LOG_VERBOSE, "LID %u block #%u\n",
-			cl_ntoh16(lft_block_tbl_rec.lid), lft_block_tbl_rec.block_num);
+			ntohs(lft_block_tbl_rec.lid), lft_block_tbl_rec.block_num);
 	}
 }
 
@@ -1219,9 +1219,9 @@ static void ssa_db_diff_dump_link_rec(struct ssa_events * ssa,
 	if (p_link_tbl_rec) {
 		link_tbl_rec = p_link_tbl_rec[p_map_rec->offset];
 		ssa_log(SSA_LOG_VERBOSE, "From LID %u port %u to LID %u port %u\n",
-			cl_ntoh16(link_tbl_rec.from_lid),
+			ntohs(link_tbl_rec.from_lid),
 			link_tbl_rec.from_port_num,
-			cl_ntoh16(link_tbl_rec.to_lid),
+			ntohs(link_tbl_rec.to_lid),
 			link_tbl_rec.to_port_num);
 	}
 }

@@ -94,7 +94,7 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 
 	p_ssa = ssa_db->p_dump_db;
 	/* First, Fabric/SM related parameters */
-	p_ssa->subnet_prefix = cl_ntoh64(p_subn->opt.subnet_prefix);
+	p_ssa->subnet_prefix = ntohll(p_subn->opt.subnet_prefix);
 	p_ssa->sm_state = p_subn->sm_state;
 	p_ssa->lmc = p_subn->opt.lmc;
 	p_ssa->subnet_timeout = p_subn->opt.subnet_timeout;
@@ -158,7 +158,7 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 		else
 			sprintf(buffer, "\n");
 		ssa_log(SSA_LOG_VERBOSE, "Node GUID 0x%" PRIx64 " Type %d%s",
-			cl_ntoh64(osm_node_get_node_guid(p_node)),
+			ntohll(osm_node_get_node_guid(p_node)),
 			osm_node_get_type(p_node),
 			buffer);
 #endif
@@ -289,8 +289,8 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 		p_next_port = (osm_port_t *)cl_qmap_next(&p_port->map_item);
 #ifdef SSA_PLUGIN_VERBOSE_LOGGING
 		ssa_log(SSA_LOG_VERBOSE, "Port GUID 0x%" PRIx64 " LID %u Port state %d (%s)\n",
-			cl_ntoh64(osm_physp_get_port_guid(p_port->p_physp)),
-			cl_ntoh16(osm_port_get_base_lid(p_port)),
+			ntohll(osm_physp_get_port_guid(p_port->p_physp)),
+			ntohs(osm_port_get_base_lid(p_port)),
 			osm_physp_get_port_state(p_port->p_physp),
 			(osm_physp_get_port_state(p_port->p_physp) < 5 ? port_state_str[osm_physp_get_port_state(p_port->p_physp)] : "???"));
 		is_fdr10_active =
@@ -327,7 +327,7 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 				ssa_log(SSA_LOG_VERBOSE, "%-3d %-3d :%s\n", out_port, out_port, buffer);
 		}
 
-		max_pkeys = cl_ntoh16(p_port->p_node->node_info.partition_cap);
+		max_pkeys = ntohs(p_port->p_node->node_info.partition_cap);
 		ssa_log(SSA_LOG_VERBOSE, "PartitionCap %u\n", max_pkeys);
 		p_pkey_tbl = osm_physp_get_pkey_tbl(p_port->p_physp);
 		ssa_log(SSA_LOG_VERBOSE, "PKey Table %u used blocks\n",
@@ -345,18 +345,18 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 				if (ib_pkey_is_invalid(pkey))
 					continue;
 				ssa_log(SSA_LOG_VERBOSE, "PKey 0x%04x at block %u index %u\n",
-					cl_ntoh16(pkey), block_index, pkey_idx);
+					ntohs(pkey), block_index, pkey_idx);
 			}
 		}
 #endif
 
 		/* check for valid LID first */
-		if ((cl_ntoh16(osm_port_get_base_lid(p_port)) < IB_LID_UCAST_START_HO) ||
-		    (cl_ntoh16(osm_port_get_base_lid(p_port)) > IB_LID_UCAST_END_HO)) {
+		if ((ntohs(osm_port_get_base_lid(p_port)) < IB_LID_UCAST_START_HO) ||
+		    (ntohs(osm_port_get_base_lid(p_port)) > IB_LID_UCAST_END_HO)) {
 			ssa_log(SSA_LOG_VERBOSE, "Port GUID 0x%" PRIx64
 				" has invalid LID %u\n",
-				cl_ntoh64(osm_physp_get_port_guid(p_port->p_physp)),
-				cl_ntoh16(osm_port_get_base_lid(p_port)));
+				ntohll(osm_physp_get_port_guid(p_port->p_physp)),
+				ntohs(osm_port_get_base_lid(p_port)));
 		}
 
 		ep_guid_to_lid_tbl_rec_init(p_port, p_guid_to_lid_tbl_rec);
@@ -423,7 +423,7 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 		} else {
 			p_physp = p_port->p_physp;
 			ep_rec_key = ep_rec_gen_key(
-					cl_ntoh16(osm_physp_get_base_lid(p_physp)),
+					ntohs(osm_physp_get_base_lid(p_physp)),
 					osm_physp_get_port_num(p_physp));
 
 			p_pkey_tbl = osm_physp_get_pkey_tbl(p_port->p_physp);
@@ -489,14 +489,14 @@ void ssa_db_validate_lft(struct ssa_events *ssa)
 	for (i = 0; i < cl_qmap_count(&ssa_db->p_lft_db->ep_db_lft_block_tbl); i++) {
 		lft_block_tbl_rec = ssa_db->p_lft_db->p_db_lft_block_tbl[i];
 		ssa_log(SSA_LOG_VERBOSE, "LFT Block Record: LID %u Block num %u\n",
-			cl_ntoh16(lft_block_tbl_rec.lid),
+			ntohs(lft_block_tbl_rec.lid),
 			lft_block_tbl_rec.block_num);
 	}
 
 	for (i = 0; i < cl_qmap_count(&ssa_db->p_lft_db->ep_db_lft_top_tbl); i++) {
 		lft_top_tbl_rec = ssa_db->p_lft_db->p_db_lft_top_tbl[i];
 		ssa_log(SSA_LOG_VERBOSE, "LFT Top Record: LID %u New Top %u\n",
-			cl_ntoh16(lft_top_tbl_rec.lid),
+			ntohs(lft_top_tbl_rec.lid),
 			lft_top_tbl_rec.lft_top);
 	}
 }
@@ -531,7 +531,7 @@ void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 		else
 			sprintf(buffer, "\n");
 		ssa_log(SSA_LOG_VERBOSE, "Node GUID 0x%" PRIx64 " Type %d%s",
-			cl_ntoh64(node_tbl_rec.node_guid),
+			ntohll(node_tbl_rec.node_guid),
 			node_tbl_rec.node_type,
 			buffer);
 	}
@@ -539,7 +539,7 @@ void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 	for (i = 0; i < cl_qmap_count(&p_ssa_db->ep_guid_to_lid_tbl); i++) {
 		guid_to_lid_tbl_rec = p_ssa_db->p_guid_to_lid_tbl[i];
 		ssa_log(SSA_LOG_VERBOSE, "Port GUID 0x%" PRIx64 " LID %u LMC %u is_switch %d\n",
-			cl_ntoh64(guid_to_lid_tbl_rec.guid), cl_ntoh16(guid_to_lid_tbl_rec.lid),
+			ntohll(guid_to_lid_tbl_rec.guid), ntohll(guid_to_lid_tbl_rec.lid),
 			guid_to_lid_tbl_rec.lmc, guid_to_lid_tbl_rec.is_switch);
 
 	}
@@ -547,7 +547,7 @@ void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 	for (i = 0; i < cl_qmap_count(&p_ssa_db->ep_port_tbl); i++) {
 		port_tbl_rec = p_ssa_db->p_port_tbl[i];
 		ssa_log(SSA_LOG_VERBOSE, "Port LID %u Port Num %u\n",
-			cl_ntoh16(port_tbl_rec.port_lid), port_tbl_rec.port_num);
+			ntohs(port_tbl_rec.port_lid), port_tbl_rec.port_num);
 		ssa_log(SSA_LOG_VERBOSE, "FDR10 %s active\n",
 			port_tbl_rec.is_fdr10_active ? "" : "not");
 		ssa_log(SSA_LOG_VERBOSE, "PKeys %u \n", port_tbl_rec.pkeys);
@@ -556,8 +556,8 @@ void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 	for (i = 0; i < cl_qmap_count(&p_ssa_db->ep_link_tbl); i++) {
 		link_tbl_rec = p_ssa_db->p_link_tbl[i];
 		ssa_log(SSA_LOG_VERBOSE, "Link Record: from LID %u port %u to LID %u port %u\n",
-			cl_ntoh16(link_tbl_rec.from_lid), link_tbl_rec.from_port_num,
-			cl_ntoh16(link_tbl_rec.to_lid), link_tbl_rec.to_port_num);
+			ntohs(link_tbl_rec.from_lid), link_tbl_rec.from_port_num,
+			ntohs(link_tbl_rec.to_lid), link_tbl_rec.to_port_num);
 	}
 
 	ssa_log(SSA_LOG_VERBOSE, "]\n");

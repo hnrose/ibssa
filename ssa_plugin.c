@@ -222,13 +222,13 @@ static void handle_trap_event(struct ssa_events *ssa, ib_mad_notice_attr_t *p_nt
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE,
 			"Generic trap type %d event %d from LID %u\n",
 			ib_notice_get_type(p_ntc),
-			cl_ntoh16(p_ntc->g_or_v.generic.trap_num),
-			cl_ntoh16(p_ntc->issuer_lid));
+			ntohs(p_ntc->g_or_v.generic.trap_num),
+			ntohs(p_ntc->issuer_lid));
 	} else {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE,
 			"Vendor trap type %d from LID %u\n",
 			ib_notice_get_type(p_ntc),
-			cl_ntoh16(p_ntc->issuer_lid));
+			ntohs(p_ntc->issuer_lid));
 	}
 }
 
