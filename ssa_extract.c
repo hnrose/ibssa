@@ -60,13 +60,13 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 #ifdef SSA_PLUGIN_VERBOSE_LOGGING
 	const ib_pkey_table_t *block;
 	char buffer[64];
-	char *header_line =    "#in out : 0  1  2  3  4  5  6  7  8  9  10 11 12 13 14 15";
-	char *separator_line = "#--------------------------------------------------------";
-	ib_slvl_table_t *p_tbl;
+	//char *header_line =    "#in out : 0  1  2  3  4  5  6  7  8  9  10 11 12 13 14 15";
+	//char *separator_line = "#--------------------------------------------------------";
+	//ib_slvl_table_t *p_tbl;
 	ib_net16_t pkey;
 	uint16_t block_index, pkey_idx, max_pkeys;
-	uint8_t out_port, in_port, num_ports;
-	uint8_t n;
+	//uint8_t out_port, in_port, num_ports;
+	//uint8_t n;
 #endif
 	struct ep_map_rec *p_map_rec;
 	struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl_rec;
@@ -306,33 +306,33 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 #endif
 
 #ifdef SSA_PLUGIN_VERBOSE_LOGGING
-		ssa_log(SSA_LOG_VERBOSE, "\t\t\tSLVL tables\n");
-		ssa_log(SSA_LOG_VERBOSE, "%s\n", header_line);
-		ssa_log(SSA_LOG_VERBOSE, "%s\n", separator_line);
-
-		out_port = p_port->p_physp->port_num;
-		num_ports = p_port->p_physp->p_node->node_info.num_ports;
-		if (osm_node_get_type(p_port->p_physp->p_node) == IB_NODE_TYPE_SWITCH) {
-			/* no need to print SL2VL table for port that is down */
-			/* TODO:: not sure if it is needed */
-			/*if (!p_port->p_physp->p_remote_physp)
-				continue; */
-
-			for (in_port = 0; in_port <= num_ports; in_port++) {
-				p_tbl = osm_physp_get_slvl_tbl(p_port->p_physp, in_port);
-				for (i = 0, n = 0; i < 16; i++)
-					n += sprintf(buffer + n, " %-2d",
-						ib_slvl_table_get(p_tbl, i));
-					ssa_log(SSA_LOG_VERBOSE, "%-3d %-3d :%s\n", in_port, out_port, buffer);
-			}
-		} else {
-			p_tbl = osm_physp_get_slvl_tbl(p_port->p_physp, 0);
-			for (i = 0, n = 0; i < 16; i++)
-				n += sprintf(buffer + n, " %-2d",
-						ib_slvl_table_get(p_tbl, i));
-				ssa_log(SSA_LOG_VERBOSE, "%-3d %-3d :%s\n", out_port, out_port, buffer);
-		}
-
+//		ssa_log(SSA_LOG_VERBOSE, "\t\t\tSLVL tables\n");
+//		ssa_log(SSA_LOG_VERBOSE, "%s\n", header_line);
+//		ssa_log(SSA_LOG_VERBOSE, "%s\n", separator_line);
+//
+//		out_port = p_port->p_physp->port_num;
+//		num_ports = p_port->p_physp->p_node->node_info.num_ports;
+//		if (osm_node_get_type(p_port->p_physp->p_node) == IB_NODE_TYPE_SWITCH) {
+//			/* no need to print SL2VL table for port that is down */
+//			/* TODO:: not sure if it is needed */
+//			/*if (!p_port->p_physp->p_remote_physp)
+//				continue; */
+//
+//			for (in_port = 0; in_port <= num_ports; in_port++) {
+//				p_tbl = osm_physp_get_slvl_tbl(p_port->p_physp, in_port);
+//				for (i = 0, n = 0; i < 16; i++)
+//					n += sprintf(buffer + n, " %-2d",
+//						ib_slvl_table_get(p_tbl, i));
+//					ssa_log(SSA_LOG_VERBOSE, "%-3d %-3d :%s\n", in_port, out_port, buffer);
+//			}
+//		} else {
+//			p_tbl = osm_physp_get_slvl_tbl(p_port->p_physp, 0);
+//			for (i = 0, n = 0; i < 16; i++)
+//				n += sprintf(buffer + n, " %-2d",
+//						ib_slvl_table_get(p_tbl, i));
+//				ssa_log(SSA_LOG_VERBOSE, "%-3d %-3d :%s\n", out_port, out_port, buffer);
+//		}
+//
 		max_pkeys = ntohs(p_port->p_node->node_info.partition_cap);
 		ssa_log(SSA_LOG_VERBOSE, "PartitionCap %u\n", max_pkeys);
 		p_pkey_tbl = osm_physp_get_pkey_tbl(p_port->p_physp);
