@@ -743,7 +743,7 @@ void ssa_db_lft_handle()
 			ssa_log(SSA_LOG_ALL, "Unknown LFT change event (%d)\n", p_lft_rec->lft_change.flags);
 		}
 
-		cl_qlist_remove_tail(&ssa_db->lft_rec_list);
+		cl_qlist_remove_head(&ssa_db->lft_rec_list);
 		free(p_lft_rec);
         }
 
