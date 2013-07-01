@@ -659,15 +659,16 @@ void ssa_db_lft_handle()
 	struct ep_lft_block_tbl_rec *p_lft_block_tbl_rec;
 	struct ep_lft_top_tbl_rec *p_lft_top_tbl_rec;
 	struct ep_map_rec *p_map_rec, *p_map_rec_tmp;
+	cl_list_item_t *p_item;
 	uint64_t rec_num, key;
 	uint16_t block_num;
 	be16_t lid;
 
 	pthread_mutex_lock(&ssa_db->lft_rec_list_lock);
 
-	while (!cl_is_qlist_empty(&ssa_db->lft_rec_list)) {
-		p_lft_rec = cl_item_obj(cl_qlist_head(&ssa_db->lft_rec_list),
-						      p_lft_rec, list_item);
+	while ((p_item = cl_qlist_remove_head(&ssa_db->lft_rec_list)) !=
+					cl_qlist_end(&ssa_db->lft_rec_list)) {
+		p_lft_rec = cl_item_obj(p_item, p_lft_rec, list_item);
 		lid = osm_node_get_base_lid(p_lft_rec->lft_change.p_sw->p_node, 0);
 		if (p_lft_rec->lft_change.flags == LFT_CHANGED_BLOCK) {
 			p_lft_block_tbl_rec =
@@ -742,8 +743,6 @@ void ssa_db_lft_handle()
 		} else {
 			ssa_log(SSA_LOG_ALL, "Unknown LFT change event (%d)\n", p_lft_rec->lft_change.flags);
 		}
-
-		cl_qlist_remove_head(&ssa_db->lft_rec_list);
 		free(p_lft_rec);
         }
 
