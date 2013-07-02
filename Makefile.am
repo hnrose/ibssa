@@ -36,6 +36,7 @@ SUBDIRS = .
 
 #INCLUDES = -I. -I$(OSM_PATH)/include/infiniband
 #INCLUDES = -I. -I$(OSM_PATH)/local/include/infiniband
+#INCLUDES = -I. -I$(OSM_PATH)/include/infiniband -I$(OSM_PATH)/include
 INCLUDES = -I. -I$(OSM_PATH)/local/include/infiniband -I$(OSM_PATH)/local/include
 
 AM_CFLAGS = -Wall -Werror -fPIC -g
