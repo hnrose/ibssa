@@ -35,7 +35,8 @@ ACLOCAL_AMFLAGS = -I config
 SUBDIRS = . 
 
 #INCLUDES = -I. -I$(OSM_PATH)/include/infiniband
-INCLUDES = -I. -I$(OSM_PATH)/local/include/infiniband
+#INCLUDES = -I. -I$(OSM_PATH)/local/include/infiniband
+INCLUDES = -I. -I$(OSM_PATH)/local/include/infiniband -I$(OSM_PATH)/local/include
 
 AM_CFLAGS = -Wall -Werror -fPIC -g
 #AM_CFLAGS = -Wall -Werror -fPIC -Wextra $(DBGFLAGS)
