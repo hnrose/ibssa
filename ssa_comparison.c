@@ -179,10 +179,11 @@ void ssa_db_diff_table_def_insert(struct db_table_def * p_tbl,
 	db_table_def_rec.record_size	= htonl(record_size);
 	db_table_def_rec.ref_table_id	= htonl(ref_table_id);
 
-	memcpy(&p_tbl[p_dataset->set_count++], &db_table_def_rec,
+	memcpy(&p_tbl[ntohll(p_dataset->set_count)], &db_table_def_rec,
 	       sizeof(*p_tbl));
+	p_dataset->set_count = htonll(ntohll(p_dataset->set_count) + 1);
 
-	p_dataset->set_size += sizeof(*p_tbl);
+	p_dataset->set_size = htonll(ntohll(p_dataset->set_size) + sizeof(*p_tbl));
 }
 
 /** =========================================================================
@@ -207,10 +208,11 @@ void ssa_db_diff_field_def_insert(struct db_field_def * p_tbl,
 	db_field_def_rec.field_size	= htonl(field_size);
 	db_field_def_rec.field_offset	= htonl(field_offset);
 
-	memcpy(&p_tbl[p_dataset->set_count++], &db_field_def_rec,
+	memcpy(&p_tbl[ntohll(p_dataset->set_count)], &db_field_def_rec,
 	       sizeof(*p_tbl));
+	p_dataset->set_count = htonll(ntohll(p_dataset->set_count) + 1);
 
-	p_dataset->set_size += sizeof(*p_tbl);
+	p_dataset->set_size = htonll(ntohll(p_dataset->set_size) + sizeof(*p_tbl));
 }
 
 /** =========================================================================
@@ -481,6 +483,7 @@ static void ssa_db_guid_to_lid_insert(cl_qmap_t *p_map,
 	struct ep_map_rec *p_map_rec_new, *p_map_rec_old;
 	struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl_rec_dest;
 	struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl_rec_src;
+	uint64_t set_size, set_count;
 
 	p_guid_to_lid_tbl_rec_dest = (struct ep_guid_to_lid_tbl_rec *) *p_data_tbl;
 	p_guid_to_lid_tbl_rec_src = (struct ep_guid_to_lid_tbl_rec *) p_data_tbl_src;
@@ -490,7 +493,10 @@ static void ssa_db_guid_to_lid_insert(cl_qmap_t *p_map,
 	if (!p_map_rec_new) {
 		/* handle failure - bad memory allocation */
 	}
-	p_map_rec_new->offset = p_dataset->set_count;
+	set_size = ntohll(p_dataset->set_size);
+	set_count = ntohll(p_dataset->set_count);
+
+	p_map_rec_new->offset = set_count;
 	cl_qmap_insert(p_map, key, &p_map_rec_new->map_item);
 
 	if (!p_guid_to_lid_tbl_rec_dest) {
@@ -498,12 +504,15 @@ static void ssa_db_guid_to_lid_insert(cl_qmap_t *p_map,
 	}
 
 	p_map_rec_old = (struct ep_map_rec *) p_item;
-	memcpy(&p_guid_to_lid_tbl_rec_dest[p_dataset->set_count],
+	memcpy(&p_guid_to_lid_tbl_rec_dest[set_count],
 	       &p_guid_to_lid_tbl_rec_src[p_map_rec_old->offset],
 	       sizeof(*p_guid_to_lid_tbl_rec_dest));
 	*p_data_tbl = p_guid_to_lid_tbl_rec_dest;
-	p_dataset->set_size += sizeof(*p_guid_to_lid_tbl_rec_dest);
-	p_dataset->set_count++;
+	set_size += sizeof(*p_guid_to_lid_tbl_rec_dest);
+	set_count++;
+
+	p_dataset->set_count = htonll(set_count);
+	p_dataset->set_size = htonll(set_size);
 }
 
 /** =========================================================================
@@ -547,6 +556,7 @@ static void ssa_db_node_insert(cl_qmap_t *p_map,
 	struct ep_map_rec *p_map_rec_new, *p_map_rec_old;
 	struct ep_node_tbl_rec *p_node_tbl_rec_dest;
 	struct ep_node_tbl_rec *p_node_tbl_rec_src;
+	uint64_t set_size, set_count;
 
 	p_node_tbl_rec_dest = (struct ep_node_tbl_rec *) *p_data_tbl;
 	p_node_tbl_rec_src = (struct ep_node_tbl_rec *) p_data_tbl_src;
@@ -556,7 +566,10 @@ static void ssa_db_node_insert(cl_qmap_t *p_map,
 	if (!p_map_rec_new) {
 		/* handle failure - bad memory allocation */
 	}
-	p_map_rec_new->offset = p_dataset->set_count;
+	set_size = ntohll(p_dataset->set_size);
+	set_count = ntohll(p_dataset->set_count);
+
+	p_map_rec_new->offset = set_count;
 	cl_qmap_insert(p_map, key, &p_map_rec_new->map_item);
 
 	if (!p_node_tbl_rec_dest) {
@@ -564,12 +577,15 @@ static void ssa_db_node_insert(cl_qmap_t *p_map,
 	}
 
 	p_map_rec_old = (struct ep_map_rec *) p_item;
-	memcpy(&p_node_tbl_rec_dest[p_dataset->set_count],
+	memcpy(&p_node_tbl_rec_dest[set_count],
 	       &p_node_tbl_rec_src[p_map_rec_old->offset],
 	       sizeof(*p_node_tbl_rec_dest));
 	*p_data_tbl = p_node_tbl_rec_dest;
-	p_dataset->set_size += sizeof(*p_node_tbl_rec_dest);
-	p_dataset->set_count++;
+	set_size += sizeof(*p_node_tbl_rec_dest);
+	set_count++;
+
+	p_dataset->set_count = htonll(set_count);
+	p_dataset->set_size = htonll(set_size);
 }
 
 /** =========================================================================
@@ -617,6 +633,7 @@ static void ssa_db_port_insert(cl_qmap_t *p_map,
 	struct ep_map_rec *p_map_rec_new, *p_map_rec_old;
 	struct ep_port_tbl_rec *p_port_tbl_rec_dest;
 	struct ep_port_tbl_rec *p_port_tbl_rec_src;
+	uint64_t set_size, set_count;
 	uint64_t offset_src;
 	uint16_t size_pkey_tbl_src;
 	uint16_t *p_pkey_tbl_dest;
@@ -630,8 +647,10 @@ static void ssa_db_port_insert(cl_qmap_t *p_map,
 	if (!p_map_rec_new) {
 		/* handle failure - bad memory allocation */
 	}
+	set_size = ntohll(p_dataset->set_size);
+	set_count = ntohll(p_dataset->set_count);
 
-	p_map_rec_new->offset = p_dataset->set_count;
+	p_map_rec_new->offset = set_count;
 	cl_qmap_insert(p_map, key, &p_map_rec_new->map_item);
 
 	if (!p_port_tbl_rec_dest) {
@@ -639,12 +658,12 @@ static void ssa_db_port_insert(cl_qmap_t *p_map,
 	}
 
 	p_map_rec_old = (struct ep_map_rec *) p_item;
-	memcpy(&p_port_tbl_rec_dest[p_dataset->set_count],
+	memcpy(&p_port_tbl_rec_dest[set_count],
 	       &p_port_tbl_rec_src[p_map_rec_old->offset],
 	       sizeof(*p_port_tbl_rec_dest));
 	*p_data_tbl = p_port_tbl_rec_dest;
-	p_dataset->set_size += sizeof(*p_port_tbl_rec_dest);
-	p_dataset->set_count++;
+	set_size += sizeof(*p_port_tbl_rec_dest);
+	set_count++;
 
 	if (p_data_ref_tbl && p_ref_dataset &&
 	    p_data_ref_tbl_src && p_offset) {
@@ -654,16 +673,23 @@ static void ssa_db_port_insert(cl_qmap_t *p_map,
 		offset_src = p_port_tbl_rec_src[p_map_rec_old->offset].pkey_tbl_offset;
 		size_pkey_tbl_src = p_port_tbl_rec_src[p_map_rec_old->offset].pkeys;
 
-		if (size_pkey_tbl_src == 0)
+		if (size_pkey_tbl_src == 0) {
+			p_dataset->set_count = htonll(set_count);
+			p_dataset->set_size = htonll(set_size);
 			return;
+		}
 
 		memcpy(&p_pkey_tbl_dest[*p_offset], &p_pkey_tbl_src[offset_src],
 		       size_pkey_tbl_src * sizeof(uint16_t));
-		p_port_tbl_rec_dest[p_dataset->set_count - 1].pkey_tbl_offset = *p_offset;
-		p_port_tbl_rec_dest[p_dataset->set_count - 1].pkeys = size_pkey_tbl_src;
-		p_ref_dataset->set_size += size_pkey_tbl_src;
+		p_port_tbl_rec_dest[set_count - 1].pkey_tbl_offset = *p_offset;
+		p_port_tbl_rec_dest[set_count - 1].pkeys = size_pkey_tbl_src;
+		p_ref_dataset->set_size = htonll(ntohll(p_ref_dataset->set_size)
+						 + size_pkey_tbl_src);
 		*p_offset += size_pkey_tbl_src;
 	}
+
+	p_dataset->set_count = htonll(set_count);
+	p_dataset->set_size = htonll(set_size);
 }
 
 /** =========================================================================
@@ -723,6 +749,7 @@ static void ssa_db_link_insert(cl_qmap_t *p_map,
 	struct ep_map_rec *p_map_rec_new, *p_map_rec_old;
 	struct ep_link_tbl_rec *p_link_tbl_rec_dest;
 	struct ep_link_tbl_rec *p_link_tbl_rec_src;
+	uint64_t set_size, set_count;
 
 	p_link_tbl_rec_dest = (struct ep_link_tbl_rec *) *p_data_tbl;
 	p_link_tbl_rec_src = (struct ep_link_tbl_rec *) p_data_tbl_src;
@@ -732,8 +759,10 @@ static void ssa_db_link_insert(cl_qmap_t *p_map,
 	if (!p_map_rec_new) {
 		/* handle failure - bad memory allocation */
 	}
+	set_size = ntohll(p_dataset->set_size);
+	set_count = ntohll(p_dataset->set_count);
 
-	p_map_rec_new->offset = p_dataset->set_count;
+	p_map_rec_new->offset = set_count;
 	cl_qmap_insert(p_map, key, &p_map_rec_new->map_item);
 
 	if (!p_link_tbl_rec_dest) {
@@ -742,12 +771,15 @@ static void ssa_db_link_insert(cl_qmap_t *p_map,
 	}
 
 	p_map_rec_old = (struct ep_map_rec *) p_item;
-	memcpy(&p_link_tbl_rec_dest[p_dataset->set_count],
+	memcpy(&p_link_tbl_rec_dest[set_count],
 	       &p_link_tbl_rec_src[p_map_rec_old->offset],
 	       sizeof(*p_link_tbl_rec_dest));
 	*p_data_tbl = p_link_tbl_rec_dest;
-	p_dataset->set_size += sizeof(*p_link_tbl_rec_dest);
-	p_dataset->set_count++;
+	set_size += sizeof(*p_link_tbl_rec_dest);
+	set_count++;
+
+	p_dataset->set_count = htonll(set_count);
+	p_dataset->set_size = htonll(set_size);
 }
 
 /** =========================================================================
