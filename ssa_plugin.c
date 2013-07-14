@@ -272,6 +272,7 @@ static void report(void *_ssa, osm_epi_event_id_t event_id, void *event_data)
 {
 	struct ssa_events *ssa = (struct ssa_events *) _ssa;
 	osm_epi_lft_change_event_t *p_lft_change;
+	osm_epi_ucast_routing_flags_t *p_ucast_routing_flag;
 	struct ssa_db_lft_change_rec *p_lft_change_rec;
 	struct ssa_db_ctrl_msg msg;
 
@@ -295,6 +296,14 @@ static void report(void *_ssa, osm_epi_event_id_t event_id, void *event_data)
 			pthread_mutex_lock(&ssa_db->lft_rec_list_lock);
 			cl_qlist_insert_tail(&ssa_db->lft_rec_list, &p_lft_change_rec->list_item);
 			pthread_mutex_unlock(&ssa_db->lft_rec_list_lock);
+		}
+		break;
+	case OSM_EVENT_ID_UCAST_ROUTING_DONE:
+		p_ucast_routing_flag = (osm_epi_ucast_routing_flags_t *) event_data;
+		if (p_ucast_routing_flag &&
+		    *p_ucast_routing_flag == UCAST_ROUTING_REROUTE) {
+			/* We get here in case of subnet re-routing not followed by SUBNET_UP */
+			/* TODO: notify the distribution thread and push the LFT changes */
 		}
 		break;
 	case OSM_EVENT_ID_SUBNET_UP:
