@@ -76,8 +76,8 @@ struct ep_link_tbl_rec {
 };
 
 struct ep_port_tbl_rec {
-	uint64_t	pkey_tbl_offset;
-	uint16_t	pkeys;
+	be64_t		pkey_tbl_offset;
+	be16_t		pkeys;
 	be16_t		port_lid;
 	uint8_t		port_num;
 	uint8_t		neighbor_mtu;
@@ -91,13 +91,13 @@ struct ep_port_tbl_rec {
 
 struct ep_lft_top_tbl_rec {
 	be16_t		lid;
-	uint16_t	lft_top;
+	be16_t		lft_top;
 	uint8_t		pad[4];
 };
 
 struct ep_lft_block_tbl_rec {
-	be32_t		lid;
-	uint16_t	block_num;
+	be16_t		lid;
+	be16_t		block_num;
 	uint8_t		block[IB_SMP_DATA_SIZE];
 };
 

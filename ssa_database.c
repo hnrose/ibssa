@@ -194,15 +194,15 @@ void ep_port_tbl_rec_init(osm_physp_t *p_physp, struct ep_port_tbl_rec *p_rec)
 void ep_lft_block_tbl_rec_init(osm_switch_t * p_sw, uint16_t lid, uint16_t block,
 			       struct ep_lft_block_tbl_rec *p_rec)
 {
-	p_rec->lid		= lid;
-	p_rec->block_num	= block;
+	p_rec->lid		= htons(lid);
+	p_rec->block_num	= htons(block);
 	memcpy(p_rec->block, p_sw->lft + block * IB_SMP_DATA_SIZE, IB_SMP_DATA_SIZE);
 }
 
 void ep_lft_top_tbl_rec_init(uint16_t lid, uint16_t lft_top, struct ep_lft_top_tbl_rec *p_rec)
 {
-	p_rec->lid = lid;
-	p_rec->lft_top = lft_top;
+	p_rec->lid = htons(lid);
+	p_rec->lft_top = htons(lft_top);
 }
 
 uint64_t ep_rec_gen_key(uint16_t base, uint16_t index)

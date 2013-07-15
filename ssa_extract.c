@@ -88,7 +88,7 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 	uint32_t guids, nodes;
 	uint32_t switch_ports_num = 0, port_pkeys_num = 0;
 	uint16_t lft_tops;
-	uint16_t lids, lid, max_block;
+	uint16_t lids, lid_ho = 0, max_block;
 	uint16_t i;
 	uint16_t *p_pkey;
 #ifdef SSA_PLUGIN_VERBOSE_LOGGING
@@ -196,10 +196,10 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 		 */
 		if (osm_node_get_type(p_node) == IB_NODE_TYPE_SWITCH) {
 			max_block = p_node->sw->lft_size / IB_SMP_DATA_SIZE;
-			lid = osm_node_get_base_lid(p_node, 0);
-			ep_rec_key = (uint64_t) lid;
+			lid_ho = ntohs(osm_node_get_base_lid(p_node, 0));
+			ep_rec_key = (uint64_t) lid_ho;
 
-			ep_lft_top_tbl_rec_init(lid, p_node->sw->lft_size, p_lft_top_tbl_rec);
+			ep_lft_top_tbl_rec_init(lid_ho, p_node->sw->lft_size, p_lft_top_tbl_rec);
 			memcpy(&ssa_db->p_lft_db->p_db_lft_top_tbl[lft_top_offset],
 			       p_lft_top_tbl_rec, sizeof(*p_lft_top_tbl_rec));
 			p_map_rec = ep_map_rec_init(lft_top_offset++);
@@ -207,8 +207,8 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 				       ep_rec_key, &p_map_rec->map_item);
 
 			for(i = 0; i < max_block; i++) {
-				ep_rec_key = ep_rec_gen_key(lid, i);
-				ep_lft_block_tbl_rec_init(p_node->sw, lid, i, p_lft_block_tbl_rec);
+				ep_rec_key = ep_rec_gen_key(lid_ho, i);
+				ep_lft_block_tbl_rec_init(p_node->sw, lid_ho, i, p_lft_block_tbl_rec);
 
 				memcpy(&ssa_db->p_lft_db->p_db_lft_block_tbl[lft_block_offset],
 				       p_lft_block_tbl_rec, sizeof(*p_lft_block_tbl_rec));
@@ -388,7 +388,7 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 					continue;
 
 				if (i == 0) {
-					lids = osm_physp_get_base_lid(p_physp);
+					lid_ho = ntohs(osm_physp_get_base_lid(p_physp));
 					p_pkey_tbl = osm_physp_get_pkey_tbl(p_port->p_physp);
 					pkey_map_iter = cl_map_head(&p_pkey_tbl->keys);
 					while (pkey_map_iter != cl_map_end(&p_pkey_tbl->keys)) {
@@ -400,13 +400,13 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 					}
 				}
 
-				ep_rec_key = ep_rec_gen_key(lids, osm_physp_get_port_num(p_physp));
+				ep_rec_key = ep_rec_gen_key(lid_ho, osm_physp_get_port_num(p_physp));
 
 				ep_port_tbl_rec_init(p_physp, p_port_tbl_rec);
-				p_port_tbl_rec->port_lid = lids;
+				p_port_tbl_rec->port_lid = htons(lid_ho);
 				if (i == 0 ) {
-					p_port_tbl_rec->pkey_tbl_offset = pkey_base_offset;
-					p_port_tbl_rec->pkeys = pkey_cur_offset;
+					p_port_tbl_rec->pkey_tbl_offset = htonll(pkey_base_offset);
+					p_port_tbl_rec->pkeys = htons(pkey_cur_offset);
 				}
 				memcpy(&p_ssa->p_port_tbl[port_offset],
 				       p_port_tbl_rec, sizeof(*p_port_tbl_rec));
@@ -443,8 +443,8 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 			}
 
 			ep_port_tbl_rec_init(p_physp, p_port_tbl_rec);
-			p_port_tbl_rec->pkey_tbl_offset = pkey_base_offset;
-			p_port_tbl_rec->pkeys = pkey_cur_offset;
+			p_port_tbl_rec->pkey_tbl_offset = htonll(pkey_base_offset);
+			p_port_tbl_rec->pkeys = htons(pkey_cur_offset);
 			memcpy(&p_ssa->p_port_tbl[port_offset],
 			       p_port_tbl_rec, sizeof(*p_port_tbl_rec));
 			p_map_rec = ep_map_rec_init(port_offset++);
@@ -662,14 +662,14 @@ void ssa_db_lft_handle()
 	cl_list_item_t *p_item;
 	uint64_t rec_num, key;
 	uint16_t block_num;
-	be16_t lid;
+	uint16_t lid_ho;
 
 	pthread_mutex_lock(&ssa_db->lft_rec_list_lock);
 
 	while ((p_item = cl_qlist_remove_head(&ssa_db->lft_rec_list)) !=
 					cl_qlist_end(&ssa_db->lft_rec_list)) {
 		p_lft_rec = cl_item_obj(p_item, p_lft_rec, list_item);
-		lid = osm_node_get_base_lid(p_lft_rec->lft_change.p_sw->p_node, 0);
+		lid_ho = ntohs(osm_node_get_base_lid(p_lft_rec->lft_change.p_sw->p_node, 0));
 		if (p_lft_rec->lft_change.flags == LFT_CHANGED_BLOCK) {
 			p_lft_block_tbl_rec =
 				(struct ep_lft_block_tbl_rec *) malloc(sizeof(*p_lft_block_tbl_rec));
@@ -688,10 +688,10 @@ void ssa_db_lft_handle()
 			block_num = p_lft_rec->lft_change.block_num;
 			ssa_log(SSA_LOG_VERBOSE, "LFT change block event received "
 						 "for LID %u Block %u\n",
-						 ntohs(lid), block_num);
+						 lid_ho, block_num);
 
-			ep_lft_block_tbl_rec_init(p_lft_rec->lft_change.p_sw, lid, block_num, p_lft_block_tbl_rec);
-			key = ep_rec_gen_key(lid, block_num);
+			ep_lft_block_tbl_rec_init(p_lft_rec->lft_change.p_sw, lid_ho, block_num, p_lft_block_tbl_rec);
+			key = ep_rec_gen_key(lid_ho, block_num);
 
 			p_map_rec = ep_map_rec_init(rec_num);
 			p_map_rec_tmp = (struct ep_map_rec *)
@@ -722,10 +722,10 @@ void ssa_db_lft_handle()
 
 			ssa_log(SSA_LOG_VERBOSE, "LFT change top event received "
 						 "for LID %u New Top %u\n",
-						 ntohs(lid), p_lft_rec->lft_change.lft_top);
+						 lid_ho, p_lft_rec->lft_change.lft_top);
 
-			ep_lft_top_tbl_rec_init(lid, p_lft_rec->lft_change.lft_top, p_lft_top_tbl_rec);
-			key = (uint64_t) lid;
+			ep_lft_top_tbl_rec_init(lid_ho, p_lft_rec->lft_change.lft_top, p_lft_top_tbl_rec);
+			key = (uint64_t) lid_ho;
 			p_map_rec = ep_map_rec_init(rec_num);
 			p_map_rec_tmp = (struct ep_map_rec *)
 				cl_qmap_insert(&ssa_db->p_lft_db->ep_dump_lft_top_tbl,
