@@ -131,6 +131,7 @@ static const struct db_field field_per_table[] = {
 	{ 0 }
 };
 
+static
 void ssa_db_diff_db_def_init(struct db_def * p_db_def,
 			     uint8_t version, uint8_t size,
 			     uint8_t db_id, uint8_t table_id,
@@ -148,6 +149,7 @@ void ssa_db_diff_db_def_init(struct db_def * p_db_def,
 
 /** =========================================================================
  */
+static
 void ssa_db_diff_dataset_init(struct db_dataset * p_dataset,
 			      uint8_t version, uint8_t size,
 			      uint8_t access, uint8_t db_id,
@@ -169,6 +171,7 @@ void ssa_db_diff_dataset_init(struct db_dataset * p_dataset,
 
 /** =========================================================================
  */
+static
 void ssa_db_diff_table_def_insert(struct db_table_def * p_tbl,
 				  struct db_dataset * p_dataset,
 				  uint8_t version, uint8_t size,
@@ -201,6 +204,7 @@ void ssa_db_diff_table_def_insert(struct db_table_def * p_tbl,
 
 /** =========================================================================
  */
+static
 void ssa_db_diff_field_def_insert(struct db_field_def * p_tbl,
 				  struct db_dataset * p_dataset,
 				  uint8_t version, uint8_t type,
@@ -230,7 +234,7 @@ void ssa_db_diff_field_def_insert(struct db_field_def * p_tbl,
 
 /** =========================================================================
  */
-void ssa_db_diff_tables_init(struct ssa_db_diff * p_ssa_db_diff)
+static void ssa_db_diff_tables_init(struct ssa_db_diff * p_ssa_db_diff)
 {
 	const struct db_table_def *p_tbl_def;
 	const struct db_dataset *p_dataset;
@@ -376,7 +380,7 @@ struct ssa_db_diff *ssa_db_diff_init(uint64_t guid_to_lid_num_recs,
 
 /** =========================================================================
  */
-void ssa_db_diff_tables_destroy(struct ssa_db_diff * p_ssa_db_diff)
+static void ssa_db_diff_tables_destroy(struct ssa_db_diff * p_ssa_db_diff)
 {
 	int i;
 
