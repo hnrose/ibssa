@@ -198,7 +198,6 @@ void ssa_db_diff_table_def_insert(struct db_table_def * p_tbl,
 	memcpy(&p_tbl[ntohll(p_dataset->set_count)], &db_table_def_rec,
 	       sizeof(*p_tbl));
 	p_dataset->set_count = htonll(ntohll(p_dataset->set_count) + 1);
-
 	p_dataset->set_size = htonll(ntohll(p_dataset->set_size) + sizeof(*p_tbl));
 }
 
@@ -228,7 +227,6 @@ void ssa_db_diff_field_def_insert(struct db_field_def * p_tbl,
 	memcpy(&p_tbl[ntohll(p_dataset->set_count)], &db_field_def_rec,
 	       sizeof(*p_tbl));
 	p_dataset->set_count = htonll(ntohll(p_dataset->set_count) + 1);
-
 	p_dataset->set_size = htonll(ntohll(p_dataset->set_size) + sizeof(*p_tbl));
 }
 
@@ -271,7 +269,8 @@ static void ssa_db_diff_tables_init(struct ssa_db_diff * p_ssa_db_diff)
 					     p_tbl_def->type, p_tbl_def->access,
 					     p_tbl_def->id.db, p_tbl_def->id.table,
 					     p_tbl_def->id.field, p_tbl_def->name,
-					     ntohl(p_tbl_def->record_size), ntohl(p_tbl_def->ref_table_id));
+					     ntohl(p_tbl_def->record_size),
+					     ntohl(p_tbl_def->ref_table_id));
 
 	/* data tables datasets initialization */
 	for (p_dataset = dataset_tbl; p_dataset->version; p_dataset++)
@@ -280,7 +279,8 @@ static void ssa_db_diff_tables_init(struct ssa_db_diff * p_ssa_db_diff)
 					 p_dataset->access, p_dataset->id.db,
 					 p_dataset->id.table, p_dataset->id.field,
 					 p_dataset->epoch, p_dataset->set_size,
-					 p_dataset->set_offset, p_dataset->set_count);
+					 p_dataset->set_offset,
+					 p_dataset->set_count);
 
 	/* field tables initialization */
 	for (p_field = field_per_table; p_field->table_id; p_field++) {
@@ -296,7 +296,8 @@ static void ssa_db_diff_tables_init(struct ssa_db_diff * p_ssa_db_diff)
 							     p_field_def->version, p_field_def->type,
 							     p_field_def->id.db, p_field_def->id.table,
 							     p_field_def->id.field, p_field_def->name,
-							     ntohl(p_field_def->field_size), ntohl(p_field_def->field_offset));
+							     ntohl(p_field_def->field_size),
+							     ntohl(p_field_def->field_offset));
 		}
 	}
 }
