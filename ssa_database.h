@@ -156,11 +156,11 @@ struct ssa_database {
 extern struct ssa_database *ssa_db;
 
 /**********************SSA Database**************************************/
-struct ssa_database *ssa_database_init();
+struct ssa_database *ssa_database_init(void);
 void ssa_database_delete(struct ssa_database *p_ssa_db);
 
 /**********************SSA DB********************************************/
-struct ssa_db *ssa_db_init();
+struct ssa_db *ssa_db_init(void);
 void ssa_db_delete(struct ssa_db *p_ssa_db);
 
 /**********************GUID to LID records*******************************/

@@ -36,7 +36,7 @@
 #include <ssa_database.h>
 #include <opensm/osm_switch.h>
 
-struct ssa_database *ssa_database_init()
+struct ssa_database *ssa_database_init(void)
 {
 	struct ssa_database *p_ssa_database =
 		(struct ssa_database *) calloc(1, sizeof(struct ssa_database));
@@ -90,7 +90,7 @@ void ssa_database_delete(struct ssa_database *p_ssa_db)
 	}
 }
 
-struct ssa_db *ssa_db_init()
+struct ssa_db *ssa_db_init(void)
 {
 	struct ssa_db *p_ssa_db;
 

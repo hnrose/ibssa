@@ -653,7 +653,7 @@ void ssa_db_update(struct ssa_events *ssa,
 
 /** =========================================================================
  */
-void ssa_db_lft_handle()
+static void ssa_db_lft_handle(void)
 {
 	struct ssa_db_lft_change_rec *p_lft_rec;
 	struct ep_lft_block_tbl_rec *p_lft_block_tbl_rec;
