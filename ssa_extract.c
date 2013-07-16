@@ -556,7 +556,7 @@ void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 			ntohs(port_tbl_rec.port_lid), port_tbl_rec.port_num);
 		ssa_log(SSA_LOG_VERBOSE, "FDR10 %s active\n",
 			port_tbl_rec.is_fdr10_active ? "" : "not");
-		ssa_log(SSA_LOG_VERBOSE, "PKeys %u \n", port_tbl_rec.pkeys);
+		ssa_log(SSA_LOG_VERBOSE, "PKeys %u \n", ntohs(port_tbl_rec.pkeys));
 	}
 
 	for (i = 0; i < cl_qmap_count(&p_ssa_db->ep_link_tbl); i++) {
