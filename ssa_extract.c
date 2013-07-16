@@ -662,14 +662,12 @@ static void ssa_db_lft_handle(void)
 	cl_list_item_t *p_item;
 	uint64_t rec_num, key;
 	uint16_t block_num;
-	uint16_t lid_ho;
 
 	pthread_mutex_lock(&ssa_db->lft_rec_list_lock);
 
 	while ((p_item = cl_qlist_remove_head(&ssa_db->lft_rec_list)) !=
 					cl_qlist_end(&ssa_db->lft_rec_list)) {
 		p_lft_rec = cl_item_obj(p_item, p_lft_rec, list_item);
-		lid_ho = ntohs(osm_node_get_base_lid(p_lft_rec->lft_change.p_sw->p_node, 0));
 		if (p_lft_rec->lft_change.flags == LFT_CHANGED_BLOCK) {
 			p_lft_block_tbl_rec =
 				(struct ep_lft_block_tbl_rec *) malloc(sizeof(*p_lft_block_tbl_rec));
@@ -688,10 +686,14 @@ static void ssa_db_lft_handle(void)
 			block_num = p_lft_rec->lft_change.block_num;
 			ssa_log(SSA_LOG_VERBOSE, "LFT change block event received "
 						 "for LID %u Block %u\n",
-						 lid_ho, block_num);
+						 ntohs(p_lft_rec->lid), block_num);
 
-			ep_lft_block_tbl_rec_init(p_lft_rec->lft_change.p_sw, lid_ho, block_num, p_lft_block_tbl_rec);
-			key = ep_rec_gen_key(lid_ho, block_num);
+			p_lft_block_tbl_rec->lid = p_lft_rec->lid;
+			p_lft_block_tbl_rec->block_num	= htons(block_num);
+			memcpy(p_lft_block_tbl_rec->block, p_lft_rec->block,
+			       IB_SMP_DATA_SIZE);
+
+			key = ep_rec_gen_key(ntohs(p_lft_rec->lid), block_num);
 
 			p_map_rec = ep_map_rec_init(rec_num);
 			p_map_rec_tmp = (struct ep_map_rec *)
@@ -722,10 +724,12 @@ static void ssa_db_lft_handle(void)
 
 			ssa_log(SSA_LOG_VERBOSE, "LFT change top event received "
 						 "for LID %u New Top %u\n",
-						 lid_ho, p_lft_rec->lft_change.lft_top);
+						 ntohs(p_lft_rec->lid), p_lft_rec->lft_change.lft_top);
 
-			ep_lft_top_tbl_rec_init(lid_ho, p_lft_rec->lft_change.lft_top, p_lft_top_tbl_rec);
-			key = (uint64_t) lid_ho;
+			p_lft_top_tbl_rec->lid = p_lft_rec->lid;
+			p_lft_top_tbl_rec->lft_top = htons(p_lft_rec->lft_change.lft_top);
+			key = (uint64_t) ntohs(p_lft_rec->lid);
+
 			p_map_rec = ep_map_rec_init(rec_num);
 			p_map_rec_tmp = (struct ep_map_rec *)
 				cl_qmap_insert(&ssa_db->p_lft_db->ep_dump_lft_top_tbl,
@@ -796,9 +800,7 @@ void *ssa_db_run(void *data)
 				first_time_subnet_up = 0;
 			} else if (msg.type == SSA_DB_LFT_CHANGE) {
 				ssa_log(SSA_LOG_VERBOSE, "Start handling LFT change events\n");
-				CL_PLOCK_ACQUIRE(&p_ssa->p_osm->lock);
 				ssa_db_lft_handle();
-				CL_PLOCK_RELEASE(&p_ssa->p_osm->lock);
 			} else if (msg.type == SSA_DB_EXIT) {
 				break;
 			} else {

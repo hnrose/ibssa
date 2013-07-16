@@ -290,12 +290,23 @@ static void report(void *_ssa, osm_epi_event_id_t event_id, void *event_data)
 			if (!p_lft_change_rec) {
 				/* TODO: handle failure in memory allocation */
 			}
+
 			memcpy(&p_lft_change_rec->lft_change, p_lft_change,
 			       sizeof(p_lft_change_rec->lft_change));
+			p_lft_change_rec->lid = osm_node_get_base_lid(p_lft_change->p_sw->p_node, 0);
+
+			if (p_lft_change->flags == LFT_CHANGED_BLOCK)
+				memcpy(p_lft_change_rec->block, p_lft_change->p_sw->lft +
+				       p_lft_change->block_num * IB_SMP_DATA_SIZE,
+				       IB_SMP_DATA_SIZE);
 
 			pthread_mutex_lock(&ssa_db->lft_rec_list_lock);
 			cl_qlist_insert_tail(&ssa_db->lft_rec_list, &p_lft_change_rec->list_item);
 			pthread_mutex_unlock(&ssa_db->lft_rec_list_lock);
+
+			msg.len = sizeof(msg);
+			msg.type = SSA_DB_LFT_CHANGE;
+			write(fd[0], (char *) &msg, sizeof(msg));
 		}
 		break;
 	case OSM_EVENT_ID_UCAST_ROUTING_DONE:
