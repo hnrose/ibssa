@@ -1434,9 +1434,12 @@ static void ep_lft_block_qmap_copy(cl_qmap_t *p_dest_qmap,
 		} else {
 			/* in case of new record added */
 			if (p_dest_dataset) {
-				offset = p_dest_dataset->set_count;
-				p_dest_dataset->set_size += sizeof(*p_lft_block_tbl_rec);
-				p_dest_dataset->set_count++;
+				offset = ntohll(p_dest_dataset->set_count);
+				p_dest_dataset->set_size =
+					htonll(ntohll(p_dest_dataset->set_size)
+					       + sizeof(*p_lft_block_tbl_rec));
+				p_dest_dataset->set_count =
+					htonll(ntohll(p_dest_dataset->set_count) + 1);
 			} else {
 				offset = cl_qmap_count(p_dest_qmap);
 			}
@@ -1482,9 +1485,12 @@ static void ep_lft_top_qmap_copy(cl_qmap_t *p_dest_qmap,
 		} else {
 			/* in case of new record added */
 			if (p_dest_dataset) {
-				offset = p_dest_dataset->set_count;
-				p_dest_dataset->set_size += sizeof(*p_lft_top_tbl_rec);
-				p_dest_dataset->set_count++;
+				offset = ntohll(p_dest_dataset->set_count);
+				p_dest_dataset->set_size =
+					htonll(ntohll(p_dest_dataset->set_size)
+					       + sizeof(*p_lft_top_tbl_rec));
+				p_dest_dataset->set_count =
+					htonll(ntohll(p_dest_dataset->set_count) + 1);
 			} else {
 				offset = cl_qmap_count(p_dest_qmap);
 			}
