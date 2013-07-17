@@ -1153,8 +1153,8 @@ static void ssa_db_diff_dump_node_rec(struct ssa_events * ssa,
 
 	assert(p_map_rec);
 
-	p_node_tbl_rec = (struct ep_node_tbl_rec *) p_tbl;
-	if (p_node_tbl_rec) {
+	if (p_tbl) {
+		p_node_tbl_rec = (struct ep_node_tbl_rec *) p_tbl;
 		node_tbl_rec = p_node_tbl_rec[p_map_rec->offset];
 		if (node_tbl_rec.node_type == IB_NODE_TYPE_SWITCH)
 			sprintf(buffer, " with %s Switch Port 0\n",
@@ -1177,8 +1177,8 @@ static void ssa_db_diff_dump_guid_to_lid_rec(struct ssa_events * ssa,
 
 	assert(p_map_rec);
 
-	p_guid_to_lid_tbl_rec = (struct ep_guid_to_lid_tbl_rec *) p_tbl;
-	if (p_guid_to_lid_tbl_rec) {
+	if (p_tbl) {
+		p_guid_to_lid_tbl_rec = (struct ep_guid_to_lid_tbl_rec *) p_tbl;
 		guid_to_lid_tbl_rec = p_guid_to_lid_tbl_rec[p_map_rec->offset];
 		ssa_log(SSA_LOG_VERBOSE, "Port GUID 0x%" PRIx64 " LID %u LMC %u is_switch %d\n",
 			ntohll(guid_to_lid_tbl_rec.guid),
@@ -1200,8 +1200,8 @@ static void ssa_db_diff_dump_port_rec(struct ssa_events * ssa,
 	if (!p_map_rec)
 		return;
 
-	p_port_tbl_rec = (struct ep_port_tbl_rec *) p_tbl;
-	if (p_port_tbl_rec) {
+	if (p_tbl) {
+		p_port_tbl_rec = (struct ep_port_tbl_rec *) p_tbl;
 		port_tbl_rec = p_port_tbl_rec[p_map_rec->offset];
 		ssa_log(SSA_LOG_VERBOSE, "Port LID %u Port Num %u\n",
 			ntohs(port_tbl_rec.port_lid),
@@ -1265,8 +1265,8 @@ static void ssa_db_diff_dump_link_rec(struct ssa_events * ssa,
 	if (!p_map_rec)
 		return;
 
-	p_link_tbl_rec = (struct ep_link_tbl_rec *) p_tbl;
-	if (p_link_tbl_rec) {
+	if (p_tbl) {
+		p_link_tbl_rec = (struct ep_link_tbl_rec *) p_tbl;
 		link_tbl_rec = p_link_tbl_rec[p_map_rec->offset];
 		ssa_log(SSA_LOG_VERBOSE, "From LID %u port %u to LID %u port %u\n",
 			ntohs(link_tbl_rec.from_lid),
