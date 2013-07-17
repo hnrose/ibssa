@@ -289,7 +289,7 @@ static void report(void *_ssa, osm_epi_event_id_t event_id, void *event_data)
 
 			size = sizeof(*p_lft_change_rec);
 			if (p_lft_change->flags == LFT_CHANGED_BLOCK)
-				size += sizeof(uint8_t) * IB_SMP_DATA_SIZE;
+				size += sizeof(p_lft_change_rec->block[0]) * IB_SMP_DATA_SIZE;
 
 			p_lft_change_rec = (struct ssa_db_lft_change_rec *) malloc(size);
 			if (!p_lft_change_rec) {
