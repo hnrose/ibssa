@@ -275,6 +275,7 @@ static void report(void *_ssa, osm_epi_event_id_t event_id, void *event_data)
 	osm_epi_ucast_routing_flags_t *p_ucast_routing_flag;
 	struct ssa_db_lft_change_rec *p_lft_change_rec;
 	struct ssa_db_ctrl_msg msg;
+	size_t size;
 
 	switch (event_id) {
 	case OSM_EVENT_ID_TRAP:
@@ -285,8 +286,12 @@ static void report(void *_ssa, osm_epi_event_id_t event_id, void *event_data)
 		if (p_lft_change && p_lft_change->p_sw) {
 			ssa_log(SSA_LOG_VERBOSE, "LFT change event for SW 0x%" PRIx64"\n",
 				ntohll(osm_node_get_node_guid(p_lft_change->p_sw->p_node)));
-			p_lft_change_rec = (struct ssa_db_lft_change_rec *)
-						malloc(sizeof(*p_lft_change_rec));
+
+			size = sizeof(*p_lft_change_rec);
+			if (p_lft_change->flags == LFT_CHANGED_BLOCK)
+				size += sizeof(uint8_t) * IB_SMP_DATA_SIZE;
+
+			p_lft_change_rec = (struct ssa_db_lft_change_rec *) malloc(size);
 			if (!p_lft_change_rec) {
 				/* TODO: handle failure in memory allocation */
 			}

@@ -58,7 +58,7 @@ struct ssa_db_lft_change_rec {
 	cl_list_item_t			list_item;
 	osm_epi_lft_change_event_t	lft_change;
 	be16_t				lid;
-	uint8_t				block[IB_SMP_DATA_SIZE];
+	uint8_t				block[0];
 };
 
 /* TODO: remove after migration with SSA framework */
