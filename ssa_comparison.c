@@ -1230,7 +1230,7 @@ static void ssa_db_diff_dump_lft_top_rec(struct ssa_events * ssa,
 	if (p_lft_top_tbl_rec) {
 		lft_top_tbl_rec = p_lft_top_tbl_rec[p_map_rec->offset];
 		ssa_log(SSA_LOG_VERBOSE, "LID %u new LFT top %u\n",
-			ntohs(p_lft_top_tbl_rec->lid), ntohs(p_lft_top_tbl_rec->lft_top));
+			ntohs(lft_top_tbl_rec.lid), ntohs(lft_top_tbl_rec.lft_top));
 	}
 }
 
