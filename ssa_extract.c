@@ -655,7 +655,7 @@ void ssa_db_update(struct ssa_events *ssa,
  */
 static void ssa_db_lft_handle(void)
 {
-	struct ssa_db_lft_change_rec *p_lft_rec;
+	struct ssa_db_lft_change_rec *p_lft_change_rec;
 	struct ep_lft_block_tbl_rec *p_lft_block_tbl_rec;
 	struct ep_lft_top_tbl_rec *p_lft_top_tbl_rec;
 	struct ep_map_rec *p_map_rec, *p_map_rec_tmp;
@@ -667,8 +667,8 @@ static void ssa_db_lft_handle(void)
 
 	while ((p_item = cl_qlist_remove_head(&ssa_db->lft_rec_list)) !=
 					cl_qlist_end(&ssa_db->lft_rec_list)) {
-		p_lft_rec = cl_item_obj(p_item, p_lft_rec, list_item);
-		if (p_lft_rec->lft_change.flags == LFT_CHANGED_BLOCK) {
+		p_lft_change_rec = cl_item_obj(p_item, p_lft_change_rec, list_item);
+		if (p_lft_change_rec->lft_change.flags == LFT_CHANGED_BLOCK) {
 			p_lft_block_tbl_rec =
 				(struct ep_lft_block_tbl_rec *) malloc(sizeof(*p_lft_block_tbl_rec));
 			if (!p_lft_block_tbl_rec) {
@@ -683,17 +683,17 @@ static void ssa_db_lft_handle(void)
 							sizeof(*ssa_db->p_lft_db->p_dump_lft_block_tbl));
 			}
 
-			block_num = p_lft_rec->lft_change.block_num;
+			block_num = p_lft_change_rec->lft_change.block_num;
 			ssa_log(SSA_LOG_VERBOSE, "LFT change block event received "
 						 "for LID %u Block %u\n",
-						 ntohs(p_lft_rec->lid), block_num);
+						 ntohs(p_lft_change_rec->lid), block_num);
 
-			p_lft_block_tbl_rec->lid = p_lft_rec->lid;
+			p_lft_block_tbl_rec->lid = p_lft_change_rec->lid;
 			p_lft_block_tbl_rec->block_num	= htons(block_num);
-			memcpy(p_lft_block_tbl_rec->block, p_lft_rec->block,
+			memcpy(p_lft_block_tbl_rec->block, p_lft_change_rec->block,
 			       IB_SMP_DATA_SIZE);
 
-			key = ep_rec_gen_key(ntohs(p_lft_rec->lid), block_num);
+			key = ep_rec_gen_key(ntohs(p_lft_change_rec->lid), block_num);
 
 			p_map_rec = ep_map_rec_init(rec_num);
 			p_map_rec_tmp = (struct ep_map_rec *)
@@ -708,7 +708,7 @@ static void ssa_db_lft_handle(void)
 			memcpy(&ssa_db->p_lft_db->p_dump_lft_block_tbl[rec_num],
 			       p_lft_block_tbl_rec, sizeof(*p_lft_block_tbl_rec));
 			free(p_lft_block_tbl_rec);
-		} else if (p_lft_rec->lft_change.flags == LFT_CHANGED_LFT_TOP) {
+		} else if (p_lft_change_rec->lft_change.flags == LFT_CHANGED_LFT_TOP) {
 			p_lft_top_tbl_rec = (struct ep_lft_top_tbl_rec *) malloc(sizeof(*p_lft_top_tbl_rec));
 			if (!p_lft_top_tbl_rec) {
 					/* TODO: add memory allocation failure handling */
@@ -724,11 +724,12 @@ static void ssa_db_lft_handle(void)
 
 			ssa_log(SSA_LOG_VERBOSE, "LFT change top event received "
 						 "for LID %u New Top %u\n",
-						 ntohs(p_lft_rec->lid), p_lft_rec->lft_change.lft_top);
+						 ntohs(p_lft_change_rec->lid),
+						 p_lft_change_rec->lft_change.lft_top);
 
-			p_lft_top_tbl_rec->lid = p_lft_rec->lid;
-			p_lft_top_tbl_rec->lft_top = htons(p_lft_rec->lft_change.lft_top);
-			key = (uint64_t) ntohs(p_lft_rec->lid);
+			p_lft_top_tbl_rec->lid = p_lft_change_rec->lid;
+			p_lft_top_tbl_rec->lft_top = htons(p_lft_change_rec->lft_change.lft_top);
+			key = (uint64_t) ntohs(p_lft_change_rec->lid);
 
 			p_map_rec = ep_map_rec_init(rec_num);
 			p_map_rec_tmp = (struct ep_map_rec *)
@@ -745,9 +746,10 @@ static void ssa_db_lft_handle(void)
 			       p_lft_top_tbl_rec, sizeof(*p_lft_top_tbl_rec));
 			free(p_lft_top_tbl_rec);
 		} else {
-			ssa_log(SSA_LOG_ALL, "Unknown LFT change event (%d)\n", p_lft_rec->lft_change.flags);
+			ssa_log(SSA_LOG_ALL, "Unknown LFT change event (%d)\n",
+				p_lft_change_rec->lft_change.flags);
 		}
-		free(p_lft_rec);
+		free(p_lft_change_rec);
         }
 
 	pthread_mutex_unlock(&ssa_db->lft_rec_list_lock);
