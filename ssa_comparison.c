@@ -1249,7 +1249,8 @@ static void ssa_db_diff_dump_lft_block_rec(struct ssa_events * ssa,
 		p_lft_block_tbl = (struct ep_lft_block_tbl_rec *) p_tbl;
 		p_lft_block_tbl_rec = &p_lft_block_tbl[p_map_rec->offset];
 		ssa_log(SSA_LOG_VERBOSE, "LID %u block #%u\n",
-			ntohs(p_lft_block_tbl_rec->lid), ntohs(p_lft_block_tbl_rec->block_num));
+			ntohs(p_lft_block_tbl_rec->lid),
+			ntohs(p_lft_block_tbl_rec->block_num));
 	}
 }
 
