@@ -1148,21 +1148,21 @@ static void ssa_db_diff_dump_node_rec(struct ssa_events * ssa,
 				      void * p_tbl)
 {
 	struct ep_map_rec *p_map_rec = (struct ep_map_rec *) p_item;
-	struct ep_node_tbl_rec *p_node_tbl_rec, node_tbl_rec;
+	struct ep_node_tbl_rec *p_node_tbl, *p_node_tbl_rec;
 	char buffer[64];
 
 	assert(p_map_rec);
 
 	if (p_tbl) {
-		p_node_tbl_rec = (struct ep_node_tbl_rec *) p_tbl;
-		node_tbl_rec = p_node_tbl_rec[p_map_rec->offset];
-		if (node_tbl_rec.node_type == IB_NODE_TYPE_SWITCH)
+		p_node_tbl = (struct ep_node_tbl_rec *) p_tbl;
+		p_node_tbl_rec = &p_node_tbl[p_map_rec->offset];
+		if (p_node_tbl_rec->node_type == IB_NODE_TYPE_SWITCH)
 			sprintf(buffer, " with %s Switch Port 0\n",
-				node_tbl_rec.is_enhanced_sp0 ? "Enhanced" : "Base");
+				p_node_tbl_rec->is_enhanced_sp0 ? "Enhanced" : "Base");
 		else
 			sprintf(buffer, "\n");
 		ssa_log(SSA_LOG_VERBOSE, "Node GUID 0x%" PRIx64 " Type %d%s",
-			ntohll(node_tbl_rec.node_guid), node_tbl_rec.node_type, buffer);
+			ntohll(p_node_tbl_rec->node_guid), p_node_tbl_rec->node_type, buffer);
 	}
 }
 
@@ -1173,18 +1173,18 @@ static void ssa_db_diff_dump_guid_to_lid_rec(struct ssa_events * ssa,
 					     void * p_tbl)
 {
 	struct ep_map_rec *p_map_rec = (struct ep_map_rec *) p_item;
-	struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl_rec, guid_to_lid_tbl_rec;
+	struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl, *p_guid_to_lid_tbl_rec;
 
 	assert(p_map_rec);
 
 	if (p_tbl) {
-		p_guid_to_lid_tbl_rec = (struct ep_guid_to_lid_tbl_rec *) p_tbl;
-		guid_to_lid_tbl_rec = p_guid_to_lid_tbl_rec[p_map_rec->offset];
+		p_guid_to_lid_tbl = (struct ep_guid_to_lid_tbl_rec *) p_tbl;
+		p_guid_to_lid_tbl_rec = &p_guid_to_lid_tbl[p_map_rec->offset];
 		ssa_log(SSA_LOG_VERBOSE, "Port GUID 0x%" PRIx64 " LID %u LMC %u is_switch %d\n",
-			ntohll(guid_to_lid_tbl_rec.guid),
-			ntohs(guid_to_lid_tbl_rec.lid),
-			guid_to_lid_tbl_rec.lmc,
-			guid_to_lid_tbl_rec.is_switch);
+			ntohll(p_guid_to_lid_tbl_rec->guid),
+			ntohs(p_guid_to_lid_tbl_rec->lid),
+			p_guid_to_lid_tbl_rec->lmc,
+			p_guid_to_lid_tbl_rec->is_switch);
 	}
 }
 
@@ -1195,23 +1195,23 @@ static void ssa_db_diff_dump_port_rec(struct ssa_events * ssa,
 				      void * p_tbl)
 {
 	struct ep_map_rec *p_map_rec = (struct ep_map_rec *) p_item;
-	struct ep_port_tbl_rec *p_port_tbl_rec, port_tbl_rec;
+	struct ep_port_tbl_rec *p_port_tbl, *p_port_tbl_rec;
 
 	if (!p_map_rec)
 		return;
 
 	if (p_tbl) {
-		p_port_tbl_rec = (struct ep_port_tbl_rec *) p_tbl;
-		port_tbl_rec = p_port_tbl_rec[p_map_rec->offset];
+		p_port_tbl = (struct ep_port_tbl_rec *) p_tbl;
+		p_port_tbl_rec = &p_port_tbl[p_map_rec->offset];
 		ssa_log(SSA_LOG_VERBOSE, "Port LID %u Port Num %u\n",
-			ntohs(port_tbl_rec.port_lid),
-			port_tbl_rec.port_num);
+			ntohs(p_port_tbl_rec->port_lid),
+			p_port_tbl_rec->port_num);
 		ssa_log(SSA_LOG_VERBOSE, "FDR10 %s active\n",
-			port_tbl_rec.is_fdr10_active ? "" : "not");
+			p_port_tbl_rec->is_fdr10_active ? "" : "not");
 		ssa_log(SSA_LOG_VERBOSE, "PKeys %u\n",
-			ntohs(port_tbl_rec.pkeys));
+			ntohs(p_port_tbl_rec->pkeys));
 		ssa_log(SSA_LOG_VERBOSE, "PKey Table offset %u \n",
-			ntohll(port_tbl_rec.pkey_tbl_offset));
+			ntohll(p_port_tbl_rec->pkey_tbl_offset));
 	}
 }
 
@@ -1222,15 +1222,15 @@ static void ssa_db_diff_dump_lft_top_rec(struct ssa_events * ssa,
 					 void * p_tbl)
 {
 	struct ep_map_rec *p_map_rec = (struct ep_map_rec *) p_item;
-	struct ep_lft_top_tbl_rec *p_lft_top_tbl_rec, lft_top_tbl_rec;
+	struct ep_lft_top_tbl_rec *p_lft_top_tbl, *p_lft_top_tbl_rec;
 
 	assert(p_map_rec);
 
 	if (p_tbl) {
-		p_lft_top_tbl_rec = (struct ep_lft_top_tbl_rec *) p_tbl;
-		lft_top_tbl_rec = p_lft_top_tbl_rec[p_map_rec->offset];
+		p_lft_top_tbl = (struct ep_lft_top_tbl_rec *) p_tbl;
+		p_lft_top_tbl_rec = &p_lft_top_tbl[p_map_rec->offset];
 		ssa_log(SSA_LOG_VERBOSE, "LID %u new LFT top %u\n",
-			ntohs(lft_top_tbl_rec.lid), ntohs(lft_top_tbl_rec.lft_top));
+			ntohs(p_lft_top_tbl_rec->lid), ntohs(p_lft_top_tbl_rec->lft_top));
 	}
 }
 
@@ -1241,15 +1241,15 @@ static void ssa_db_diff_dump_lft_block_rec(struct ssa_events * ssa,
 					   void * p_tbl)
 {
 	struct ep_map_rec *p_map_rec = (struct ep_map_rec *) p_item;
-	struct ep_lft_block_tbl_rec *p_lft_block_tbl_rec, lft_block_tbl_rec;
+	struct ep_lft_block_tbl_rec *p_lft_block_tbl, *p_lft_block_tbl_rec;
 
 	assert(p_map_rec);
 
 	if (p_tbl) {
-		p_lft_block_tbl_rec = (struct ep_lft_block_tbl_rec *) p_tbl;
-		lft_block_tbl_rec = p_lft_block_tbl_rec[p_map_rec->offset];
+		p_lft_block_tbl = (struct ep_lft_block_tbl_rec *) p_tbl;
+		p_lft_block_tbl_rec = &p_lft_block_tbl[p_map_rec->offset];
 		ssa_log(SSA_LOG_VERBOSE, "LID %u block #%u\n",
-			ntohs(lft_block_tbl_rec.lid), ntohs(lft_block_tbl_rec.block_num));
+			ntohs(p_lft_block_tbl_rec->lid), ntohs(p_lft_block_tbl_rec->block_num));
 	}
 }
 
@@ -1260,19 +1260,19 @@ static void ssa_db_diff_dump_link_rec(struct ssa_events * ssa,
 				      void * p_tbl)
 {
 	struct ep_map_rec *p_map_rec = (struct ep_map_rec *) p_item;
-	struct ep_link_tbl_rec *p_link_tbl_rec, link_tbl_rec;
+	struct ep_link_tbl_rec *p_link_tbl, *p_link_tbl_rec;
 
 	if (!p_map_rec)
 		return;
 
 	if (p_tbl) {
-		p_link_tbl_rec = (struct ep_link_tbl_rec *) p_tbl;
-		link_tbl_rec = p_link_tbl_rec[p_map_rec->offset];
+		p_link_tbl = (struct ep_link_tbl_rec *) p_tbl;
+		p_link_tbl_rec = &p_link_tbl[p_map_rec->offset];
 		ssa_log(SSA_LOG_VERBOSE, "From LID %u port %u to LID %u port %u\n",
-			ntohs(link_tbl_rec.from_lid),
-			link_tbl_rec.from_port_num,
-			ntohs(link_tbl_rec.to_lid),
-			link_tbl_rec.to_port_num);
+			ntohs(p_link_tbl_rec->from_lid),
+			p_link_tbl_rec->from_port_num,
+			ntohs(p_link_tbl_rec->to_lid),
+			p_link_tbl_rec->to_port_num);
 	}
 }
 
