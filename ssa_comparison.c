@@ -784,7 +784,6 @@ static void ssa_db_link_insert(cl_qmap_t *p_map,
 	cl_qmap_insert(p_map, key, &p_map_rec_new->map_item);
 
 	if (!p_link_tbl_rec_dest) {
-		ssa_log(SSA_LOG_ALL, "ILYA DEBUG: no LINK table was allocated\n");
 		/* handle failure - bad memory allocation */
 	}
 
