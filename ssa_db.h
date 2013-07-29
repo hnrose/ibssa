@@ -82,6 +82,7 @@ struct db_id {
  * contained within a database.
  */
 #define DB_DEF_VERSION 0
+#define DBT_DEF_NO_RELATED_TBL 0xFFFFFFFF
 struct db_def {
 	uint8_t		version;
 	uint8_t		size;
