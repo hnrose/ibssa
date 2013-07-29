@@ -77,7 +77,7 @@ struct ep_link_tbl_rec {
 
 struct ep_port_tbl_rec {
 	be64_t		pkey_tbl_offset;
-	be16_t		pkeys;
+	be16_t		pkey_tbl_size;
 	be16_t		port_lid;
 	uint8_t		port_num;
 	uint8_t		neighbor_mtu;

@@ -99,7 +99,7 @@ static const struct db_field_def field_tbl[] = {
 	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_LINK_FIELD_DEF, SSA_FIELD_ID_LINK_FROM_PORT_NUM }, "from_port_num", __constant_htonl(8), __constant_htonl(32) },
 	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_LINK_FIELD_DEF, SSA_FIELD_ID_LINK_TO_PORT_NUM }, "to_port_num", __constant_htonl(8), __constant_htonl(40) },
 	{ 1, 0, DBF_TYPE_NET64, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_PKEY_TBL_OFFSET }, "pkey_tbl_offset", __constant_htonl(64), 0 },
-	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_PKEYS }, "pkeys", __constant_htonl(16), __constant_htonl(64) },
+	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_PKEY_TBL_SIZE }, "pkey_tbl_size", __constant_htonl(16), __constant_htonl(64) },
 	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_PORT_LID }, "port_lid", __constant_htonl(16), __constant_htonl(80) },
 	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_PORT_NUM }, "port_num", __constant_htonl(8), __constant_htonl(96) },
 	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_NEIGHBOR_MTU }, "neighbor_mtu", __constant_htonl(8), __constant_htonl(104) },
@@ -689,7 +689,7 @@ static void ssa_db_port_insert(cl_qmap_t *p_map,
 		p_pkey_tbl_src = (uint16_t *) p_data_ref_tbl_src;
 
 		offset_src = ntohll(p_port_tbl_rec_src[p_map_rec_old->offset].pkey_tbl_offset);
-		size_pkey_tbl_src = ntohs(p_port_tbl_rec_src[p_map_rec_old->offset].pkeys);
+		size_pkey_tbl_src = ntohs(p_port_tbl_rec_src[p_map_rec_old->offset].pkey_tbl_size);
 
 		if (size_pkey_tbl_src == 0) {
 			p_dataset->set_count = htonll(set_count);
@@ -700,7 +700,7 @@ static void ssa_db_port_insert(cl_qmap_t *p_map,
 		memcpy(&p_pkey_tbl_dest[*p_offset], &p_pkey_tbl_src[offset_src],
 		       size_pkey_tbl_src * sizeof(uint16_t));
 		p_port_tbl_rec_dest[set_count - 1].pkey_tbl_offset = htonll(*p_offset);
-		p_port_tbl_rec_dest[set_count - 1].pkeys = htons(size_pkey_tbl_src);
+		p_port_tbl_rec_dest[set_count - 1].pkey_tbl_size = htons(size_pkey_tbl_src);
 		p_ref_dataset->set_size = htonll(ntohll(p_ref_dataset->set_size)
 						 + size_pkey_tbl_src);
 		*p_offset += size_pkey_tbl_src;
@@ -736,7 +736,7 @@ static int ssa_db_port_cmp(cl_map_item_t * p_item_old,
 	p_tbl_ref_rec_old += ntohll(p_tbl_rec_old->pkey_tbl_offset);
 	p_tbl_ref_rec_new += ntohll(p_tbl_rec_new->pkey_tbl_offset);
 
-	if ((p_tbl_rec_old->pkeys != p_tbl_rec_new->pkeys) ||
+	if ((p_tbl_rec_old->pkey_tbl_size != p_tbl_rec_new->pkey_tbl_size) ||
 	    (p_tbl_rec_old->port_lid != p_tbl_rec_new->port_lid) ||
 	    (p_tbl_rec_old->neighbor_mtu != p_tbl_rec_new->neighbor_mtu) ||
 	    (p_tbl_rec_old->link_speed_ext != p_tbl_rec_new->link_speed_ext) ||
@@ -749,7 +749,7 @@ static int ssa_db_port_cmp(cl_map_item_t * p_item_old,
 	/* comparying pkeys */
 	if (res == 0 && p_data_ref_tbl_old && p_data_ref_tbl_new &&
 	    memcmp(&p_tbl_ref_rec_old, &p_tbl_ref_rec_new,
-		   ntohs(p_tbl_rec_old->pkeys) * sizeof(uint16_t)))
+		   ntohs(p_tbl_rec_old->pkey_tbl_size)))
 		res = 1;
 
 	return res;
@@ -1208,7 +1208,7 @@ static void ssa_db_diff_dump_port_rec(struct ssa_events * ssa,
 		ssa_log(SSA_LOG_VERBOSE, "FDR10 %s active\n",
 			p_port_tbl_rec->is_fdr10_active ? "" : "not");
 		ssa_log(SSA_LOG_VERBOSE, "PKeys %u\n",
-			ntohs(p_port_tbl_rec->pkeys));
+			ntohs(p_port_tbl_rec->pkey_tbl_size) / sizeof(uint16_t));
 		ssa_log(SSA_LOG_VERBOSE, "PKey Table offset %u \n",
 			ntohll(p_port_tbl_rec->pkey_tbl_offset));
 	}

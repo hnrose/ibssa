@@ -406,7 +406,7 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 				p_port_tbl_rec->port_lid = htons(lid_ho);
 				if (i == 0 ) {
 					p_port_tbl_rec->pkey_tbl_offset = htonll(pkey_base_offset);
-					p_port_tbl_rec->pkeys = htons(pkey_cur_offset);
+					p_port_tbl_rec->pkey_tbl_size = htons(pkey_cur_offset * sizeof(*p_pkey));
 				}
 				memcpy(&p_ssa->p_port_tbl[port_offset],
 				       p_port_tbl_rec, sizeof(*p_port_tbl_rec));
@@ -444,7 +444,7 @@ struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
 
 			ep_port_tbl_rec_init(p_physp, p_port_tbl_rec);
 			p_port_tbl_rec->pkey_tbl_offset = htonll(pkey_base_offset);
-			p_port_tbl_rec->pkeys = htons(pkey_cur_offset);
+			p_port_tbl_rec->pkey_tbl_size = htons(pkey_cur_offset * sizeof(*p_pkey));
 			memcpy(&p_ssa->p_port_tbl[port_offset],
 			       p_port_tbl_rec, sizeof(*p_port_tbl_rec));
 			p_map_rec = ep_map_rec_init(port_offset++);
@@ -556,7 +556,8 @@ void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 			ntohs(port_tbl_rec.port_lid), port_tbl_rec.port_num);
 		ssa_log(SSA_LOG_VERBOSE, "FDR10 %s active\n",
 			port_tbl_rec.is_fdr10_active ? "" : "not");
-		ssa_log(SSA_LOG_VERBOSE, "PKeys %u \n", ntohs(port_tbl_rec.pkeys));
+		ssa_log(SSA_LOG_VERBOSE, "PKeys %u \n", ntohs(port_tbl_rec.pkey_tbl_size) *
+			sizeof(*p_ssa_db->p_pkey_tbl));
 	}
 
 	for (i = 0; i < cl_qmap_count(&p_ssa_db->ep_link_tbl); i++) {

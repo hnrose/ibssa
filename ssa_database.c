@@ -178,7 +178,7 @@ void ep_link_tbl_rec_init(osm_physp_t *p_physp, struct ep_link_tbl_rec *p_rec)
 void ep_port_tbl_rec_init(osm_physp_t *p_physp, struct ep_port_tbl_rec *p_rec)
 {
 	p_rec->pkey_tbl_offset		= 0;
-	p_rec->pkeys			= 0;
+	p_rec->pkey_tbl_size		= 0;
 	p_rec->port_lid			= osm_physp_get_base_lid(p_physp);
 	p_rec->port_num			= osm_physp_get_port_num(p_physp);
 	p_rec->neighbor_mtu		= ib_port_info_get_neighbor_mtu(&p_physp->port_info);
