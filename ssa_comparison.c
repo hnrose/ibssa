@@ -654,8 +654,8 @@ static void ssa_db_port_insert(cl_qmap_t *p_map,
 	uint64_t set_size, set_count;
 	uint64_t offset_src;
 	uint16_t size_pkey_tbl_src;
-	uint16_t *p_pkey_tbl_dest;
-	uint16_t *p_pkey_tbl_src;
+	uint8_t *p_pkey_tbl_dest;
+	uint8_t *p_pkey_tbl_src;
 
 	p_port_tbl_rec_dest = (struct ep_port_tbl_rec *) *p_data_tbl;
 	p_port_tbl_rec_src = (struct ep_port_tbl_rec *) p_data_tbl_src;
@@ -685,8 +685,8 @@ static void ssa_db_port_insert(cl_qmap_t *p_map,
 
 	if (p_data_ref_tbl && p_ref_dataset &&
 	    p_data_ref_tbl_src && p_offset) {
-		p_pkey_tbl_dest = (uint16_t *) *p_data_ref_tbl;
-		p_pkey_tbl_src = (uint16_t *) p_data_ref_tbl_src;
+		p_pkey_tbl_dest = (uint8_t *) *p_data_ref_tbl;
+		p_pkey_tbl_src = (uint8_t *) p_data_ref_tbl_src;
 
 		offset_src = ntohll(p_port_tbl_rec_src[p_map_rec_old->offset].pkey_tbl_offset);
 		size_pkey_tbl_src = ntohs(p_port_tbl_rec_src[p_map_rec_old->offset].pkey_tbl_size);
@@ -698,7 +698,7 @@ static void ssa_db_port_insert(cl_qmap_t *p_map,
 		}
 
 		memcpy(&p_pkey_tbl_dest[*p_offset], &p_pkey_tbl_src[offset_src],
-		       size_pkey_tbl_src * sizeof(uint16_t));
+		       size_pkey_tbl_src);
 		p_port_tbl_rec_dest[set_count - 1].pkey_tbl_offset = htonll(*p_offset);
 		p_port_tbl_rec_dest[set_count - 1].pkey_tbl_size = htons(size_pkey_tbl_src);
 		p_ref_dataset->set_size = htonll(ntohll(p_ref_dataset->set_size)
