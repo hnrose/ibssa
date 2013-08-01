@@ -177,13 +177,25 @@ void ep_link_tbl_rec_init(osm_physp_t *p_physp, struct ep_link_tbl_rec *p_rec)
 
 void ep_port_tbl_rec_init(osm_physp_t *p_physp, struct ep_port_tbl_rec *p_rec)
 {
+	const ib_port_info_t *p_pi;
+	const osm_physp_t *p_physp0;
+
+	if (osm_node_get_type(p_physp->p_node) == IB_NODE_TYPE_SWITCH &&
+	    osm_physp_get_port_num(p_physp) > 0) {
+		/* for SW external ports, port 0 Capability Mask is used  */
+		p_physp0 = osm_node_get_physp_ptr((osm_node_t *)p_physp->p_node, 0);
+		p_pi = &p_physp0->port_info;
+	} else {
+		p_pi = &p_physp->port_info;
+	}
+
 	p_rec->pkey_tbl_offset		= 0;
 	p_rec->pkey_tbl_size		= 0;
 	p_rec->port_lid			= osm_physp_get_base_lid(p_physp);
 	p_rec->port_num			= osm_physp_get_port_num(p_physp);
 	p_rec->neighbor_mtu		= ib_port_info_get_neighbor_mtu(&p_physp->port_info);
 	p_rec->rate			= ib_port_info_compute_rate(&p_physp->port_info,
-					   p_physp->port_info.capability_mask & IB_PORT_CAP_HAS_EXT_SPEEDS);
+								    p_pi->capability_mask & IB_PORT_CAP_HAS_EXT_SPEEDS);
 	p_rec->vl_enforce		= p_physp->port_info.vl_enforce;
 	p_rec->is_fdr10_active		= p_physp->ext_port_info.link_speed_active & FDR10;
 
