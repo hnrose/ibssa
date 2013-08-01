@@ -182,9 +182,8 @@ void ep_port_tbl_rec_init(osm_physp_t *p_physp, struct ep_port_tbl_rec *p_rec)
 	p_rec->port_lid			= osm_physp_get_base_lid(p_physp);
 	p_rec->port_num			= osm_physp_get_port_num(p_physp);
 	p_rec->neighbor_mtu		= ib_port_info_get_neighbor_mtu(&p_physp->port_info);
-	p_rec->link_speed_ext		= p_physp->port_info.link_speed_ext;
-	p_rec->link_speed		= p_physp->port_info.link_speed;
-	p_rec->link_width_active	= p_physp->port_info.link_width_active;
+	p_rec->rate			= ib_port_info_compute_rate(&p_physp->port_info,
+					   p_physp->port_info.capability_mask & IB_PORT_CAP_HAS_EXT_SPEEDS);
 	p_rec->vl_enforce		= p_physp->port_info.vl_enforce;
 	p_rec->is_fdr10_active		= p_physp->ext_port_info.link_speed_active & FDR10;
 

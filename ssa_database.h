@@ -81,12 +81,10 @@ struct ep_port_tbl_rec {
 	be16_t		port_lid;
 	uint8_t		port_num;
 	uint8_t		neighbor_mtu;
-	uint8_t		link_speed_ext;
-	uint8_t		link_speed;
-	uint8_t		link_width_active;
+	uint8_t		rate;
 	uint8_t		vl_enforce;
 	uint8_t		is_fdr10_active;
-	uint8_t		pad[5];
+	uint8_t		pad[7];
 };
 
 struct ep_lft_top_tbl_rec {

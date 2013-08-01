@@ -103,11 +103,9 @@ static const struct db_field_def field_tbl[] = {
 	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_PORT_LID }, "port_lid", __constant_htonl(16), __constant_htonl(80) },
 	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_PORT_NUM }, "port_num", __constant_htonl(8), __constant_htonl(96) },
 	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_NEIGHBOR_MTU }, "neighbor_mtu", __constant_htonl(8), __constant_htonl(104) },
-	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_LINK_SPEED_EXT }, "link_speed_ext", __constant_htonl(8), __constant_htonl(112) },
-	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_LINK_SPEED }, "link_speed", __constant_htonl(8), __constant_htonl(120) },
-	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_LINK_WIDTH_ACTIVE }, "link_width_active", __constant_htonl(8), __constant_htonl(128) },
-	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_VL_ENFORCE }, "vl_enforce", __constant_htonl(8), __constant_htonl(136) },
-	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_IS_FDR10_ACTIVE }, "is_fdr10_active", __constant_htonl(8), __constant_htonl(144) },
+	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_RATE }, "rate", __constant_htonl(8), __constant_htonl(112) },
+	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_VL_ENFORCE }, "vl_enforce", __constant_htonl(8), __constant_htonl(120) },
+	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_IS_FDR10_ACTIVE }, "is_fdr10_active", __constant_htonl(8), __constant_htonl(128) },
 	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_LFT_TOP_FIELD_DEF, SSA_FIELD_ID_LFT_TOP_LID }, "lid", __constant_htonl(16), 0 },
 	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_LFT_TOP_FIELD_DEF, SSA_FIELD_ID_LFT_TOP_LFT_TOP }, "lft_top", __constant_htonl(16), __constant_htonl(16) },
 	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF, SSA_FIELD_ID_LFT_BLOCK_LID }, "lid", __constant_htonl(16), 0 },
@@ -739,9 +737,7 @@ static int ssa_db_port_cmp(cl_map_item_t * p_item_old,
 	if ((p_tbl_rec_old->pkey_tbl_size != p_tbl_rec_new->pkey_tbl_size) ||
 	    (p_tbl_rec_old->port_lid != p_tbl_rec_new->port_lid) ||
 	    (p_tbl_rec_old->neighbor_mtu != p_tbl_rec_new->neighbor_mtu) ||
-	    (p_tbl_rec_old->link_speed_ext != p_tbl_rec_new->link_speed_ext) ||
-	    (p_tbl_rec_old->link_speed != p_tbl_rec_new->link_speed) ||
-	    (p_tbl_rec_old->link_width_active != p_tbl_rec_new->link_width_active) ||
+	    (p_tbl_rec_old->rate != p_tbl_rec_new->rate) ||
 	    (p_tbl_rec_old->vl_enforce != p_tbl_rec_new->vl_enforce) ||
 	    (p_tbl_rec_old->is_fdr10_active != p_tbl_rec_new->is_fdr10_active))
 		res = 1;
@@ -1205,6 +1201,9 @@ static void ssa_db_diff_dump_port_rec(struct ssa_events * ssa,
 		ssa_log(SSA_LOG_VERBOSE, "Port LID %u Port Num %u\n",
 			ntohs(p_port_tbl_rec->port_lid),
 			p_port_tbl_rec->port_num);
+		ssa_log(SSA_LOG_VERBOSE, "NeighborMTU %u rate %u\n",
+			p_port_tbl_rec->neighbor_mtu,
+			p_port_tbl_rec->rate);
 		ssa_log(SSA_LOG_VERBOSE, "FDR10 %s active\n",
 			p_port_tbl_rec->is_fdr10_active ? "" : "not");
 		ssa_log(SSA_LOG_VERBOSE, "PKeys %u\n",
