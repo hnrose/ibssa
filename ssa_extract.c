@@ -555,9 +555,9 @@ void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 		ssa_log(SSA_LOG_VERBOSE, "Port LID %u Port Num %u\n",
 			ntohs(port_tbl_rec.port_lid), port_tbl_rec.port_num);
 		ssa_log(SSA_LOG_VERBOSE, "NeighborMTU %u rate %u\n",
-			port_tbl_rec.neighbor_mtu, port_tbl_rec.rate);
+			port_tbl_rec.neighbor_mtu, port_tbl_rec.rate & SSA_DB_PORT_RATE_MASK);
 		ssa_log(SSA_LOG_VERBOSE, "FDR10 %s active\n",
-			port_tbl_rec.is_fdr10_active ? "" : "not");
+			(port_tbl_rec.rate & SSA_DB_PORT_IS_FDR10_ACTIVE_MASK) ? "" : "not");
 		ssa_log(SSA_LOG_VERBOSE, "PKeys %u \n", ntohs(port_tbl_rec.pkey_tbl_size) *
 			sizeof(*p_ssa_db->p_pkey_tbl));
 	}

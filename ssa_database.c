@@ -179,6 +179,8 @@ void ep_port_tbl_rec_init(osm_physp_t *p_physp, struct ep_port_tbl_rec *p_rec)
 {
 	const ib_port_info_t *p_pi;
 	const osm_physp_t *p_physp0;
+	uint8_t is_fdr10_active;
+	uint8_t is_switch;
 
 	if (osm_node_get_type(p_physp->p_node) == IB_NODE_TYPE_SWITCH &&
 	    osm_physp_get_port_num(p_physp) > 0) {
@@ -189,17 +191,21 @@ void ep_port_tbl_rec_init(osm_physp_t *p_physp, struct ep_port_tbl_rec *p_rec)
 		p_pi = &p_physp->port_info;
 	}
 
+	is_fdr10_active = ((p_physp->ext_port_info.link_speed_active & FDR10) ? 0xff : 0) &
+					  SSA_DB_PORT_IS_FDR10_ACTIVE_MASK;
+	is_switch = ((osm_node_get_type(p_physp->p_node) == IB_NODE_TYPE_SWITCH) ? 0xff : 0) &
+					  SSA_DB_PORT_IS_SWITCH_MASK;
+
 	p_rec->pkey_tbl_offset		= 0;
 	p_rec->pkey_tbl_size		= 0;
 	p_rec->port_lid			= osm_physp_get_base_lid(p_physp);
 	p_rec->port_num			= osm_physp_get_port_num(p_physp);
 	p_rec->neighbor_mtu		= ib_port_info_get_neighbor_mtu(&p_physp->port_info);
 	p_rec->rate			= ib_port_info_compute_rate(&p_physp->port_info,
-								    p_pi->capability_mask & IB_PORT_CAP_HAS_EXT_SPEEDS);
+								    p_pi->capability_mask & IB_PORT_CAP_HAS_EXT_SPEEDS) &
+					  SSA_DB_PORT_RATE_MASK;
 	p_rec->vl_enforce		= p_physp->port_info.vl_enforce;
-	p_rec->is_fdr10_active		= p_physp->ext_port_info.link_speed_active & FDR10;
-
-	memset(&p_rec->pad, 0, sizeof(p_rec->pad));
+	p_rec->rate			= (uint8_t) (p_rec->rate | is_fdr10_active | is_switch);
 }
 
 void ep_lft_block_tbl_rec_init(osm_switch_t * p_sw, uint16_t lid, uint16_t block,

@@ -81,11 +81,13 @@ struct ep_port_tbl_rec {
 	be16_t		port_lid;
 	uint8_t		port_num;
 	uint8_t		neighbor_mtu;
-	uint8_t		rate;
+	uint8_t		rate; /* is_fdr10_active(1b), is_switch(1b) (appears in guid_to_lid record as well), rate(6b) */
 	uint8_t		vl_enforce;
-	uint8_t		is_fdr10_active;
-	uint8_t		pad[7];
 };
+
+#define SSA_DB_PORT_RATE_MASK			0x3F
+#define SSA_DB_PORT_IS_SWITCH_MASK		0x40
+#define SSA_DB_PORT_IS_FDR10_ACTIVE_MASK	0x80
 
 struct ep_lft_top_tbl_rec {
 	be16_t		lid;
