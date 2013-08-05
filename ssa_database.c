@@ -202,8 +202,7 @@ void ep_port_tbl_rec_init(osm_physp_t *p_physp, struct ep_port_tbl_rec *p_rec)
 	p_rec->port_num			= osm_physp_get_port_num(p_physp);
 	p_rec->neighbor_mtu		= ib_port_info_get_neighbor_mtu(&p_physp->port_info);
 	p_rec->rate			= ib_port_info_compute_rate(&p_physp->port_info,
-								    p_pi->capability_mask & IB_PORT_CAP_HAS_EXT_SPEEDS) &
-					  SSA_DB_PORT_RATE_MASK;
+								    p_pi->capability_mask & IB_PORT_CAP_HAS_EXT_SPEEDS);
 	p_rec->vl_enforce		= p_physp->port_info.vl_enforce;
 	p_rec->rate			= (uint8_t) (p_rec->rate | is_fdr10_active | is_switch);
 }
