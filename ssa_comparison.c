@@ -1505,6 +1505,38 @@ static void ep_lft_top_qmap_copy(cl_qmap_t *p_dest_qmap,
 
 /** =========================================================================
  */
+static uint64_t ssa_db_diff_new_qmap_recs(cl_qmap_t * p_map_old, cl_qmap_t * p_map_new)
+{
+	cl_map_item_t *p_item_old, *p_item_new;
+	uint64_t key_old, key_new;
+	uint64_t new_recs = 0;
+
+	p_item_old = cl_qmap_head(p_map_old);
+	p_item_new = cl_qmap_head(p_map_new);
+	while (p_item_old != cl_qmap_end(p_map_old) && p_item_new != cl_qmap_end(p_map_new)) {
+		key_old = cl_qmap_key(p_item_old);
+		key_new = cl_qmap_key(p_item_new);
+		if (key_old < key_new) {
+			p_item_old = cl_qmap_next(p_item_old);
+		} else if (key_old > key_new) {
+			new_recs++;
+			p_item_new = cl_qmap_next(p_item_new);
+		} else {
+			p_item_old = cl_qmap_next(p_item_old);
+			p_item_new = cl_qmap_next(p_item_new);
+		}
+	}
+
+	while (p_item_new != cl_qmap_end(p_map_new)) {
+		new_recs++;
+		p_item_new = cl_qmap_next(p_item_new);
+	}
+
+	return new_recs;
+}
+
+/** =========================================================================
+ */
 struct ssa_db_diff *ssa_db_compare(struct ssa_events * ssa,
 				   struct ssa_database * ssa_db)
 {
@@ -1512,6 +1544,7 @@ struct ssa_db_diff *ssa_db_compare(struct ssa_events * ssa,
 	uint64_t guid_to_lid_num_recs, node_num_recs;
 	uint64_t link_num_recs, port_num_recs, pkey_num_recs;
 	uint64_t lft_top_num_recs, lft_block_num_recs;
+	uint64_t new_recs;
 
 	ssa_log(SSA_LOG_VERBOSE, "[\n");
 
@@ -1566,20 +1599,24 @@ struct ssa_db_diff *ssa_db_compare(struct ssa_events * ssa,
 				     p_ssa_db_diff->p_tables[SSA_TABLE_ID_LFT_TOP], &ssa_db->p_lft_db->ep_dump_lft_top_tbl,
 				     ssa_db->p_lft_db->p_dump_lft_top_tbl);
 
-		if (cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_top_tbl) > 0) {
+		new_recs = ssa_db_diff_new_qmap_recs(&ssa_db->p_lft_db->ep_db_lft_top_tbl,
+						     &ssa_db->p_lft_db->ep_dump_lft_top_tbl);
+		if (new_recs > 0) {
 			ssa_db->p_lft_db->p_db_lft_top_tbl = (struct ep_lft_top_tbl_rec *)
-						realloc(&ssa_db->p_lft_db->p_db_lft_top_tbl[0],
-							(cl_qmap_count(&ssa_db->p_lft_db->ep_db_lft_top_tbl) +
-							 cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_top_tbl)) *
-							 sizeof(*ssa_db->p_lft_db->p_db_lft_top_tbl));
+					realloc(&ssa_db->p_lft_db->p_db_lft_top_tbl[0],
+						(cl_qmap_count(&ssa_db->p_lft_db->ep_db_lft_top_tbl) + new_recs) *
+						 sizeof(*ssa_db->p_lft_db->p_db_lft_top_tbl));
 		}
-		if (cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_block_tbl) > 0) {
+
+		new_recs = ssa_db_diff_new_qmap_recs(&ssa_db->p_lft_db->ep_db_lft_block_tbl,
+						     &ssa_db->p_lft_db->ep_dump_lft_block_tbl);
+		if (new_recs > 0) {
 			ssa_db->p_lft_db->p_db_lft_block_tbl = (struct ep_lft_block_tbl_rec *)
-						realloc(&ssa_db->p_lft_db->p_db_lft_block_tbl[0],
-							(cl_qmap_count(&ssa_db->p_lft_db->ep_db_lft_block_tbl) +
-							 cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_block_tbl)) *
-							 sizeof(*ssa_db->p_lft_db->p_db_lft_block_tbl));
+					realloc(&ssa_db->p_lft_db->p_db_lft_block_tbl[0],
+						(cl_qmap_count(&ssa_db->p_lft_db->ep_db_lft_block_tbl) + new_recs) *
+						 sizeof(*ssa_db->p_lft_db->p_db_lft_block_tbl));
 		}
+
 		/* Apply LFT block / top changes on existing LFT database */
 		ep_lft_block_qmap_copy(&ssa_db->p_lft_db->ep_db_lft_block_tbl, NULL,
 				     ssa_db->p_lft_db->p_db_lft_block_tbl, &ssa_db->p_lft_db->ep_dump_lft_block_tbl,
