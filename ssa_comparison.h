@@ -38,6 +38,7 @@
 #include <complib/cl_qmap.h>
 #include <ssa_plugin.h>
 #include <ssa_database.h>
+#include <ssa_smdb.h>
 #include <ssa_db.h>
 
 #ifdef __cplusplus
@@ -49,91 +50,10 @@
 #endif                          /* __cplusplus */
 
 BEGIN_C_DECLS
-#define SSA_DB_CHANGEMASK_SUBNET_PREFIX 	(((uint16_t)1)<<0)
-#define SSA_DB_CHANGEMASK_SM_STATE 		(((uint16_t)1)<<1)
-#define SSA_DB_CHANGEMASK_LMC 			(((uint16_t)1)<<2)
-#define SSA_DB_CHANGEMASK_SUBNET_TIMEOUT 	(((uint16_t)1)<<3)
-#define SSA_DB_CHANGEMASK_ALLOW_BOTH_PKEYS	(((uint16_t)1)<<5)
-
-enum ssa_db_diff_table_id {
-	SSA_TABLE_ID_TABLE_DEF = -2,
-	SSA_TABLE_ID_GUID_TO_LID = 0,
-	SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF,
-	SSA_TABLE_ID_NODE,
-	SSA_TABLE_ID_NODE_FIELD_DEF,
-	SSA_TABLE_ID_LINK,
-	SSA_TABLE_ID_LINK_FIELD_DEF,
-	SSA_TABLE_ID_PORT,
-	SSA_TABLE_ID_PORT_FIELD_DEF,
-	SSA_TABLE_ID_PKEY,
-	SSA_TABLE_ID_LFT_TOP,
-	SSA_TABLE_ID_LFT_TOP_FIELD_DEF,
-	SSA_TABLE_ID_LFT_BLOCK,
-	SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF,
-	SSA_TABLE_ID_MAX
-};
-
-enum ssa_db_diff_guid_to_lid_fields {
-	SSA_FIELD_ID_GUID_TO_LID_GUID,
-	SSA_FIELD_ID_GUID_TO_LID_LID,
-	SSA_FIELD_ID_GUID_TO_LID_LMC,
-	SSA_FIELD_ID_GUID_TO_LID_IS_SWITCH,
-	SSA_FIELD_ID_GUID_TO_LID_MAX
-};
-
-enum ssa_db_diff_node_fields {
-	SSA_FIELD_ID_NODE_NODE_GUID,
-	SSA_FIELD_ID_NODE_IS_ENHANCED_SP0,
-	SSA_FIELD_ID_NODE_NODE_TYPE,
-	SSA_FIELD_ID_NODE_DESCRIPTION,
-	SSA_FIELD_ID_NODE_MAX
-};
-
-enum ssa_db_diff_link_fields {
-	SSA_FIELD_ID_LINK_FROM_LID,
-	SSA_FIELD_ID_LINK_TO_LID,
-	SSA_FIELD_ID_LINK_FROM_PORT_NUM,
-	SSA_FIELD_ID_LINK_TO_PORT_NUM,
-	SSA_FIELD_ID_LINK_MAX
-};
-
-enum ssa_db_diff_port_fields {
-	SSA_FIELD_ID_PORT_PKEY_TBL_OFFSET,
-	SSA_FIELD_ID_PORT_PKEY_TBL_SIZE,
-	SSA_FIELD_ID_PORT_PORT_LID,
-	SSA_FIELD_ID_PORT_PORT_NUM,
-	SSA_FIELD_ID_PORT_NEIGHBOR_MTU,
-	SSA_FIELD_ID_PORT_RATE,
-	SSA_FIELD_ID_PORT_VL_ENFORCE,
-	SSA_FIELD_ID_PORT_IS_FDR10_ACTIVE,
-	SSA_FIELD_ID_PORT_MAX
-};
-
-enum ssa_db_diff_lft_top_fields {
-	SSA_FIELD_ID_LFT_TOP_LID,
-	SSA_FIELD_ID_LFT_TOP_LFT_TOP,
-	SSA_FIELD_ID_LFT_TOP_MAX
-};
-
-enum ssa_db_diff_lft_block_fields {
-	SSA_FIELD_ID_LFT_BLOCK_LID,
-	SSA_FIELD_ID_LFT_BLOCK_BLOCK_NUM,
-	SSA_FIELD_ID_LFT_BLOCK_BLOCK,
-	SSA_FIELD_ID_LFT_BLOCK_MAX
-};
-
-#define SSA_TABLE_BLOCK_SIZE			1024
 
 /* used for making comparison between two ssa databases */
 struct ssa_db_diff {
-	struct db_def			db_def;
-
-	struct db_dataset		db_table_def;
-	struct db_table_def		*p_def_tbl;
-
-	/* data tables */
-	struct db_dataset		db_tables[SSA_TABLE_ID_MAX];
-	void				*p_tables[SSA_TABLE_ID_MAX];
+	struct ssa_db_smdb		smdb;
 
 	/***** guid_to_lid_tbl changes tracking **********/
 	cl_qmap_t ep_guid_to_lid_tbl_added;
@@ -155,15 +75,6 @@ struct ssa_db_diff {
 	cl_qmap_t ep_link_tbl_added;
 	cl_qmap_t ep_link_tbl_removed;
 	/*************************************************/
-
-	/* change_mask bits point to the changed data fields */
-	uint64_t change_mask;
-	uint64_t subnet_prefix;
-	uint8_t sm_state;
-	uint8_t lmc;
-	uint8_t subnet_timeout;
-	uint8_t enable_quirks;
-	uint8_t allow_both_pkeys;
 
 	/* TODO: add support for changes in SLVL and in future for QoS and LFTs */
 	uint8_t dirty;

@@ -38,268 +38,8 @@
 
 extern uint8_t first_time_subnet_up;
 
-static const struct db_table_def def_tbl[] = {
-	{ 1, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SSA_TABLE_ID_GUID_TO_LID, 0 },
-		"GUID to LID", __constant_htonl(sizeof(struct ep_guid_to_lid_tbl_rec)), 0 },
-	{ 1, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, 0 },
-		"GUID to LID fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(SSA_TABLE_ID_GUID_TO_LID) },
-	{ 1, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SSA_TABLE_ID_NODE, 0 },
-		"NODE", __constant_htonl(sizeof(struct ep_node_tbl_rec)), 0 },
-	{ 1, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, 0 },
-		"NODE fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(SSA_TABLE_ID_NODE) },
-	{ 1, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SSA_TABLE_ID_LINK, 0 },
-		"LINK", __constant_htonl(sizeof(struct ep_link_tbl_rec)), 0 },
-	{ 1, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SSA_TABLE_ID_LINK_FIELD_DEF, 0 },
-		"LINK fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(SSA_TABLE_ID_LINK) },
-	{ 1, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SSA_TABLE_ID_PORT, 0 },
-		"PORT", __constant_htonl(sizeof(struct ep_port_tbl_rec)), 0 },
-	{ 1, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, 0 },
-		"PORT fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(SSA_TABLE_ID_PORT) },
-	{ 1, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SSA_TABLE_ID_PKEY, 0 },
-		"PKEY", __constant_htonl(DB_VARIABLE_SIZE), __constant_htonl(SSA_TABLE_ID_PORT) },
-	{ 1, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SSA_TABLE_ID_LFT_TOP, 0 },
-		"LFT TOP", __constant_htonl(sizeof(struct ep_lft_top_tbl_rec)), 0 },
-	{ 1, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SSA_TABLE_ID_LFT_TOP_FIELD_DEF, 0 },
-		"LFT TOP fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(SSA_TABLE_ID_LFT_TOP) },
-	{ 1, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SSA_TABLE_ID_LFT_BLOCK, 0 },
-		"LFT BLOCK", __constant_htonl(sizeof(struct ep_lft_block_tbl_rec)), 0 },
-	{ 1, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF, 0 },
-		"LFT BLOCK fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(SSA_TABLE_ID_LFT_BLOCK) },
-	{ 0 }
-};
-
-static const struct db_dataset dataset_tbl[] = {
-	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_GUID_TO_LID, 0 }, 0, 0, 0, 0 },
-	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, 0 }, 0, 0, 0, 0 },
-	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_NODE, 0 }, 0, 0, 0, 0 },
-	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, 0 }, 0, 0, 0, 0 },
-	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_LINK, 0 }, 0, 0, 0, 0 },
-	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_LINK_FIELD_DEF, 0 }, 0, 0, 0, 0 },
-	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_PORT, 0 }, 0, 0, 0, 0 },
-	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, 0 }, 0, 0, 0, 0 },
-	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_PKEY, 0 }, 0, 0, 0, 0 },
-	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_LFT_TOP, 0 }, 0, 0, 0, 0 },
-	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_LFT_TOP_FIELD_DEF, 0 }, 0, 0, 0, 0 },
-	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_LFT_BLOCK, 0 }, 0, 0, 0, 0 },
-	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF, 0 }, 0, 0, 0, 0 },
-	{ 0 }
-};
-
-static const struct db_field_def field_tbl[] = {
-	{ 1, 0, DBF_TYPE_NET64, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, SSA_FIELD_ID_GUID_TO_LID_GUID }, "guid", __constant_htonl(64), 0 },
-	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, SSA_FIELD_ID_GUID_TO_LID_LID }, "lid", __constant_htonl(16), __constant_htonl(64) },
-	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, SSA_FIELD_ID_GUID_TO_LID_LMC }, "lmc", __constant_htonl(8), __constant_htonl(80) },
-	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, SSA_FIELD_ID_GUID_TO_LID_IS_SWITCH }, "is_switch", __constant_htonl(8), __constant_htonl(88) },
-	{ 1, 0, DBF_TYPE_NET64, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_NODE_GUID }, "node_guid", __constant_htonl(64), 0 },
-	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_IS_ENHANCED_SP0 }, "is_enhanced_sp0", __constant_htonl(8), __constant_htonl(64) },
-	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_NODE_TYPE }, "node_type", __constant_htonl(8), __constant_htonl(72) },
-	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_IS_ENHANCED_SP0 }, "description", __constant_htonl(8 * IB_NODE_DESCRIPTION_SIZE), __constant_htonl(80) },
-	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_LINK_FIELD_DEF, SSA_FIELD_ID_LINK_FROM_LID }, "from_lid", __constant_htonl(16), 0 },
-	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_LINK_FIELD_DEF, SSA_FIELD_ID_LINK_TO_LID }, "to_lid", __constant_htonl(16), __constant_htonl(16) },
-	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_LINK_FIELD_DEF, SSA_FIELD_ID_LINK_FROM_PORT_NUM }, "from_port_num", __constant_htonl(8), __constant_htonl(32) },
-	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_LINK_FIELD_DEF, SSA_FIELD_ID_LINK_TO_PORT_NUM }, "to_port_num", __constant_htonl(8), __constant_htonl(40) },
-	{ 1, 0, DBF_TYPE_NET64, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_PKEY_TBL_OFFSET }, "pkey_tbl_offset", __constant_htonl(64), 0 },
-	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_PKEY_TBL_SIZE }, "pkey_tbl_size", __constant_htonl(16), __constant_htonl(64) },
-	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_PORT_LID }, "port_lid", __constant_htonl(16), __constant_htonl(80) },
-	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_PORT_NUM }, "port_num", __constant_htonl(8), __constant_htonl(96) },
-	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_NEIGHBOR_MTU }, "neighbor_mtu", __constant_htonl(8), __constant_htonl(104) },
-	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_RATE }, "rate", __constant_htonl(8), __constant_htonl(112) },
-	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_VL_ENFORCE }, "vl_enforce", __constant_htonl(8), __constant_htonl(120) },
-	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_IS_FDR10_ACTIVE }, "is_fdr10_active", __constant_htonl(8), __constant_htonl(128) },
-	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_LFT_TOP_FIELD_DEF, SSA_FIELD_ID_LFT_TOP_LID }, "lid", __constant_htonl(16), 0 },
-	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_LFT_TOP_FIELD_DEF, SSA_FIELD_ID_LFT_TOP_LFT_TOP }, "lft_top", __constant_htonl(16), __constant_htonl(16) },
-	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF, SSA_FIELD_ID_LFT_BLOCK_LID }, "lid", __constant_htonl(16), 0 },
-	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF, SSA_FIELD_ID_LFT_BLOCK_BLOCK_NUM }, "block_num", __constant_htonl(16), __constant_htonl(16) },
-	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF, SSA_FIELD_ID_LFT_BLOCK_BLOCK }, "block", __constant_htonl(8 * IB_SMP_DATA_SIZE), __constant_htonl(32) },
-	{ 0 }
-};
-
-struct db_field {
-	enum ssa_db_diff_table_id	table_id;
-	uint8_t				fields_num;
-};
-
-static const struct db_field field_per_table[] = {
-	{ SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, SSA_FIELD_ID_GUID_TO_LID_MAX},
-	{ SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_MAX},
-	{ SSA_TABLE_ID_LINK_FIELD_DEF, SSA_FIELD_ID_LINK_MAX},
-	{ SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_MAX},
-	{ SSA_TABLE_ID_LFT_TOP_FIELD_DEF, SSA_FIELD_ID_LFT_TOP_MAX},
-	{ SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF, SSA_FIELD_ID_LFT_BLOCK_MAX},
-	{ 0 }
-};
-
-static
-void ssa_db_diff_db_def_init(struct db_def * p_db_def,
-			     uint8_t version, uint8_t size,
-			     uint8_t db_id, uint8_t table_id,
-			     uint8_t field_id, const char * name,
-			     uint32_t table_def_size)
-{
-	p_db_def->version		= version;
-	p_db_def->size			= size;
-	p_db_def->id.db			= db_id;
-	p_db_def->id.table		= table_id;
-	p_db_def->id.field		= field_id;
-	strcpy(p_db_def->name, name);
-	p_db_def->table_def_size	= htonl(table_def_size);
-}
-
 /** =========================================================================
  */
-static
-void ssa_db_diff_dataset_init(struct db_dataset * p_dataset,
-			      uint8_t version, uint8_t size,
-			      uint8_t access, uint8_t db_id,
-			      uint8_t table_id, uint8_t field_id,
-			      uint64_t epoch, uint64_t set_size,
-			      uint64_t set_offset, uint64_t set_count)
-{
-	p_dataset->version	= version;
-	p_dataset->size		= size;
-	p_dataset->access	= access;
-	p_dataset->id.db	= db_id;
-	p_dataset->id.table	= table_id;
-	p_dataset->id.field	= field_id;
-	p_dataset->epoch	= htonll(epoch);
-	p_dataset->set_size	= htonll(set_size);
-	p_dataset->set_offset	= htonll(set_offset);
-	p_dataset->set_count	= htonll(set_count);
-}
-
-/** =========================================================================
- */
-static
-void ssa_db_diff_table_def_insert(struct db_table_def * p_tbl,
-				  struct db_dataset * p_dataset,
-				  uint8_t version, uint8_t size,
-				  uint8_t type, uint8_t access,
-				  uint8_t db_id, uint8_t table_id,
-				  uint8_t field_id, const char * name,
-				  uint32_t record_size, uint32_t ref_table_id)
-{
-	struct db_table_def db_table_def_rec;
-
-	memset(&db_table_def_rec, 0, sizeof(db_table_def_rec));
-
-	db_table_def_rec.version	= version;
-	db_table_def_rec.size		= size;
-	db_table_def_rec.type		= type;
-	db_table_def_rec.access		= access;
-	db_table_def_rec.id.db		= db_id;
-	db_table_def_rec.id.table	= table_id;
-	db_table_def_rec.id.field	= field_id;
-	strcpy(db_table_def_rec.name, name);
-	db_table_def_rec.record_size	= htonl(record_size);
-	db_table_def_rec.ref_table_id	= htonl(ref_table_id);
-
-	memcpy(&p_tbl[ntohll(p_dataset->set_count)], &db_table_def_rec,
-	       sizeof(*p_tbl));
-	p_dataset->set_count = htonll(ntohll(p_dataset->set_count) + 1);
-	p_dataset->set_size = htonll(ntohll(p_dataset->set_size) + sizeof(*p_tbl));
-}
-
-/** =========================================================================
- */
-static
-void ssa_db_diff_field_def_insert(struct db_field_def * p_tbl,
-				  struct db_dataset * p_dataset,
-				  uint8_t version, uint8_t type,
-				  uint8_t db_id, uint8_t table_id,
-				  uint8_t field_id, const char * name,
-				  uint32_t field_size, uint32_t field_offset)
-{
-	struct db_field_def db_field_def_rec;
-
-	memset(&db_field_def_rec, 0, sizeof(db_field_def_rec));
-
-	db_field_def_rec.version	= version;
-	db_field_def_rec.type		= type;
-	db_field_def_rec.id.db		= db_id;
-	db_field_def_rec.id.table	= table_id;
-	db_field_def_rec.id.field	= field_id;
-	strcpy(db_field_def_rec.name, name);
-	db_field_def_rec.field_size	= htonl(field_size);
-	db_field_def_rec.field_offset	= htonl(field_offset);
-
-	memcpy(&p_tbl[ntohll(p_dataset->set_count)], &db_field_def_rec,
-	       sizeof(*p_tbl));
-	p_dataset->set_count = htonll(ntohll(p_dataset->set_count) + 1);
-	p_dataset->set_size = htonll(ntohll(p_dataset->set_size) + sizeof(*p_tbl));
-}
-
-/** =========================================================================
- */
-static void ssa_db_diff_tables_init(struct ssa_db_diff * p_ssa_db_diff)
-{
-	const struct db_table_def *p_tbl_def;
-	const struct db_dataset *p_dataset;
-	const struct db_field_def *p_field_def;
-	const struct db_field *p_field;
-
-	/*
-	 * db_def initialization
-	 */
-	ssa_db_diff_db_def_init(&p_ssa_db_diff->db_def,
-				0, sizeof(p_ssa_db_diff->db_def),
-				12 /* just some db_id */, 0, 0, "SMDB",
-				sizeof(*p_ssa_db_diff->p_def_tbl));
-
-	/*
-	 * Definition tables dataset initialization
-	 */
-	ssa_db_diff_dataset_init(&p_ssa_db_diff->db_table_def,
-				 0, sizeof(p_ssa_db_diff->db_table_def),
-				 0, 0, SSA_TABLE_ID_TABLE_DEF, 0,
-				 0, 0, 0, 0);
-
-	p_ssa_db_diff->p_def_tbl = (struct db_table_def *)
-		malloc(sizeof(*p_ssa_db_diff->p_def_tbl) * SSA_TABLE_ID_MAX);
-	if (!p_ssa_db_diff->p_def_tbl) {
-		/* add handling memory allocation failure */
-	}
-
-	/* adding table definitions */
-	for (p_tbl_def = def_tbl; p_tbl_def->version; p_tbl_def++)
-		ssa_db_diff_table_def_insert(p_ssa_db_diff->p_def_tbl,
-					     &p_ssa_db_diff->db_table_def,
-					     p_tbl_def->version, p_tbl_def->size,
-					     p_tbl_def->type, p_tbl_def->access,
-					     p_tbl_def->id.db, p_tbl_def->id.table,
-					     p_tbl_def->id.field, p_tbl_def->name,
-					     ntohl(p_tbl_def->record_size),
-					     ntohl(p_tbl_def->ref_table_id));
-
-	/* data tables datasets initialization */
-	for (p_dataset = dataset_tbl; p_dataset->version; p_dataset++)
-		ssa_db_diff_dataset_init(&p_ssa_db_diff->db_tables[p_dataset->id.table],
-					 p_dataset->version, p_dataset->size,
-					 p_dataset->access, p_dataset->id.db,
-					 p_dataset->id.table, p_dataset->id.field,
-					 p_dataset->epoch, p_dataset->set_size,
-					 p_dataset->set_offset,
-					 p_dataset->set_count);
-
-	/* field tables initialization */
-	for (p_field = field_per_table; p_field->table_id; p_field++) {
-		p_ssa_db_diff->p_tables[p_field->table_id] =
-			malloc(sizeof(struct db_field_def) * p_field->fields_num);
-		if (!p_ssa_db_diff->p_tables[p_field->table_id]) {
-			/* add handling memory allocation failure */
-		}
-		for (p_field_def = field_tbl; p_field_def->version; p_field_def++) {
-			if (p_field_def->id.table == p_field->table_id)
-				ssa_db_diff_field_def_insert(p_ssa_db_diff->p_tables[p_field->table_id],
-							     &p_ssa_db_diff->db_tables[p_field->table_id],
-							     p_field_def->version, p_field_def->type,
-							     p_field_def->id.db, p_field_def->id.table,
-							     p_field_def->id.field, p_field_def->name,
-							     ntohl(p_field_def->field_size),
-							     ntohl(p_field_def->field_offset));
-		}
-	}
-}
-
 struct ssa_db_diff *ssa_db_diff_init(uint64_t guid_to_lid_num_recs,
 				     uint64_t node_num_recs,
 				     uint64_t link_num_recs,
@@ -312,56 +52,10 @@ struct ssa_db_diff *ssa_db_diff_init(uint64_t guid_to_lid_num_recs,
 
 	p_ssa_db_diff = (struct ssa_db_diff *) calloc(1, sizeof(*p_ssa_db_diff));
 	if (p_ssa_db_diff) {
-		ssa_db_diff_tables_init(p_ssa_db_diff);
-
-		p_ssa_db_diff->p_tables[SSA_TABLE_ID_GUID_TO_LID] =
-			malloc(sizeof(struct ep_guid_to_lid_tbl_rec) * guid_to_lid_num_recs);
-
-		if (!p_ssa_db_diff->p_tables[SSA_TABLE_ID_GUID_TO_LID]) {
-			/* TODO: add handling memory allocation failure */
-		}
-
-		p_ssa_db_diff->p_tables[SSA_TABLE_ID_NODE] =
-			malloc(sizeof(struct ep_node_tbl_rec) * node_num_recs);
-
-		if (!p_ssa_db_diff->p_tables[SSA_TABLE_ID_NODE]) {
-			/* TODO: add handling memory allocation failure */
-		}
-
-		p_ssa_db_diff->p_tables[SSA_TABLE_ID_LINK] =
-			malloc(sizeof(struct ep_link_tbl_rec) * link_num_recs);
-
-		if (!p_ssa_db_diff->p_tables[SSA_TABLE_ID_LINK]) {
-			/* TODO: add handling memory allocation failure */
-		}
-
-		p_ssa_db_diff->p_tables[SSA_TABLE_ID_PORT] =
-			malloc(sizeof(struct ep_port_tbl_rec) * port_num_recs);
-
-		if (!p_ssa_db_diff->p_tables[SSA_TABLE_ID_PORT]) {
-			/* TODO: add handling memory allocation failure */
-		}
-
-		p_ssa_db_diff->p_tables[SSA_TABLE_ID_PKEY] =
-			malloc(sizeof(uint16_t) * pkey_num_recs);
-
-		if (!p_ssa_db_diff->p_tables[SSA_TABLE_ID_PKEY]) {
-			/* TODO: add handling memory allocation failure */
-		}
-
-		p_ssa_db_diff->p_tables[SSA_TABLE_ID_LFT_TOP] =
-			malloc(sizeof(struct ep_lft_top_tbl_rec) * lft_top_num_recs);
-
-		if (!p_ssa_db_diff->p_tables[SSA_TABLE_ID_LFT_TOP]) {
-			/* TODO: add handling memory allocation failure */
-		}
-
-		p_ssa_db_diff->p_tables[SSA_TABLE_ID_LFT_BLOCK] =
-			malloc(sizeof(struct ep_lft_block_tbl_rec) * lft_block_num_recs);
-
-		if (!p_ssa_db_diff->p_tables[SSA_TABLE_ID_LFT_BLOCK]) {
-			/* TODO: add handling memory allocation failure */
-		}
+		p_ssa_db_diff->smdb = ssa_db_smdb_init(guid_to_lid_num_recs, node_num_recs,
+						       link_num_recs, port_num_recs,
+						       pkey_num_recs, lft_top_num_recs,
+						       lft_block_num_recs);
 
 		cl_qmap_init(&p_ssa_db_diff->ep_guid_to_lid_tbl_added);
 		cl_qmap_init(&p_ssa_db_diff->ep_node_tbl_added);
@@ -379,23 +73,10 @@ struct ssa_db_diff *ssa_db_diff_init(uint64_t guid_to_lid_num_recs,
 
 /** =========================================================================
  */
-static void ssa_db_diff_tables_destroy(struct ssa_db_diff * p_ssa_db_diff)
-{
-	int i;
-
-	if (!p_ssa_db_diff)
-		return;
-
-	for (i = 0; i < SSA_TABLE_ID_MAX; i++)
-		free(p_ssa_db_diff->p_tables[i]);
-}
-
-/** =========================================================================
- */
 void ssa_db_diff_destroy(struct ssa_db_diff * p_ssa_db_diff)
 {
 	if (p_ssa_db_diff) {
-		ssa_db_diff_tables_destroy(p_ssa_db_diff);
+		ssa_db_smdb_destroy(&p_ssa_db_diff->smdb);
 
 		ssa_qmap_apply_func(&p_ssa_db_diff->ep_guid_to_lid_tbl_added,
 				   ep_map_rec_delete_pfn);
@@ -441,46 +122,46 @@ static void ssa_db_diff_compare_subnet_opts(struct ssa_db * p_previous_db,
 	uint8_t dirty = p_ssa_db_diff->dirty;
 
 	if (!p_previous_db->initialized && p_current_db->initialized) {
-		p_ssa_db_diff->subnet_prefix = p_current_db->subnet_prefix;
-		p_ssa_db_diff->sm_state = p_current_db->sm_state;
-		p_ssa_db_diff->lmc = p_current_db->lmc;
-		p_ssa_db_diff->subnet_timeout = p_current_db->subnet_timeout;
-		p_ssa_db_diff->allow_both_pkeys = p_current_db->allow_both_pkeys;
+		p_ssa_db_diff->smdb.subnet_prefix = p_current_db->subnet_prefix;
+		p_ssa_db_diff->smdb.sm_state = p_current_db->sm_state;
+		p_ssa_db_diff->smdb.lmc = p_current_db->lmc;
+		p_ssa_db_diff->smdb.subnet_timeout = p_current_db->subnet_timeout;
+		p_ssa_db_diff->smdb.allow_both_pkeys = p_current_db->allow_both_pkeys;
 
-		p_ssa_db_diff->change_mask |= SSA_DB_CHANGEMASK_SUBNET_PREFIX;
-		p_ssa_db_diff->change_mask |= SSA_DB_CHANGEMASK_SM_STATE;
-		p_ssa_db_diff->change_mask |= SSA_DB_CHANGEMASK_LMC;
-		p_ssa_db_diff->change_mask |= SSA_DB_CHANGEMASK_SUBNET_TIMEOUT;
-		p_ssa_db_diff->change_mask |= SSA_DB_CHANGEMASK_ALLOW_BOTH_PKEYS;
+		p_ssa_db_diff->smdb.change_mask |= SSA_DB_CHANGEMASK_SUBNET_PREFIX;
+		p_ssa_db_diff->smdb.change_mask |= SSA_DB_CHANGEMASK_SM_STATE;
+		p_ssa_db_diff->smdb.change_mask |= SSA_DB_CHANGEMASK_LMC;
+		p_ssa_db_diff->smdb.change_mask |= SSA_DB_CHANGEMASK_SUBNET_TIMEOUT;
+		p_ssa_db_diff->smdb.change_mask |= SSA_DB_CHANGEMASK_ALLOW_BOTH_PKEYS;
 
 		dirty = 1;
 		goto Exit;
 	}
 
 	if (p_previous_db->subnet_prefix != p_current_db->subnet_prefix) {
-		p_ssa_db_diff->subnet_prefix = p_current_db->subnet_prefix;
-		p_ssa_db_diff->change_mask |= SSA_DB_CHANGEMASK_SUBNET_PREFIX;
+		p_ssa_db_diff->smdb.subnet_prefix = p_current_db->subnet_prefix;
+		p_ssa_db_diff->smdb.change_mask |= SSA_DB_CHANGEMASK_SUBNET_PREFIX;
 		dirty = 1;
 	}
 	if (p_previous_db->sm_state != p_current_db->sm_state) {
-		p_ssa_db_diff->sm_state = p_current_db->sm_state;
-		p_ssa_db_diff->change_mask |= SSA_DB_CHANGEMASK_SM_STATE;
+		p_ssa_db_diff->smdb.sm_state = p_current_db->sm_state;
+		p_ssa_db_diff->smdb.change_mask |= SSA_DB_CHANGEMASK_SM_STATE;
 		dirty = 1;
 	}
 	if (p_previous_db->lmc != p_current_db->lmc) {
 		/* TODO: add error log message since the LMC is not supposed to change */
-		p_ssa_db_diff->lmc = p_current_db->lmc;
-		p_ssa_db_diff->change_mask |= SSA_DB_CHANGEMASK_LMC;
+		p_ssa_db_diff->smdb.lmc = p_current_db->lmc;
+		p_ssa_db_diff->smdb.change_mask |= SSA_DB_CHANGEMASK_LMC;
 		dirty = 1;
 	}
 	if (p_previous_db->subnet_timeout != p_current_db->subnet_timeout) {
-		p_ssa_db_diff->subnet_timeout = p_current_db->subnet_timeout;
-		p_ssa_db_diff->change_mask |= SSA_DB_CHANGEMASK_SUBNET_TIMEOUT;
+		p_ssa_db_diff->smdb.subnet_timeout = p_current_db->subnet_timeout;
+		p_ssa_db_diff->smdb.change_mask |= SSA_DB_CHANGEMASK_SUBNET_TIMEOUT;
 		dirty = 1;
 	}
 	if (p_previous_db->allow_both_pkeys != p_current_db->allow_both_pkeys) {
-		p_ssa_db_diff->allow_both_pkeys = p_current_db->allow_both_pkeys;
-		p_ssa_db_diff->change_mask |= SSA_DB_CHANGEMASK_ALLOW_BOTH_PKEYS;
+		p_ssa_db_diff->smdb.allow_both_pkeys = p_current_db->allow_both_pkeys;
+		p_ssa_db_diff->smdb.change_mask |= SSA_DB_CHANGEMASK_ALLOW_BOTH_PKEYS;
 		dirty = 1;
 	}
 Exit:
@@ -1021,8 +702,8 @@ static void ssa_db_diff_compare_subnet_tables(struct ssa_db * p_previous_db,
 					  ssa_db_guid_to_lid_cmp,
 					  &p_ssa_db_diff->ep_guid_to_lid_tbl_added,
 					  &p_ssa_db_diff->ep_guid_to_lid_tbl_removed,
-					  &p_ssa_db_diff->db_tables[SSA_TABLE_ID_GUID_TO_LID],
-					  (void **) &p_ssa_db_diff->p_tables[SSA_TABLE_ID_GUID_TO_LID]);
+					  &p_ssa_db_diff->smdb.db_tables[SSA_TABLE_ID_GUID_TO_LID],
+					  (void **) &p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_GUID_TO_LID]);
 
 	dirty = dirty << 1;
 	/*
@@ -1036,8 +717,8 @@ static void ssa_db_diff_compare_subnet_tables(struct ssa_db * p_previous_db,
 					  ssa_db_node_cmp,
 					  &p_ssa_db_diff->ep_node_tbl_added,
 					  &p_ssa_db_diff->ep_node_tbl_removed,
-					  &p_ssa_db_diff->db_tables[SSA_TABLE_ID_NODE],
-					  (void **) &p_ssa_db_diff->p_tables[SSA_TABLE_ID_NODE]);
+					  &p_ssa_db_diff->smdb.db_tables[SSA_TABLE_ID_NODE],
+					  (void **) &p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_NODE]);
 
 	dirty = dirty << 1;
 	/*
@@ -1051,8 +732,8 @@ static void ssa_db_diff_compare_subnet_tables(struct ssa_db * p_previous_db,
 					  ssa_db_link_cmp,
 					  &p_ssa_db_diff->ep_link_tbl_added,
 					  &p_ssa_db_diff->ep_link_tbl_removed,
-					  &p_ssa_db_diff->db_tables[SSA_TABLE_ID_LINK],
-					  (void **) &p_ssa_db_diff->p_tables[SSA_TABLE_ID_LINK]);
+					  &p_ssa_db_diff->smdb.db_tables[SSA_TABLE_ID_LINK],
+					  (void **) &p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_LINK]);
 
 	dirty = dirty << 1;
 	/*
@@ -1068,10 +749,10 @@ static void ssa_db_diff_compare_subnet_tables(struct ssa_db * p_previous_db,
 						ssa_db_port_cmp,
 						&p_ssa_db_diff->ep_port_tbl_added,
 						&p_ssa_db_diff->ep_port_tbl_removed,
-						&p_ssa_db_diff->db_tables[SSA_TABLE_ID_PORT],
-						(void **) &p_ssa_db_diff->p_tables[SSA_TABLE_ID_PORT],
-						&p_ssa_db_diff->db_tables[SSA_TABLE_ID_PKEY],
-						(void **) &p_ssa_db_diff->p_tables[SSA_TABLE_ID_PKEY]);
+						&p_ssa_db_diff->smdb.db_tables[SSA_TABLE_ID_PORT],
+						(void **) &p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_PORT],
+						&p_ssa_db_diff->smdb.db_tables[SSA_TABLE_ID_PKEY],
+						(void **) &p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_PKEY]);
 
 	if (dirty)
 		p_ssa_db_diff->dirty = 1;
@@ -1087,29 +768,29 @@ static void ssa_db_diff_dump_fabric_params(struct ssa_events * ssa,
 
 	ssa_log(SSA_LOG_VERBOSE, "Fabric parameters:\n");
 
-	if (p_ssa_db_diff->change_mask & SSA_DB_CHANGEMASK_SUBNET_PREFIX) {
+	if (p_ssa_db_diff->smdb.change_mask & SSA_DB_CHANGEMASK_SUBNET_PREFIX) {
 		ssa_log(SSA_LOG_VERBOSE, "Subnet Prefix: 0x%" PRIx64 "\n",
-			p_ssa_db_diff->subnet_prefix);
+			p_ssa_db_diff->smdb.subnet_prefix);
 		is_changed = 1;
 	}
-	if (p_ssa_db_diff->change_mask & SSA_DB_CHANGEMASK_SM_STATE) {
+	if (p_ssa_db_diff->smdb.change_mask & SSA_DB_CHANGEMASK_SM_STATE) {
 		ssa_log(SSA_LOG_VERBOSE, "SM state: %d\n",
-			p_ssa_db_diff->sm_state);
+			p_ssa_db_diff->smdb.sm_state);
 		is_changed = 1;
 	}
-	if (p_ssa_db_diff->change_mask & SSA_DB_CHANGEMASK_LMC) {
+	if (p_ssa_db_diff->smdb.change_mask & SSA_DB_CHANGEMASK_LMC) {
 		ssa_log(SSA_LOG_VERBOSE, "LMC: %u\n",
-			p_ssa_db_diff->lmc);
+			p_ssa_db_diff->smdb.lmc);
 		is_changed = 1;
 	}
-	if (p_ssa_db_diff->change_mask & SSA_DB_CHANGEMASK_SUBNET_TIMEOUT) {
+	if (p_ssa_db_diff->smdb.change_mask & SSA_DB_CHANGEMASK_SUBNET_TIMEOUT) {
 		ssa_log(SSA_LOG_VERBOSE, "Subnet timeout: %u\n",
-			p_ssa_db_diff->subnet_timeout);
+			p_ssa_db_diff->smdb.subnet_timeout);
 		is_changed = 1;
 	}
-	if (p_ssa_db_diff->change_mask & SSA_DB_CHANGEMASK_ALLOW_BOTH_PKEYS) {
+	if (p_ssa_db_diff->smdb.change_mask & SSA_DB_CHANGEMASK_ALLOW_BOTH_PKEYS) {
 		ssa_log(SSA_LOG_VERBOSE, "Both pkeys %sabled\n",
-			p_ssa_db_diff->allow_both_pkeys ? "en" : "dis");
+			p_ssa_db_diff->smdb.allow_both_pkeys ? "en" : "dis");
 		is_changed = 1;
 	}
 
@@ -1315,87 +996,87 @@ static void ssa_db_diff_dump(struct ssa_events * ssa,
 	ssa_log(ssa_log_level, "NODE records:\n");
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "NODE field definitions:\n");
-	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->p_tables[SSA_TABLE_ID_NODE_FIELD_DEF],
+	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_NODE_FIELD_DEF],
 				   SSA_FIELD_ID_NODE_MAX);
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "Added records:\n");
 	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_node_tbl_added,
 				 ssa, ssa_db_diff_dump_node_rec,
-				 p_ssa_db_diff->p_tables[SSA_TABLE_ID_NODE]);
+				 p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_NODE]);
 	ssa_log(ssa_log_level, "Removed records:\n");
 	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_node_tbl_removed,
 				 ssa, ssa_db_diff_dump_node_rec,
-				 p_ssa_db_diff->p_tables[SSA_TABLE_ID_NODE]);
+				 p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_NODE]);
 
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "GUID to LID records:\n");
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "GUID to LID field definitions:\n");
-	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->p_tables[SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF],
+	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF],
 				   SSA_FIELD_ID_GUID_TO_LID_MAX);
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "Added records:\n");
 	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_guid_to_lid_tbl_added,
 				 ssa, ssa_db_diff_dump_guid_to_lid_rec,
-				 p_ssa_db_diff->p_tables[SSA_TABLE_ID_GUID_TO_LID]);
+				 p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_GUID_TO_LID]);
 	ssa_log(ssa_log_level, "Removed records:\n");
 	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_guid_to_lid_tbl_removed,
 				 ssa, ssa_db_diff_dump_guid_to_lid_rec,
-				 p_ssa_db_diff->p_tables[SSA_TABLE_ID_GUID_TO_LID]);
+				 p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_GUID_TO_LID]);
 
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "PORT records:\n");
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "PORT field definitions:\n");
-	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->p_tables[SSA_TABLE_ID_PORT_FIELD_DEF],
+	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_PORT_FIELD_DEF],
 				   SSA_FIELD_ID_PORT_MAX);
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "Added records:\n");
 	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_port_tbl_added,
 				 ssa, ssa_db_diff_dump_port_rec,
-				 p_ssa_db_diff->p_tables[SSA_TABLE_ID_PORT]);
+				 p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_PORT]);
 	ssa_log(ssa_log_level, "Removed records:\n");
 	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_port_tbl_removed,
 				 ssa, ssa_db_diff_dump_port_rec,
-				 p_ssa_db_diff->p_tables[SSA_TABLE_ID_PORT]);
+				 p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_PORT]);
 
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "LFT block records:\n");
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "LFT block field definitions:\n");
-	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->p_tables[SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF],
+	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF],
 				   SSA_FIELD_ID_LFT_BLOCK_MAX);
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_lft_block_tbl,
 				 ssa, ssa_db_diff_dump_lft_block_rec,
-				 p_ssa_db_diff->p_tables[SSA_TABLE_ID_LFT_BLOCK]);
+				 p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_LFT_BLOCK]);
 
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "LFT top records:\n");
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "LFT top field definitions:\n");
-	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->p_tables[SSA_TABLE_ID_LFT_TOP_FIELD_DEF],
+	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_LFT_TOP_FIELD_DEF],
 				   SSA_FIELD_ID_LFT_TOP_MAX);
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_lft_top_tbl,
 				 ssa, ssa_db_diff_dump_lft_top_rec,
-				 p_ssa_db_diff->p_tables[SSA_TABLE_ID_LFT_TOP]);
+				 p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_LFT_TOP]);
 
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "Link Records:\n");
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "LINK field definitions:\n");
-	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->p_tables[SSA_TABLE_ID_LINK_FIELD_DEF],
+	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_LINK_FIELD_DEF],
 				   SSA_FIELD_ID_LINK_MAX);
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "Added records:\n");
 	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_link_tbl_added,
 				 ssa, ssa_db_diff_dump_link_rec,
-				 p_ssa_db_diff->p_tables[SSA_TABLE_ID_LINK]);
+				 p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_LINK]);
 	ssa_log(ssa_log_level, "Removed records:\n");
 	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_link_tbl_removed,
 				 ssa, ssa_db_diff_dump_link_rec,
-				 p_ssa_db_diff->p_tables[SSA_TABLE_ID_LINK]);
+				 p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_LINK]);
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "===================================\n");
 }
@@ -1585,18 +1266,18 @@ struct ssa_db_diff *ssa_db_compare(struct ssa_events * ssa,
 					  ssa_db->p_current_db, p_ssa_db_diff);
 
 	if (first_time_subnet_up) {
-		ep_lft_block_qmap_copy(&p_ssa_db_diff->ep_lft_block_tbl, &p_ssa_db_diff->db_tables[SSA_TABLE_ID_LFT_BLOCK],
-				     p_ssa_db_diff->p_tables[SSA_TABLE_ID_LFT_BLOCK], &ssa_db->p_lft_db->ep_db_lft_block_tbl,
+		ep_lft_block_qmap_copy(&p_ssa_db_diff->ep_lft_block_tbl, &p_ssa_db_diff->smdb.db_tables[SSA_TABLE_ID_LFT_BLOCK],
+				     p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_LFT_BLOCK], &ssa_db->p_lft_db->ep_db_lft_block_tbl,
 				     ssa_db->p_lft_db->p_db_lft_block_tbl);
-		ep_lft_top_qmap_copy(&p_ssa_db_diff->ep_lft_top_tbl, &p_ssa_db_diff->db_tables[SSA_TABLE_ID_LFT_TOP],
-				     p_ssa_db_diff->p_tables[SSA_TABLE_ID_LFT_TOP], &ssa_db->p_lft_db->ep_db_lft_top_tbl,
+		ep_lft_top_qmap_copy(&p_ssa_db_diff->ep_lft_top_tbl, &p_ssa_db_diff->smdb.db_tables[SSA_TABLE_ID_LFT_TOP],
+				     p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_LFT_TOP], &ssa_db->p_lft_db->ep_db_lft_top_tbl,
 				     ssa_db->p_lft_db->p_db_lft_top_tbl);
 	} else {
-		ep_lft_block_qmap_copy(&p_ssa_db_diff->ep_lft_block_tbl, &p_ssa_db_diff->db_tables[SSA_TABLE_ID_LFT_BLOCK],
-				     p_ssa_db_diff->p_tables[SSA_TABLE_ID_LFT_BLOCK], &ssa_db->p_lft_db->ep_dump_lft_block_tbl,
+		ep_lft_block_qmap_copy(&p_ssa_db_diff->ep_lft_block_tbl, &p_ssa_db_diff->smdb.db_tables[SSA_TABLE_ID_LFT_BLOCK],
+				     p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_LFT_BLOCK], &ssa_db->p_lft_db->ep_dump_lft_block_tbl,
 				     ssa_db->p_lft_db->p_dump_lft_block_tbl);
-		ep_lft_top_qmap_copy(&p_ssa_db_diff->ep_lft_top_tbl, &p_ssa_db_diff->db_tables[SSA_TABLE_ID_LFT_TOP],
-				     p_ssa_db_diff->p_tables[SSA_TABLE_ID_LFT_TOP], &ssa_db->p_lft_db->ep_dump_lft_top_tbl,
+		ep_lft_top_qmap_copy(&p_ssa_db_diff->ep_lft_top_tbl, &p_ssa_db_diff->smdb.db_tables[SSA_TABLE_ID_LFT_TOP],
+				     p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_LFT_TOP], &ssa_db->p_lft_db->ep_dump_lft_top_tbl,
 				     ssa_db->p_lft_db->p_dump_lft_top_tbl);
 
 		new_recs = ssa_db_diff_new_qmap_recs(&ssa_db->p_lft_db->ep_db_lft_top_tbl,
