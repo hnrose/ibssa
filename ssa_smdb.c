@@ -482,4 +482,3 @@ void ep_lft_top_tbl_rec_init(uint16_t lid, uint16_t lft_top, struct ep_lft_top_t
 	p_rec->lid = htons(lid);
 	p_rec->lft_top = htons(lft_top);
 }
-
