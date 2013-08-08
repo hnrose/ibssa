@@ -171,8 +171,7 @@ struct ep_lft_block_tbl_rec {
 #define SSA_DB_CHANGEMASK_SM_STATE		(((uint16_t) 1) << 1)
 #define SSA_DB_CHANGEMASK_LMC			(((uint16_t) 1) << 2)
 #define SSA_DB_CHANGEMASK_SUBNET_TIMEOUT	(((uint16_t) 1) << 3)
-#define SSA_DB_CHANGEMASK_ENABLE_QUIRKS		(((uint16_t) 1) << 4)
-#define SSA_DB_CHANGEMASK_ALLOW_BOTH_PKEYS	(((uint16_t) 1) << 5)
+#define SSA_DB_CHANGEMASK_ALLOW_BOTH_PKEYS	(((uint16_t) 1) << 4)
 
 #define SSA_TABLE_BLOCK_SIZE			1024
 
@@ -192,7 +191,6 @@ struct ssa_db_smdb {
         uint8_t				sm_state;
         uint8_t				lmc;
         uint8_t				subnet_timeout;
-        uint8_t				enable_quirks;
         uint8_t				allow_both_pkeys;
 };
 
