@@ -50,7 +50,7 @@
 
 BEGIN_C_DECLS
 
-enum ssa_db_diff_table_id {
+enum ssa_db_smdb_table_id {
 	SSA_TABLE_ID_TABLE_DEF = -2,
 	SSA_TABLE_ID_GUID_TO_LID = 0,
 	SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF,
@@ -68,7 +68,7 @@ enum ssa_db_diff_table_id {
 	SSA_TABLE_ID_MAX
 };
 
-enum ssa_db_diff_guid_to_lid_fields {
+enum ssa_db_smdb_guid_to_lid_fields {
 	SSA_FIELD_ID_GUID_TO_LID_GUID,
 	SSA_FIELD_ID_GUID_TO_LID_LID,
 	SSA_FIELD_ID_GUID_TO_LID_LMC,
@@ -76,7 +76,7 @@ enum ssa_db_diff_guid_to_lid_fields {
 	SSA_FIELD_ID_GUID_TO_LID_MAX
 };
 
-enum ssa_db_diff_node_fields {
+enum ssa_db_smdb_node_fields {
 	SSA_FIELD_ID_NODE_NODE_GUID,
 	SSA_FIELD_ID_NODE_IS_ENHANCED_SP0,
 	SSA_FIELD_ID_NODE_NODE_TYPE,
@@ -84,7 +84,7 @@ enum ssa_db_diff_node_fields {
 	SSA_FIELD_ID_NODE_MAX
 };
 
-enum ssa_db_diff_link_fields {
+enum ssa_db_smdb_link_fields {
 	SSA_FIELD_ID_LINK_FROM_LID,
 	SSA_FIELD_ID_LINK_TO_LID,
 	SSA_FIELD_ID_LINK_FROM_PORT_NUM,
@@ -92,7 +92,7 @@ enum ssa_db_diff_link_fields {
 	SSA_FIELD_ID_LINK_MAX
 };
 
-enum ssa_db_diff_port_fields {
+enum ssa_db_smdb_port_fields {
 	SSA_FIELD_ID_PORT_PKEY_TBL_OFFSET,
 	SSA_FIELD_ID_PORT_PKEY_TBL_SIZE,
 	SSA_FIELD_ID_PORT_PORT_LID,
@@ -104,13 +104,13 @@ enum ssa_db_diff_port_fields {
 	SSA_FIELD_ID_PORT_MAX
 };
 
-enum ssa_db_diff_lft_top_fields {
+enum ssa_db_smdb_lft_top_fields {
 	SSA_FIELD_ID_LFT_TOP_LID,
 	SSA_FIELD_ID_LFT_TOP_LFT_TOP,
 	SSA_FIELD_ID_LFT_TOP_MAX
 };
 
-enum ssa_db_diff_lft_block_fields {
+enum ssa_db_smdb_lft_block_fields {
 	SSA_FIELD_ID_LFT_BLOCK_LID,
 	SSA_FIELD_ID_LFT_BLOCK_BLOCK_NUM,
 	SSA_FIELD_ID_LFT_BLOCK_BLOCK,

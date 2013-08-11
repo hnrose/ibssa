@@ -111,7 +111,7 @@ static const struct db_field_def field_tbl[] = {
 };
 
 struct db_field {
-	enum ssa_db_diff_table_id	table_id;
+	enum ssa_db_smdb_table_id	table_id;
 	uint8_t				fields_num;
 };
 
