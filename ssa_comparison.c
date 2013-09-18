@@ -119,53 +119,63 @@ static void ssa_db_diff_compare_subnet_opts(struct ssa_db * p_previous_db,
 					    struct ssa_db * p_current_db,
 					    struct ssa_db_diff * p_ssa_db_diff)
 {
+	struct ep_subnet_opts_tbl_rec *p_subnet_opts =
+		(struct ep_subnet_opts_tbl_rec *)
+			p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_SUBNET_OPTS];
+	struct db_dataset *p_dataset =
+		(struct db_dataset *)
+			&p_ssa_db_diff->smdb.db_tables[SSA_TABLE_ID_SUBNET_OPTS];
 	uint8_t dirty = p_ssa_db_diff->dirty;
 
 	if (!p_previous_db->initialized && p_current_db->initialized) {
-		p_ssa_db_diff->smdb.subnet_prefix = p_current_db->subnet_prefix;
-		p_ssa_db_diff->smdb.sm_state = p_current_db->sm_state;
-		p_ssa_db_diff->smdb.lmc = p_current_db->lmc;
-		p_ssa_db_diff->smdb.subnet_timeout = p_current_db->subnet_timeout;
-		p_ssa_db_diff->smdb.allow_both_pkeys = p_current_db->allow_both_pkeys;
+		p_subnet_opts->subnet_prefix = p_current_db->subnet_prefix;
+		p_subnet_opts->sm_state = p_current_db->sm_state;
+		p_subnet_opts->lmc = p_current_db->lmc;
+		p_subnet_opts->subnet_timeout = p_current_db->subnet_timeout;
+		p_subnet_opts->allow_both_pkeys = p_current_db->allow_both_pkeys;
 
-		p_ssa_db_diff->smdb.change_mask |= SSA_DB_CHANGEMASK_SUBNET_PREFIX;
-		p_ssa_db_diff->smdb.change_mask |= SSA_DB_CHANGEMASK_SM_STATE;
-		p_ssa_db_diff->smdb.change_mask |= SSA_DB_CHANGEMASK_LMC;
-		p_ssa_db_diff->smdb.change_mask |= SSA_DB_CHANGEMASK_SUBNET_TIMEOUT;
-		p_ssa_db_diff->smdb.change_mask |= SSA_DB_CHANGEMASK_ALLOW_BOTH_PKEYS;
+		p_subnet_opts->change_mask |= SSA_DB_CHANGEMASK_SUBNET_PREFIX;
+		p_subnet_opts->change_mask |= SSA_DB_CHANGEMASK_SM_STATE;
+		p_subnet_opts->change_mask |= SSA_DB_CHANGEMASK_LMC;
+		p_subnet_opts->change_mask |= SSA_DB_CHANGEMASK_SUBNET_TIMEOUT;
+		p_subnet_opts->change_mask |= SSA_DB_CHANGEMASK_ALLOW_BOTH_PKEYS;
 
 		dirty = 1;
 		goto Exit;
 	}
 
 	if (p_previous_db->subnet_prefix != p_current_db->subnet_prefix) {
-		p_ssa_db_diff->smdb.subnet_prefix = p_current_db->subnet_prefix;
-		p_ssa_db_diff->smdb.change_mask |= SSA_DB_CHANGEMASK_SUBNET_PREFIX;
+		p_subnet_opts->subnet_prefix = p_current_db->subnet_prefix;
+		p_subnet_opts->change_mask |= SSA_DB_CHANGEMASK_SUBNET_PREFIX;
 		dirty = 1;
 	}
 	if (p_previous_db->sm_state != p_current_db->sm_state) {
-		p_ssa_db_diff->smdb.sm_state = p_current_db->sm_state;
-		p_ssa_db_diff->smdb.change_mask |= SSA_DB_CHANGEMASK_SM_STATE;
+		p_subnet_opts->sm_state = p_current_db->sm_state;
+		p_subnet_opts->change_mask |= SSA_DB_CHANGEMASK_SM_STATE;
 		dirty = 1;
 	}
 	if (p_previous_db->lmc != p_current_db->lmc) {
 		/* TODO: add error log message since the LMC is not supposed to change */
-		p_ssa_db_diff->smdb.lmc = p_current_db->lmc;
-		p_ssa_db_diff->smdb.change_mask |= SSA_DB_CHANGEMASK_LMC;
+		p_subnet_opts->lmc = p_current_db->lmc;
+		p_subnet_opts->change_mask |= SSA_DB_CHANGEMASK_LMC;
 		dirty = 1;
 	}
 	if (p_previous_db->subnet_timeout != p_current_db->subnet_timeout) {
-		p_ssa_db_diff->smdb.subnet_timeout = p_current_db->subnet_timeout;
-		p_ssa_db_diff->smdb.change_mask |= SSA_DB_CHANGEMASK_SUBNET_TIMEOUT;
+		p_subnet_opts->subnet_timeout = p_current_db->subnet_timeout;
+		p_subnet_opts->change_mask |= SSA_DB_CHANGEMASK_SUBNET_TIMEOUT;
 		dirty = 1;
 	}
 	if (p_previous_db->allow_both_pkeys != p_current_db->allow_both_pkeys) {
-		p_ssa_db_diff->smdb.allow_both_pkeys = p_current_db->allow_both_pkeys;
-		p_ssa_db_diff->smdb.change_mask |= SSA_DB_CHANGEMASK_ALLOW_BOTH_PKEYS;
+		p_subnet_opts->allow_both_pkeys = p_current_db->allow_both_pkeys;
+		p_subnet_opts->change_mask |= SSA_DB_CHANGEMASK_ALLOW_BOTH_PKEYS;
 		dirty = 1;
 	}
 Exit:
-	p_ssa_db_diff->dirty = dirty;
+	if (dirty) {
+		p_ssa_db_diff->dirty = dirty;
+		p_dataset->set_size = htonll(sizeof(*p_subnet_opts));
+		p_dataset->set_count = htonll(1);
+	}
 }
 
 /** =========================================================================
@@ -764,33 +774,36 @@ static void ssa_db_diff_compare_subnet_tables(struct ssa_db * p_previous_db,
 static void ssa_db_diff_dump_fabric_params(struct ssa_events * ssa,
 					   struct ssa_db_diff * p_ssa_db_diff)
 {
+	struct ep_subnet_opts_tbl_rec *p_subnet_opts =
+		(struct ep_subnet_opts_tbl_rec *)
+			p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_SUBNET_OPTS];
 	uint8_t is_changed = 0;
 
 	ssa_log(SSA_LOG_VERBOSE, "Fabric parameters:\n");
 
-	if (p_ssa_db_diff->smdb.change_mask & SSA_DB_CHANGEMASK_SUBNET_PREFIX) {
+	if (p_subnet_opts->change_mask & SSA_DB_CHANGEMASK_SUBNET_PREFIX) {
 		ssa_log(SSA_LOG_VERBOSE, "Subnet Prefix: 0x%" PRIx64 "\n",
-			p_ssa_db_diff->smdb.subnet_prefix);
+			p_subnet_opts->subnet_prefix);
 		is_changed = 1;
 	}
-	if (p_ssa_db_diff->smdb.change_mask & SSA_DB_CHANGEMASK_SM_STATE) {
+	if (p_subnet_opts->change_mask & SSA_DB_CHANGEMASK_SM_STATE) {
 		ssa_log(SSA_LOG_VERBOSE, "SM state: %d\n",
-			p_ssa_db_diff->smdb.sm_state);
+			p_subnet_opts->sm_state);
 		is_changed = 1;
 	}
-	if (p_ssa_db_diff->smdb.change_mask & SSA_DB_CHANGEMASK_LMC) {
+	if (p_subnet_opts->change_mask & SSA_DB_CHANGEMASK_LMC) {
 		ssa_log(SSA_LOG_VERBOSE, "LMC: %u\n",
-			p_ssa_db_diff->smdb.lmc);
+			p_subnet_opts->lmc);
 		is_changed = 1;
 	}
-	if (p_ssa_db_diff->smdb.change_mask & SSA_DB_CHANGEMASK_SUBNET_TIMEOUT) {
+	if (p_subnet_opts->change_mask & SSA_DB_CHANGEMASK_SUBNET_TIMEOUT) {
 		ssa_log(SSA_LOG_VERBOSE, "Subnet timeout: %u\n",
-			p_ssa_db_diff->smdb.subnet_timeout);
+			p_subnet_opts->subnet_timeout);
 		is_changed = 1;
 	}
-	if (p_ssa_db_diff->smdb.change_mask & SSA_DB_CHANGEMASK_ALLOW_BOTH_PKEYS) {
+	if (p_subnet_opts->change_mask & SSA_DB_CHANGEMASK_ALLOW_BOTH_PKEYS) {
 		ssa_log(SSA_LOG_VERBOSE, "Both pkeys %sabled\n",
-			p_ssa_db_diff->smdb.allow_both_pkeys ? "en" : "dis");
+			p_subnet_opts->allow_both_pkeys ? "en" : "dis");
 		is_changed = 1;
 	}
 

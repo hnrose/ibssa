@@ -38,6 +38,7 @@
 #include <opensm/osm_node.h>
 #include <opensm/osm_port.h>
 #include <opensm/osm_switch.h>
+#include <opensm/osm_subnet.h>
 #include <ssa_db.h>
 
 #ifdef __cplusplus
@@ -52,7 +53,9 @@ BEGIN_C_DECLS
 
 enum ssa_db_smdb_table_id {
 	SSA_TABLE_ID_TABLE_DEF = -2,
-	SSA_TABLE_ID_GUID_TO_LID = 0,
+	SSA_TABLE_ID_SUBNET_OPTS = 0,
+	SSA_TABLE_ID_SUBNET_OPTS_FIELD_DEF,
+	SSA_TABLE_ID_GUID_TO_LID,
 	SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF,
 	SSA_TABLE_ID_NODE,
 	SSA_TABLE_ID_NODE_FIELD_DEF,
@@ -66,6 +69,16 @@ enum ssa_db_smdb_table_id {
 	SSA_TABLE_ID_LFT_BLOCK,
 	SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF,
 	SSA_TABLE_ID_MAX
+};
+
+enum ssa_db_smdb_subnet_opts_fields {
+	SSA_FIELD_ID_SUBNET_OPTS_CHANGE_MASK,
+	SSA_FIELD_ID_SUBNET_OPTS_SUBNET_PREFIX,
+	SSA_FIELD_ID_SUBNET_OPTS_SM_STATE,
+	SSA_FIELD_ID_SUBNET_OPTS_LMC,
+	SSA_FIELD_ID_SUBNET_OPTS_SUBNET_TIMEOUT,
+	SSA_FIELD_ID_SUBNET_OPTS_ALLOW_BOTH_PKEYS,
+	SSA_FIELD_ID_SUBNET_OPTS_MAX
 };
 
 enum ssa_db_smdb_guid_to_lid_fields {
@@ -115,6 +128,17 @@ enum ssa_db_smdb_lft_block_fields {
 	SSA_FIELD_ID_LFT_BLOCK_BLOCK_NUM,
 	SSA_FIELD_ID_LFT_BLOCK_BLOCK,
 	SSA_FIELD_ID_LFT_BLOCK_MAX
+};
+
+struct ep_subnet_opts_tbl_rec {
+	/* change_mask bits point to the changed data fields */
+	be64_t		change_mask;
+	be64_t		subnet_prefix;
+	uint8_t		sm_state;
+	uint8_t		lmc;
+	uint8_t		subnet_timeout;
+	uint8_t		allow_both_pkeys;
+	uint8_t		pad[4];
 };
 
 struct ep_guid_to_lid_tbl_rec {
@@ -184,14 +208,6 @@ struct ssa_db_smdb {
         /* data tables */
         struct db_dataset               db_tables[SSA_TABLE_ID_MAX];
         void                            *p_tables[SSA_TABLE_ID_MAX];
-
-        /* change_mask bits point to the changed data fields */
-        uint64_t			change_mask;
-        uint64_t			subnet_prefix;
-        uint8_t				sm_state;
-        uint8_t				lmc;
-        uint8_t				subnet_timeout;
-        uint8_t				allow_both_pkeys;
 };
 
 struct ssa_db_smdb ssa_db_smdb_init(uint64_t guid_to_lid_num_recs, uint64_t node_num_recs,
@@ -200,6 +216,10 @@ struct ssa_db_smdb ssa_db_smdb_init(uint64_t guid_to_lid_num_recs, uint64_t node
 				    uint64_t lft_block_num_recs);
 
 void ssa_db_smdb_destroy(struct ssa_db_smdb * p_smdb);
+
+/**********************SUBNET OPTS records*******************************/
+void ep_subnet_opts_tbl_rec_init(osm_subn_t *p_subn,
+				 struct ep_subnet_opts_tbl_rec * p_rec);
 
 /**********************GUID to LID records*******************************/
 void ep_guid_to_lid_tbl_rec_init(osm_port_t *p_port,

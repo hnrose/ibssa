@@ -35,6 +35,10 @@
 #include <asm/byteorder.h>
 
 static const struct db_table_def def_tbl[] = {
+	{ 1, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SSA_TABLE_ID_SUBNET_OPTS, 0 },
+		"SUBNET OPTS", __constant_htonl(sizeof(struct ep_subnet_opts_tbl_rec)), 0 },
+	{ 1, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SSA_TABLE_ID_SUBNET_OPTS_FIELD_DEF, 0 },
+		"SUBNET OPTS fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(SSA_TABLE_ID_SUBNET_OPTS) },
 	{ 1, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SSA_TABLE_ID_GUID_TO_LID, 0 },
 		"GUID to LID", __constant_htonl(sizeof(struct ep_guid_to_lid_tbl_rec)), 0 },
 	{ 1, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, 0 },
@@ -65,6 +69,8 @@ static const struct db_table_def def_tbl[] = {
 };
 
 static const struct db_dataset dataset_tbl[] = {
+	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_SUBNET_OPTS, 0 }, 0, 0, 0, 0 },
+	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_SUBNET_OPTS_FIELD_DEF, 0 }, 0, 0, 0, 0 },
 	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_GUID_TO_LID, 0 }, 0, 0, 0, 0 },
 	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, 0 }, 0, 0, 0, 0 },
 	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_NODE, 0 }, 0, 0, 0, 0 },
@@ -82,6 +88,12 @@ static const struct db_dataset dataset_tbl[] = {
 };
 
 static const struct db_field_def field_tbl[] = {
+	{ 1, 0, DBF_TYPE_NET64, 0, { 0, SSA_TABLE_ID_SUBNET_OPTS_FIELD_DEF, SSA_FIELD_ID_SUBNET_OPTS_CHANGE_MASK }, "change_mask", __constant_htonl(64), 0 },
+	{ 1, 0, DBF_TYPE_NET64, 0, { 0, SSA_TABLE_ID_SUBNET_OPTS_FIELD_DEF, SSA_FIELD_ID_SUBNET_OPTS_SUBNET_PREFIX }, "subnet_prefix", __constant_htonl(64), __constant_htonl(64) },
+	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_SUBNET_OPTS_FIELD_DEF, SSA_FIELD_ID_SUBNET_OPTS_SM_STATE }, "sm_state", __constant_htonl(8), __constant_htonl(128) },
+	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_SUBNET_OPTS_FIELD_DEF, SSA_FIELD_ID_SUBNET_OPTS_LMC }, "lmc", __constant_htonl(8), __constant_htonl(136) },
+	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_SUBNET_OPTS_FIELD_DEF, SSA_FIELD_ID_SUBNET_OPTS_SUBNET_TIMEOUT }, "subnet_timeout", __constant_htonl(8), __constant_htonl(144) },
+	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_SUBNET_OPTS_FIELD_DEF, SSA_FIELD_ID_SUBNET_OPTS_ALLOW_BOTH_PKEYS }, "allow_both_pkeys", __constant_htonl(8), __constant_htonl(152) },
 	{ 1, 0, DBF_TYPE_NET64, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, SSA_FIELD_ID_GUID_TO_LID_GUID }, "guid", __constant_htonl(64), 0 },
 	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, SSA_FIELD_ID_GUID_TO_LID_LID }, "lid", __constant_htonl(16), __constant_htonl(64) },
 	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, SSA_FIELD_ID_GUID_TO_LID_LMC }, "lmc", __constant_htonl(8), __constant_htonl(80) },
@@ -116,6 +128,7 @@ struct db_field {
 };
 
 static const struct db_field field_per_table[] = {
+	{ SSA_TABLE_ID_SUBNET_OPTS_FIELD_DEF, SSA_FIELD_ID_SUBNET_OPTS_MAX},
 	{ SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, SSA_FIELD_ID_GUID_TO_LID_MAX},
 	{ SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_MAX},
 	{ SSA_TABLE_ID_LINK_FIELD_DEF, SSA_FIELD_ID_LINK_MAX},
@@ -310,6 +323,13 @@ struct ssa_db_smdb ssa_db_smdb_init(uint64_t guid_to_lid_num_recs,
 
 	ssa_db_smdb_tables_init(&smdb);
 
+	smdb.p_tables[SSA_TABLE_ID_SUBNET_OPTS] =
+		malloc(sizeof(struct ep_subnet_opts_tbl_rec));
+
+	if (!smdb.p_tables[SSA_TABLE_ID_SUBNET_OPTS]) {
+		/* TODO: add handling memory allocation failure */
+	}
+
 	smdb.p_tables[SSA_TABLE_ID_GUID_TO_LID] =
 		malloc(sizeof(struct ep_guid_to_lid_tbl_rec) * guid_to_lid_num_recs);
 
@@ -373,6 +393,21 @@ void ssa_db_smdb_destroy(struct ssa_db_smdb * p_smdb)
 
 	for (i = 0; i < SSA_TABLE_ID_MAX; i++)
 		free(p_smdb->p_tables[i]);
+}
+
+/** =========================================================================
+ */
+void ep_subnet_opts_tbl_rec_init(osm_subn_t * p_subn,
+				 struct ep_subnet_opts_tbl_rec * p_rec)
+{
+	p_rec->change_mask = 0;
+	p_rec->subnet_prefix = p_subn->opt.subnet_prefix;
+	p_rec->sm_state = p_subn->sm_state;
+	p_rec->lmc = p_subn->opt.lmc;
+	p_rec->subnet_timeout = p_subn->opt.subnet_timeout;
+	p_rec->allow_both_pkeys = (uint8_t) p_subn->opt.allow_both_pkeys;
+
+	memset(&p_rec->pad, 0, sizeof(p_rec->pad));
 }
 
 /** =========================================================================
