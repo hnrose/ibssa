@@ -56,10 +56,10 @@ struct ssa_db_ctrl_msg {
 	uint8_t				data[0];
 };
 
-struct ssa_db *ssa_db_extract(struct ssa_events *ssa);
-void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db);
+struct ssa_db_extract *ssa_db_extract(struct ssa_events *ssa);
+void ssa_db_validate(struct ssa_events *ssa, struct ssa_db_extract *p_ssa_db);
 void ssa_db_validate_lft(struct ssa_events *ssa);
-void ssa_db_remove(struct ssa_events *ssa, struct ssa_db *p_ssa_db);
+void ssa_db_remove(struct ssa_events *ssa, struct ssa_db_extract *p_ssa_db);
 void ssa_db_update(struct ssa_events *ssa, struct ssa_database *ssa_db);
 void *ssa_db_run(void *data);
 END_C_DECLS

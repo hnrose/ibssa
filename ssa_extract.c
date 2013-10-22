@@ -48,9 +48,9 @@ extern int fd[2];
 
 /** =========================================================================
  */
-struct ssa_db *ssa_db_extract(struct ssa_events *ssa)
+struct ssa_db_extract *ssa_db_extract(struct ssa_events *ssa)
 {
-	struct ssa_db *p_ssa;
+	struct ssa_db_extract *p_ssa;
 	osm_subn_t *p_subn = &ssa->p_osm->subn;
 	osm_node_t *p_node, *p_next_node;
 	osm_physp_t *p_physp;
@@ -496,20 +496,20 @@ void ssa_db_validate_lft(struct ssa_events *ssa)
 		lft_block_tbl_rec = ssa_db->p_lft_db->p_db_lft_block_tbl[i];
 		ssa_log(SSA_LOG_VERBOSE, "LFT Block Record: LID %u Block num %u\n",
 			ntohs(lft_block_tbl_rec.lid),
-			lft_block_tbl_rec.block_num);
+			ntohs(lft_block_tbl_rec.block_num));
 	}
 
 	for (i = 0; i < cl_qmap_count(&ssa_db->p_lft_db->ep_db_lft_top_tbl); i++) {
 		lft_top_tbl_rec = ssa_db->p_lft_db->p_db_lft_top_tbl[i];
 		ssa_log(SSA_LOG_VERBOSE, "LFT Top Record: LID %u New Top %u\n",
 			ntohs(lft_top_tbl_rec.lid),
-			lft_top_tbl_rec.lft_top);
+			ntohs(lft_top_tbl_rec.lft_top));
 	}
 }
 
 /** =========================================================================
  */
-void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
+void ssa_db_validate(struct ssa_events *ssa, struct ssa_db_extract *p_ssa_db)
 {
 	struct ep_guid_to_lid_tbl_rec guid_to_lid_tbl_rec;
 	struct ep_node_tbl_rec node_tbl_rec;
@@ -574,7 +574,7 @@ void ssa_db_validate(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
 
 /** =========================================================================
  */
-void ssa_db_remove(struct ssa_events *ssa, struct ssa_db *p_ssa_db)
+void ssa_db_remove(struct ssa_events *ssa, struct ssa_db_extract *p_ssa_db)
 {
 	struct ep_map_rec *p_map_rec, *p_map_rec_next;
 
@@ -645,11 +645,11 @@ void ssa_db_update(struct ssa_events *ssa,
 	/* Updating previous SMDB with current one */
 	if (ssa_db->p_current_db->initialized) {
 		ssa_db_remove(ssa, ssa_db->p_previous_db);
-		ssa_db_delete(ssa_db->p_previous_db);
+		ssa_db_extract_delete(ssa_db->p_previous_db);
 		ssa_db->p_previous_db = ssa_db->p_current_db;
 	}
 	ssa_db->p_current_db = ssa_db->p_dump_db;
-	ssa_db->p_dump_db = ssa_db_init();
+	ssa_db->p_dump_db = ssa_db_extract_init();
 
 	ssa_log(SSA_LOG_VERBOSE, "]\n");
 }

@@ -188,22 +188,22 @@ static void *construct(osm_opensm_t *osm)
 	ssa->osmlog = &osm->log;
 	ssa->p_osm = osm;
 
-	ssa_db->p_previous_db = ssa_db_init();
+	ssa_db->p_previous_db = ssa_db_extract_init();
 	if (!ssa_db->p_previous_db) {
-		ssa_log(SSA_LOG_ALL, "ssa_db_init failed (previous SMDB)\n");
+		ssa_log(SSA_LOG_ALL, "ssa_db_extract_init failed (previous SMDB)\n");
 		return (NULL);
 	}
-	ssa_db->p_current_db = ssa_db_init();
+	ssa_db->p_current_db = ssa_db_extract_init();
 	if (!ssa_db->p_current_db) {
-		ssa_log(SSA_LOG_ALL, "ssa_db_init failed (current SMDB)\n");
-		ssa_db_delete(ssa_db->p_previous_db);
+		ssa_log(SSA_LOG_ALL, "ssa_db_extract_init failed (current SMDB)\n");
+		ssa_db_extract_delete(ssa_db->p_previous_db);
 		return (NULL);
 	}
-	ssa_db->p_dump_db = ssa_db_init();
+	ssa_db->p_dump_db = ssa_db_extract_init();
 	if (!ssa_db->p_dump_db) {
-		ssa_log(SSA_LOG_ALL, "ssa_db_init failed (dump SMDB)\n");
-		ssa_db_delete(ssa_db->p_previous_db);
-		ssa_db_delete(ssa_db->p_current_db);
+		ssa_log(SSA_LOG_ALL, "ssa_db_extract_init failed (dump SMDB)\n");
+		ssa_db_extract_delete(ssa_db->p_previous_db);
+		ssa_db_extract_delete(ssa_db->p_current_db);
 		return (NULL);
 	}
 

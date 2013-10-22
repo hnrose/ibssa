@@ -65,7 +65,7 @@ struct ssa_db_lft {
 	cl_qmap_t ep_dump_lft_top_tbl;		/* LID based */
 };
 
-struct ssa_db {
+struct ssa_db_extract {
 	/* mutex ??? */
 	struct ep_guid_to_lid_tbl_rec	*p_guid_to_lid_tbl;
 	struct ep_node_tbl_rec		*p_node_tbl;
@@ -92,9 +92,9 @@ struct ssa_db {
 
 struct ssa_database {
 	/* mutex ??? */
-	struct ssa_db *p_current_db;
-	struct ssa_db *p_previous_db;
-	struct ssa_db *p_dump_db;
+	struct ssa_db_extract *p_current_db;
+	struct ssa_db_extract *p_previous_db;
+	struct ssa_db_extract *p_dump_db;
 	struct ssa_db_lft *p_lft_db;
 	pthread_mutex_t lft_rec_list_lock;
 	cl_qlist_t lft_rec_list;
@@ -106,8 +106,8 @@ extern struct ssa_database *ssa_db;
 struct ssa_database *ssa_database_init(void);
 void ssa_database_delete(struct ssa_database *p_ssa_db);
 /**********************SSA DB********************************************/
-struct ssa_db *ssa_db_init(void);
-void ssa_db_delete(struct ssa_db *p_ssa_db);
+struct ssa_db_extract *ssa_db_extract_init(void);
+void ssa_db_extract_delete(struct ssa_db_extract *p_ssa_db);
 /***********************************************************************/
 uint64_t ep_rec_gen_key(uint16_t base, uint16_t index);
 struct ep_map_rec *ep_map_rec_init(uint64_t offset);

@@ -70,19 +70,24 @@ static const struct db_table_def def_tbl[] = {
 
 static const struct db_dataset dataset_tbl[] = {
 	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_SUBNET_OPTS, 0 }, 0, 0, 0, 0 },
-	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_SUBNET_OPTS_FIELD_DEF, 0 }, 0, 0, 0, 0 },
 	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_GUID_TO_LID, 0 }, 0, 0, 0, 0 },
-	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, 0 }, 0, 0, 0, 0 },
 	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_NODE, 0 }, 0, 0, 0, 0 },
-	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, 0 }, 0, 0, 0, 0 },
 	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_LINK, 0 }, 0, 0, 0, 0 },
-	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_LINK_FIELD_DEF, 0 }, 0, 0, 0, 0 },
 	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_PORT, 0 }, 0, 0, 0, 0 },
-	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, 0 }, 0, 0, 0, 0 },
 	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_PKEY, 0 }, 0, 0, 0, 0 },
 	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_LFT_TOP, 0 }, 0, 0, 0, 0 },
-	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_LFT_TOP_FIELD_DEF, 0 }, 0, 0, 0, 0 },
 	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_LFT_BLOCK, 0 }, 0, 0, 0, 0 },
+	{ 0 }
+};
+
+static const struct db_dataset field_dataset_tbl[] = {
+	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_SUBNET_OPTS_FIELD_DEF, 0 }, 0, 0, 0, 0 },
+	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, 0 }, 0, 0, 0, 0 },
+	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, 0 }, 0, 0, 0, 0 },
+	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_LINK_FIELD_DEF, 0 }, 0, 0, 0, 0 },
+	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, 0 }, 0, 0, 0, 0 },
+	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_PKEY_FIELD_DEF, 0 }, 0, 0, 0, 0 },
+	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_LFT_TOP_FIELD_DEF, 0 }, 0, 0, 0, 0 },
 	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF, 0 }, 0, 0, 0, 0 },
 	{ 0 }
 };
@@ -122,277 +127,61 @@ static const struct db_field_def field_tbl[] = {
 	{ 0 }
 };
 
-struct db_field {
-	enum ssa_db_smdb_table_id	table_id;
-	uint8_t				fields_num;
-};
-
-static const struct db_field field_per_table[] = {
-	{ SSA_TABLE_ID_SUBNET_OPTS_FIELD_DEF, SSA_FIELD_ID_SUBNET_OPTS_MAX},
-	{ SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, SSA_FIELD_ID_GUID_TO_LID_MAX},
-	{ SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_MAX},
-	{ SSA_TABLE_ID_LINK_FIELD_DEF, SSA_FIELD_ID_LINK_MAX},
-	{ SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_MAX},
-	{ SSA_TABLE_ID_LFT_TOP_FIELD_DEF, SSA_FIELD_ID_LFT_TOP_MAX},
-	{ SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF, SSA_FIELD_ID_LFT_BLOCK_MAX},
-	{ 0 }
-};
-
-static
-void ssa_db_smdb_db_def_init(struct db_def * p_db_def,
-			     uint8_t version, uint8_t size,
-			     uint8_t db_id, uint8_t table_id,
-			     uint8_t field_id, const char * name,
-			     uint32_t table_def_size)
+/** =========================================================================
+ */
+struct ssa_db *ssa_db_smdb_init(uint64_t guid_to_lid_num_recs,
+				uint64_t node_num_recs,
+				uint64_t link_num_recs,
+				uint64_t port_num_recs,
+				uint64_t pkey_num_recs,
+				uint64_t lft_top_num_recs,
+				uint64_t lft_block_num_recs)
 {
-	p_db_def->version		= version;
-	p_db_def->size			= size;
-	p_db_def->id.db			= db_id;
-	p_db_def->id.table		= table_id;
-	p_db_def->id.field		= field_id;
-	strcpy(p_db_def->name, name);
-	p_db_def->table_def_size	= htonl(table_def_size);
+	struct ssa_db *p_ssa_db;
+	uint64_t num_recs_arr[SSA_TABLE_ID_MAX];
+	uint64_t num_field_recs_arr[SSA_TABLE_ID_MAX];
+	size_t recs_size_arr[SSA_TABLE_ID_MAX];
+
+	num_recs_arr[SSA_TABLE_ID_SUBNET_OPTS] = 1; /* subnet options - single record */
+	num_recs_arr[SSA_TABLE_ID_GUID_TO_LID] = guid_to_lid_num_recs;
+	num_recs_arr[SSA_TABLE_ID_NODE] = node_num_recs;
+	num_recs_arr[SSA_TABLE_ID_LINK] = link_num_recs;
+	num_recs_arr[SSA_TABLE_ID_PORT] = port_num_recs;
+	num_recs_arr[SSA_TABLE_ID_PKEY] = pkey_num_recs;
+	num_recs_arr[SSA_TABLE_ID_LFT_TOP] = lft_top_num_recs;
+	num_recs_arr[SSA_TABLE_ID_LFT_BLOCK] = lft_block_num_recs;
+
+	recs_size_arr[SSA_TABLE_ID_SUBNET_OPTS] = sizeof(struct ep_subnet_opts_tbl_rec);
+	recs_size_arr[SSA_TABLE_ID_GUID_TO_LID] = sizeof(struct ep_guid_to_lid_tbl_rec);
+	recs_size_arr[SSA_TABLE_ID_NODE] = sizeof(struct ep_node_tbl_rec);
+	recs_size_arr[SSA_TABLE_ID_LINK] = sizeof(struct ep_link_tbl_rec);
+	recs_size_arr[SSA_TABLE_ID_PORT] = sizeof(struct ep_port_tbl_rec);
+	recs_size_arr[SSA_TABLE_ID_PKEY] = sizeof(uint16_t);
+	recs_size_arr[SSA_TABLE_ID_LFT_TOP] = sizeof(struct ep_lft_top_tbl_rec);
+	recs_size_arr[SSA_TABLE_ID_LFT_BLOCK] = sizeof(struct ep_lft_block_tbl_rec);
+
+	num_field_recs_arr[SSA_TABLE_ID_SUBNET_OPTS] = SSA_FIELD_ID_SUBNET_OPTS_MAX;
+	num_field_recs_arr[SSA_TABLE_ID_GUID_TO_LID] = SSA_FIELD_ID_GUID_TO_LID_MAX;
+	num_field_recs_arr[SSA_TABLE_ID_NODE] = SSA_FIELD_ID_NODE_MAX;
+	num_field_recs_arr[SSA_TABLE_ID_LINK] = SSA_FIELD_ID_LINK_MAX;
+	num_field_recs_arr[SSA_TABLE_ID_PORT] = SSA_FIELD_ID_PORT_MAX;
+	num_field_recs_arr[SSA_TABLE_ID_PKEY] = DB_VARIABLE_SIZE; /* variabled size records */
+	num_field_recs_arr[SSA_TABLE_ID_LFT_TOP] = SSA_FIELD_ID_LFT_TOP_MAX;
+	num_field_recs_arr[SSA_TABLE_ID_LFT_BLOCK] = SSA_FIELD_ID_LFT_BLOCK_MAX;
+
+	p_ssa_db = ssa_db_create(num_recs_arr, recs_size_arr, num_field_recs_arr, SSA_TABLE_ID_MAX);
+
+	ssa_db_init(p_ssa_db, "SMDB", 12 /*just some db_id */, def_tbl, dataset_tbl,
+		    field_dataset_tbl, field_tbl);
+
+	return p_ssa_db;
 }
 
 /** =========================================================================
  */
-static
-void ssa_db_smdb_dataset_init(struct db_dataset * p_dataset,
-			      uint8_t version, uint8_t size,
-			      uint8_t access, uint8_t db_id,
-			      uint8_t table_id, uint8_t field_id,
-			      uint64_t epoch, uint64_t set_size,
-			      uint64_t set_offset, uint64_t set_count)
+void ssa_db_smdb_destroy(struct ssa_db * p_smdb)
 {
-	p_dataset->version	= version;
-	p_dataset->size		= size;
-	p_dataset->access	= access;
-	p_dataset->id.db	= db_id;
-	p_dataset->id.table	= table_id;
-	p_dataset->id.field	= field_id;
-	p_dataset->epoch	= htonll(epoch);
-	p_dataset->set_size	= htonll(set_size);
-	p_dataset->set_offset	= htonll(set_offset);
-	p_dataset->set_count	= htonll(set_count);
-}
-
-/** =========================================================================
- */
-static
-void ssa_db_smdb_table_def_insert(struct db_table_def * p_tbl,
-				  struct db_dataset * p_dataset,
-				  uint8_t version, uint8_t size,
-				  uint8_t type, uint8_t access,
-				  uint8_t db_id, uint8_t table_id,
-				  uint8_t field_id, const char * name,
-				  uint32_t record_size, uint32_t ref_table_id)
-{
-	struct db_table_def db_table_def_rec;
-
-	memset(&db_table_def_rec, 0, sizeof(db_table_def_rec));
-
-	db_table_def_rec.version	= version;
-	db_table_def_rec.size		= size;
-	db_table_def_rec.type		= type;
-	db_table_def_rec.access		= access;
-	db_table_def_rec.id.db		= db_id;
-	db_table_def_rec.id.table	= table_id;
-	db_table_def_rec.id.field	= field_id;
-	strcpy(db_table_def_rec.name, name);
-	db_table_def_rec.record_size	= htonl(record_size);
-	db_table_def_rec.ref_table_id	= htonl(ref_table_id);
-
-	memcpy(&p_tbl[ntohll(p_dataset->set_count)], &db_table_def_rec,
-	       sizeof(*p_tbl));
-	p_dataset->set_count = htonll(ntohll(p_dataset->set_count) + 1);
-	p_dataset->set_size = htonll(ntohll(p_dataset->set_size) + sizeof(*p_tbl));
-}
-
-/** =========================================================================
- */
-static
-void ssa_db_smdb_field_def_insert(struct db_field_def * p_tbl,
-				  struct db_dataset * p_dataset,
-				  uint8_t version, uint8_t type,
-				  uint8_t db_id, uint8_t table_id,
-				  uint8_t field_id, const char * name,
-				  uint32_t field_size, uint32_t field_offset)
-{
-	struct db_field_def db_field_def_rec;
-
-	memset(&db_field_def_rec, 0, sizeof(db_field_def_rec));
-
-	db_field_def_rec.version	= version;
-	db_field_def_rec.type		= type;
-	db_field_def_rec.id.db		= db_id;
-	db_field_def_rec.id.table	= table_id;
-	db_field_def_rec.id.field	= field_id;
-	strcpy(db_field_def_rec.name, name);
-	db_field_def_rec.field_size	= htonl(field_size);
-	db_field_def_rec.field_offset	= htonl(field_offset);
-
-	memcpy(&p_tbl[ntohll(p_dataset->set_count)], &db_field_def_rec,
-	       sizeof(*p_tbl));
-	p_dataset->set_count = htonll(ntohll(p_dataset->set_count) + 1);
-	p_dataset->set_size = htonll(ntohll(p_dataset->set_size) + sizeof(*p_tbl));
-}
-
-/** =========================================================================
- */
-static void ssa_db_smdb_tables_init(struct ssa_db_smdb * p_smdb)
-{
-	const struct db_table_def *p_tbl_def;
-	const struct db_dataset *p_dataset;
-	const struct db_field_def *p_field_def;
-	const struct db_field *p_field;
-
-	/*
-	 * db_def initialization
-	 */
-	ssa_db_smdb_db_def_init(&p_smdb->db_def,
-				0, sizeof(p_smdb->db_def),
-				12 /* just some db_id */, 0, 0, "SMDB",
-				sizeof(*p_smdb->p_def_tbl));
-
-	/*
-	 * Definition tables dataset initialization
-	 */
-	ssa_db_smdb_dataset_init(&p_smdb->db_table_def,
-				 0, sizeof(p_smdb->db_table_def),
-				 0, 0, SSA_TABLE_ID_TABLE_DEF, 0,
-				 0, 0, 0, 0);
-
-	p_smdb->p_def_tbl = (struct db_table_def *)
-		malloc(sizeof(*p_smdb->p_def_tbl) * SSA_TABLE_ID_MAX);
-	if (!p_smdb->p_def_tbl) {
-		/* add handling memory allocation failure */
-	}
-
-	/* adding table definitions */
-	for (p_tbl_def = def_tbl; p_tbl_def->version; p_tbl_def++)
-		ssa_db_smdb_table_def_insert(p_smdb->p_def_tbl,
-					     &p_smdb->db_table_def,
-					     p_tbl_def->version, p_tbl_def->size,
-					     p_tbl_def->type, p_tbl_def->access,
-					     p_tbl_def->id.db, p_tbl_def->id.table,
-					     p_tbl_def->id.field, p_tbl_def->name,
-					     ntohl(p_tbl_def->record_size),
-					     ntohl(p_tbl_def->ref_table_id));
-
-	/* data tables datasets initialization */
-	for (p_dataset = dataset_tbl; p_dataset->version; p_dataset++)
-		ssa_db_smdb_dataset_init(&p_smdb->db_tables[p_dataset->id.table],
-					 p_dataset->version, p_dataset->size,
-					 p_dataset->access, p_dataset->id.db,
-					 p_dataset->id.table, p_dataset->id.field,
-					 p_dataset->epoch, p_dataset->set_size,
-					 p_dataset->set_offset,
-					 p_dataset->set_count);
-
-	/* field tables initialization */
-	for (p_field = field_per_table; p_field->table_id; p_field++) {
-		p_smdb->p_tables[p_field->table_id] =
-			malloc(sizeof(struct db_field_def) * p_field->fields_num);
-		if (!p_smdb->p_tables[p_field->table_id]) {
-			/* add handling memory allocation failure */
-		}
-		for (p_field_def = field_tbl; p_field_def->version; p_field_def++) {
-			if (p_field_def->id.table == p_field->table_id)
-				ssa_db_smdb_field_def_insert(p_smdb->p_tables[p_field->table_id],
-							     &p_smdb->db_tables[p_field->table_id],
-							     p_field_def->version, p_field_def->type,
-							     p_field_def->id.db, p_field_def->id.table,
-							     p_field_def->id.field, p_field_def->name,
-							     ntohl(p_field_def->field_size),
-							     ntohl(p_field_def->field_offset));
-		}
-	}
-}
-
-/** =========================================================================
- */
-struct ssa_db_smdb ssa_db_smdb_init(uint64_t guid_to_lid_num_recs,
-				    uint64_t node_num_recs,
-				    uint64_t link_num_recs,
-				    uint64_t port_num_recs,
-				    uint64_t pkey_num_recs,
-				    uint64_t lft_top_num_recs,
-				    uint64_t lft_block_num_recs)
-{
-	struct ssa_db_smdb smdb;
-
-	ssa_db_smdb_tables_init(&smdb);
-
-	smdb.p_tables[SSA_TABLE_ID_SUBNET_OPTS] =
-		malloc(sizeof(struct ep_subnet_opts_tbl_rec));
-
-	if (!smdb.p_tables[SSA_TABLE_ID_SUBNET_OPTS]) {
-		/* TODO: add handling memory allocation failure */
-	}
-
-	smdb.p_tables[SSA_TABLE_ID_GUID_TO_LID] =
-		malloc(sizeof(struct ep_guid_to_lid_tbl_rec) * guid_to_lid_num_recs);
-
-	if (!smdb.p_tables[SSA_TABLE_ID_GUID_TO_LID]) {
-		/* TODO: add handling memory allocation failure */
-	}
-
-	smdb.p_tables[SSA_TABLE_ID_NODE] =
-		malloc(sizeof(struct ep_node_tbl_rec) * node_num_recs);
-
-	if (!smdb.p_tables[SSA_TABLE_ID_NODE]) {
-		/* TODO: add handling memory allocation failure */
-	}
-
-	smdb.p_tables[SSA_TABLE_ID_LINK] =
-		malloc(sizeof(struct ep_link_tbl_rec) * link_num_recs);
-
-	if (!smdb.p_tables[SSA_TABLE_ID_LINK]) {
-		/* TODO: add handling memory allocation failure */
-	}
-
-	smdb.p_tables[SSA_TABLE_ID_PORT] =
-		malloc(sizeof(struct ep_port_tbl_rec) * port_num_recs);
-
-	if (!smdb.p_tables[SSA_TABLE_ID_PORT]) {
-		/* TODO: add handling memory allocation failure */
-	}
-
-	smdb.p_tables[SSA_TABLE_ID_PKEY] =
-		malloc(sizeof(uint16_t) * pkey_num_recs);
-
-	if (!smdb.p_tables[SSA_TABLE_ID_PKEY]) {
-		/* TODO: add handling memory allocation failure */
-	}
-
-	smdb.p_tables[SSA_TABLE_ID_LFT_TOP] =
-		malloc(sizeof(struct ep_lft_top_tbl_rec) * lft_top_num_recs);
-
-	if (!smdb.p_tables[SSA_TABLE_ID_LFT_TOP]) {
-		/* TODO: add handling memory allocation failure */
-	}
-
-	smdb.p_tables[SSA_TABLE_ID_LFT_BLOCK] =
-		malloc(sizeof(struct ep_lft_block_tbl_rec) * lft_block_num_recs);
-
-	if (!smdb.p_tables[SSA_TABLE_ID_LFT_BLOCK]) {
-		/* TODO: add handling memory allocation failure */
-	}
-
-	return smdb;
-}
-
-/** =========================================================================
- */
-void ssa_db_smdb_destroy(struct ssa_db_smdb * p_smdb)
-{
-	int i;
-
-	if (!p_smdb)
-		return;
-
-	for (i = 0; i < SSA_TABLE_ID_MAX; i++)
-		free(p_smdb->p_tables[i]);
+	ssa_db_destroy(p_smdb);
 }
 
 /** =========================================================================

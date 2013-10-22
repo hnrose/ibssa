@@ -62,9 +62,9 @@ struct ssa_database *ssa_database_init(void)
 void ssa_database_delete(struct ssa_database *p_ssa_db)
 {
 	if (p_ssa_db) {
-		ssa_db_delete(p_ssa_db->p_dump_db);
-		ssa_db_delete(p_ssa_db->p_previous_db);
-		ssa_db_delete(p_ssa_db->p_current_db);
+		ssa_db_extract_delete(p_ssa_db->p_dump_db);
+		ssa_db_extract_delete(p_ssa_db->p_previous_db);
+		ssa_db_extract_delete(p_ssa_db->p_current_db);
 		pthread_mutex_destroy(&p_ssa_db->lft_rec_list_lock);
 
 		if (p_ssa_db->p_lft_db) {
@@ -91,11 +91,11 @@ void ssa_database_delete(struct ssa_database *p_ssa_db)
 	}
 }
 
-struct ssa_db *ssa_db_init(void)
+struct ssa_db_extract *ssa_db_extract_init(void)
 {
-	struct ssa_db *p_ssa_db;
+	struct ssa_db_extract *p_ssa_db;
 
-	p_ssa_db = (struct ssa_db *) calloc(1, sizeof(*p_ssa_db));
+	p_ssa_db = (struct ssa_db_extract *) calloc(1, sizeof(*p_ssa_db));
 	if (p_ssa_db) {
 		cl_qmap_init(&p_ssa_db->ep_guid_to_lid_tbl);
 		cl_qmap_init(&p_ssa_db->ep_node_tbl);
@@ -105,7 +105,7 @@ struct ssa_db *ssa_db_init(void)
 	return p_ssa_db;
 }
 
-void ssa_db_delete(struct ssa_db *p_ssa_db)
+void ssa_db_extract_delete(struct ssa_db_extract *p_ssa_db)
 {
 	if (p_ssa_db) {
 		free(p_ssa_db->p_pkey_tbl);

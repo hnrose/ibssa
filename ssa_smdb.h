@@ -52,27 +52,31 @@
 BEGIN_C_DECLS
 
 enum ssa_db_smdb_table_id {
-	SSA_TABLE_ID_TABLE_DEF = -2,
 	SSA_TABLE_ID_SUBNET_OPTS = 0,
-	SSA_TABLE_ID_SUBNET_OPTS_FIELD_DEF,
 	SSA_TABLE_ID_GUID_TO_LID,
-	SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF,
 	SSA_TABLE_ID_NODE,
-	SSA_TABLE_ID_NODE_FIELD_DEF,
 	SSA_TABLE_ID_LINK,
-	SSA_TABLE_ID_LINK_FIELD_DEF,
 	SSA_TABLE_ID_PORT,
-	SSA_TABLE_ID_PORT_FIELD_DEF,
 	SSA_TABLE_ID_PKEY,
 	SSA_TABLE_ID_LFT_TOP,
-	SSA_TABLE_ID_LFT_TOP_FIELD_DEF,
 	SSA_TABLE_ID_LFT_BLOCK,
-	SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF,
 	SSA_TABLE_ID_MAX
 };
 
+enum ssa_db_smdb_field_table_id {
+	SSA_TABLE_ID_SUBNET_OPTS_FIELD_DEF = SSA_TABLE_ID_MAX,
+	SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF,
+	SSA_TABLE_ID_NODE_FIELD_DEF,
+	SSA_TABLE_ID_LINK_FIELD_DEF,
+	SSA_TABLE_ID_PORT_FIELD_DEF,
+	SSA_TABLE_ID_PKEY_FIELD_DEF,
+	SSA_TABLE_ID_LFT_TOP_FIELD_DEF,
+	SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF,
+	SSA_TABLE_ID_FIELD_DEF_MAX
+};
+
 enum ssa_db_smdb_subnet_opts_fields {
-	SSA_FIELD_ID_SUBNET_OPTS_CHANGE_MASK,
+	SSA_FIELD_ID_SUBNET_OPTS_CHANGE_MASK = 0,
 	SSA_FIELD_ID_SUBNET_OPTS_SUBNET_PREFIX,
 	SSA_FIELD_ID_SUBNET_OPTS_SM_STATE,
 	SSA_FIELD_ID_SUBNET_OPTS_LMC,
@@ -82,7 +86,7 @@ enum ssa_db_smdb_subnet_opts_fields {
 };
 
 enum ssa_db_smdb_guid_to_lid_fields {
-	SSA_FIELD_ID_GUID_TO_LID_GUID,
+	SSA_FIELD_ID_GUID_TO_LID_GUID = 0,
 	SSA_FIELD_ID_GUID_TO_LID_LID,
 	SSA_FIELD_ID_GUID_TO_LID_LMC,
 	SSA_FIELD_ID_GUID_TO_LID_IS_SWITCH,
@@ -90,7 +94,7 @@ enum ssa_db_smdb_guid_to_lid_fields {
 };
 
 enum ssa_db_smdb_node_fields {
-	SSA_FIELD_ID_NODE_NODE_GUID,
+	SSA_FIELD_ID_NODE_NODE_GUID = 0,
 	SSA_FIELD_ID_NODE_IS_ENHANCED_SP0,
 	SSA_FIELD_ID_NODE_NODE_TYPE,
 	SSA_FIELD_ID_NODE_DESCRIPTION,
@@ -98,7 +102,7 @@ enum ssa_db_smdb_node_fields {
 };
 
 enum ssa_db_smdb_link_fields {
-	SSA_FIELD_ID_LINK_FROM_LID,
+	SSA_FIELD_ID_LINK_FROM_LID = 0,
 	SSA_FIELD_ID_LINK_TO_LID,
 	SSA_FIELD_ID_LINK_FROM_PORT_NUM,
 	SSA_FIELD_ID_LINK_TO_PORT_NUM,
@@ -106,7 +110,7 @@ enum ssa_db_smdb_link_fields {
 };
 
 enum ssa_db_smdb_port_fields {
-	SSA_FIELD_ID_PORT_PKEY_TBL_OFFSET,
+	SSA_FIELD_ID_PORT_PKEY_TBL_OFFSET = 0,
 	SSA_FIELD_ID_PORT_PKEY_TBL_SIZE,
 	SSA_FIELD_ID_PORT_PORT_LID,
 	SSA_FIELD_ID_PORT_PORT_NUM,
@@ -118,13 +122,13 @@ enum ssa_db_smdb_port_fields {
 };
 
 enum ssa_db_smdb_lft_top_fields {
-	SSA_FIELD_ID_LFT_TOP_LID,
+	SSA_FIELD_ID_LFT_TOP_LID = 0,
 	SSA_FIELD_ID_LFT_TOP_LFT_TOP,
 	SSA_FIELD_ID_LFT_TOP_MAX
 };
 
 enum ssa_db_smdb_lft_block_fields {
-	SSA_FIELD_ID_LFT_BLOCK_LID,
+	SSA_FIELD_ID_LFT_BLOCK_LID = 0,
 	SSA_FIELD_ID_LFT_BLOCK_BLOCK_NUM,
 	SSA_FIELD_ID_LFT_BLOCK_BLOCK,
 	SSA_FIELD_ID_LFT_BLOCK_MAX
@@ -199,23 +203,12 @@ struct ep_lft_block_tbl_rec {
 
 #define SSA_TABLE_BLOCK_SIZE			1024
 
-struct ssa_db_smdb {
-        struct db_def                   db_def;
+struct ssa_db *ssa_db_smdb_init(uint64_t guid_to_lid_num_recs, uint64_t node_num_recs,
+				uint64_t link_num_recs, uint64_t port_num_recs,
+				uint64_t pkey_num_recs, uint64_t lft_top_num_recs,
+				uint64_t lft_block_num_recs);
 
-        struct db_dataset               db_table_def;
-        struct db_table_def             *p_def_tbl;
-
-        /* data tables */
-        struct db_dataset               db_tables[SSA_TABLE_ID_MAX];
-        void                            *p_tables[SSA_TABLE_ID_MAX];
-};
-
-struct ssa_db_smdb ssa_db_smdb_init(uint64_t guid_to_lid_num_recs, uint64_t node_num_recs,
-				    uint64_t link_num_recs, uint64_t port_num_recs,
-				    uint64_t pkey_num_recs, uint64_t lft_top_num_recs,
-				    uint64_t lft_block_num_recs);
-
-void ssa_db_smdb_destroy(struct ssa_db_smdb * p_smdb);
+void ssa_db_smdb_destroy(struct ssa_db * p_smdb);
 
 /**********************SUBNET OPTS records*******************************/
 void ep_subnet_opts_tbl_rec_init(osm_subn_t *p_subn,

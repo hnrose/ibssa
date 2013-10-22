@@ -53,7 +53,7 @@ BEGIN_C_DECLS
 
 /* used for making comparison between two ssa databases */
 struct ssa_db_diff {
-	struct ssa_db_smdb		smdb;
+	struct ssa_db		*p_smdb;
 
 	/***** guid_to_lid_tbl changes tracking **********/
 	cl_qmap_t ep_guid_to_lid_tbl_added;

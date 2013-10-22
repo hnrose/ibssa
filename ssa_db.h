@@ -131,6 +131,7 @@ enum {
  */
 #define DBT_DEF_VERSION 0
 #define DBT_DEF_NO_RELATED_TBL 0xFFFFFFFF
+#define DBT_DEF_DS_ID 0xFE
 struct db_table_def {
 	uint8_t		version;
 	uint8_t		size;
@@ -307,6 +308,34 @@ void ssa_db_field_def_insert(struct db_field_def * p_tbl,
 			     uint8_t db_id, uint8_t table_id,
 			     uint8_t field_id, const char * name,
 			     uint32_t field_size, uint32_t field_offset);
+
+struct ssa_db {
+        struct db_def		db_def;
+
+        struct db_dataset	db_table_def;
+        struct db_table_def	*p_def_tbl;
+
+        /* data tables */
+        struct db_dataset	*p_db_tables;
+        void			**pp_tables;
+
+	/* field definition tables */
+        struct db_dataset	*p_db_field_tables;
+        struct db_field_def	**pp_field_tables;
+};
+
+struct ssa_db *ssa_db_create(uint64_t * p_num_recs_arr,
+			     size_t * p_recs_size_arr,
+			     uint64_t * p_num_field_recs_arr,
+			     int len);
+
+void ssa_db_init(struct ssa_db * p_ssa_db, char * name, uint8_t db_id,
+		 const struct db_table_def *def_tbl,
+		 const struct db_dataset *dataset_tbl,
+		 const struct db_dataset *field_dataset_tbl,
+		 const struct db_field_def *field_tbl);
+
+void ssa_db_destroy(struct ssa_db * p_ssa_db);
 #ifdef __cplusplus
 }
 #endif

@@ -52,10 +52,10 @@ struct ssa_db_diff *ssa_db_diff_init(uint64_t guid_to_lid_num_recs,
 
 	p_ssa_db_diff = (struct ssa_db_diff *) calloc(1, sizeof(*p_ssa_db_diff));
 	if (p_ssa_db_diff) {
-		p_ssa_db_diff->smdb = ssa_db_smdb_init(guid_to_lid_num_recs, node_num_recs,
-						       link_num_recs, port_num_recs,
-						       pkey_num_recs, lft_top_num_recs,
-						       lft_block_num_recs);
+		p_ssa_db_diff->p_smdb = ssa_db_smdb_init(guid_to_lid_num_recs, node_num_recs,
+							 link_num_recs, port_num_recs,
+							 pkey_num_recs, lft_top_num_recs,
+							 lft_block_num_recs);
 
 		cl_qmap_init(&p_ssa_db_diff->ep_guid_to_lid_tbl_added);
 		cl_qmap_init(&p_ssa_db_diff->ep_node_tbl_added);
@@ -76,7 +76,7 @@ struct ssa_db_diff *ssa_db_diff_init(uint64_t guid_to_lid_num_recs,
 void ssa_db_diff_destroy(struct ssa_db_diff * p_ssa_db_diff)
 {
 	if (p_ssa_db_diff) {
-		ssa_db_smdb_destroy(&p_ssa_db_diff->smdb);
+		ssa_db_smdb_destroy(p_ssa_db_diff->p_smdb);
 
 		ssa_qmap_apply_func(&p_ssa_db_diff->ep_guid_to_lid_tbl_added,
 				   ep_map_rec_delete_pfn);
@@ -115,16 +115,16 @@ void ssa_db_diff_destroy(struct ssa_db_diff * p_ssa_db_diff)
 
 /** =========================================================================
  */
-static void ssa_db_diff_compare_subnet_opts(struct ssa_db * p_previous_db,
-					    struct ssa_db * p_current_db,
+static void ssa_db_diff_compare_subnet_opts(struct ssa_db_extract * p_previous_db,
+					    struct ssa_db_extract * p_current_db,
 					    struct ssa_db_diff * p_ssa_db_diff)
 {
 	struct ep_subnet_opts_tbl_rec *p_subnet_opts =
 		(struct ep_subnet_opts_tbl_rec *)
-			p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_SUBNET_OPTS];
+			p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_SUBNET_OPTS];
 	struct db_dataset *p_dataset =
 		(struct db_dataset *)
-			&p_ssa_db_diff->smdb.db_tables[SSA_TABLE_ID_SUBNET_OPTS];
+			&p_ssa_db_diff->p_smdb->p_db_tables[SSA_TABLE_ID_SUBNET_OPTS];
 	uint8_t dirty = p_ssa_db_diff->dirty;
 
 	if (!p_previous_db->initialized && p_current_db->initialized) {
@@ -671,8 +671,8 @@ static uint8_t ssa_db_diff_var_size_table_cmp(cl_qmap_t * p_map_old,
 
 /** =========================================================================
  */
-static void ssa_db_diff_compare_subnet_tables(struct ssa_db * p_previous_db,
-					      struct ssa_db * p_current_db,
+static void ssa_db_diff_compare_subnet_tables(struct ssa_db_extract * p_previous_db,
+					      struct ssa_db_extract * p_current_db,
 					      struct ssa_db_diff * const p_ssa_db_diff)
 {
 	uint8_t dirty = 0;
@@ -712,8 +712,8 @@ static void ssa_db_diff_compare_subnet_tables(struct ssa_db * p_previous_db,
 					  ssa_db_guid_to_lid_cmp,
 					  &p_ssa_db_diff->ep_guid_to_lid_tbl_added,
 					  &p_ssa_db_diff->ep_guid_to_lid_tbl_removed,
-					  &p_ssa_db_diff->smdb.db_tables[SSA_TABLE_ID_GUID_TO_LID],
-					  (void **) &p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_GUID_TO_LID]);
+					  &p_ssa_db_diff->p_smdb->p_db_tables[SSA_TABLE_ID_GUID_TO_LID],
+					  (void **) &p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_GUID_TO_LID]);
 
 	dirty = dirty << 1;
 	/*
@@ -727,8 +727,8 @@ static void ssa_db_diff_compare_subnet_tables(struct ssa_db * p_previous_db,
 					  ssa_db_node_cmp,
 					  &p_ssa_db_diff->ep_node_tbl_added,
 					  &p_ssa_db_diff->ep_node_tbl_removed,
-					  &p_ssa_db_diff->smdb.db_tables[SSA_TABLE_ID_NODE],
-					  (void **) &p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_NODE]);
+					  &p_ssa_db_diff->p_smdb->p_db_tables[SSA_TABLE_ID_NODE],
+					  (void **) &p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_NODE]);
 
 	dirty = dirty << 1;
 	/*
@@ -742,8 +742,8 @@ static void ssa_db_diff_compare_subnet_tables(struct ssa_db * p_previous_db,
 					  ssa_db_link_cmp,
 					  &p_ssa_db_diff->ep_link_tbl_added,
 					  &p_ssa_db_diff->ep_link_tbl_removed,
-					  &p_ssa_db_diff->smdb.db_tables[SSA_TABLE_ID_LINK],
-					  (void **) &p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_LINK]);
+					  &p_ssa_db_diff->p_smdb->p_db_tables[SSA_TABLE_ID_LINK],
+					  (void **) &p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_LINK]);
 
 	dirty = dirty << 1;
 	/*
@@ -759,10 +759,10 @@ static void ssa_db_diff_compare_subnet_tables(struct ssa_db * p_previous_db,
 						ssa_db_port_cmp,
 						&p_ssa_db_diff->ep_port_tbl_added,
 						&p_ssa_db_diff->ep_port_tbl_removed,
-						&p_ssa_db_diff->smdb.db_tables[SSA_TABLE_ID_PORT],
-						(void **) &p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_PORT],
-						&p_ssa_db_diff->smdb.db_tables[SSA_TABLE_ID_PKEY],
-						(void **) &p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_PKEY]);
+						&p_ssa_db_diff->p_smdb->p_db_tables[SSA_TABLE_ID_PORT],
+						(void **) &p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_PORT],
+						&p_ssa_db_diff->p_smdb->p_db_tables[SSA_TABLE_ID_PKEY],
+						(void **) &p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_PKEY]);
 
 	if (dirty)
 		p_ssa_db_diff->dirty = 1;
@@ -776,7 +776,7 @@ static void ssa_db_diff_dump_fabric_params(struct ssa_events * ssa,
 {
 	struct ep_subnet_opts_tbl_rec *p_subnet_opts =
 		(struct ep_subnet_opts_tbl_rec *)
-			p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_SUBNET_OPTS];
+			p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_SUBNET_OPTS];
 	uint8_t is_changed = 0;
 
 	ssa_log(SSA_LOG_VERBOSE, "Fabric parameters:\n");
@@ -1009,87 +1009,87 @@ static void ssa_db_diff_dump(struct ssa_events * ssa,
 	ssa_log(ssa_log_level, "NODE records:\n");
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "NODE field definitions:\n");
-	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_NODE_FIELD_DEF],
+	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->p_smdb->pp_field_tables[SSA_TABLE_ID_NODE],
 				   SSA_FIELD_ID_NODE_MAX);
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "Added records:\n");
 	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_node_tbl_added,
 				 ssa, ssa_db_diff_dump_node_rec,
-				 p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_NODE]);
+				 p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_NODE]);
 	ssa_log(ssa_log_level, "Removed records:\n");
 	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_node_tbl_removed,
 				 ssa, ssa_db_diff_dump_node_rec,
-				 p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_NODE]);
+				 p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_NODE]);
 
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "GUID to LID records:\n");
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "GUID to LID field definitions:\n");
-	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF],
+	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->p_smdb->pp_field_tables[SSA_TABLE_ID_GUID_TO_LID],
 				   SSA_FIELD_ID_GUID_TO_LID_MAX);
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "Added records:\n");
 	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_guid_to_lid_tbl_added,
 				 ssa, ssa_db_diff_dump_guid_to_lid_rec,
-				 p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_GUID_TO_LID]);
+				 p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_GUID_TO_LID]);
 	ssa_log(ssa_log_level, "Removed records:\n");
 	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_guid_to_lid_tbl_removed,
 				 ssa, ssa_db_diff_dump_guid_to_lid_rec,
-				 p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_GUID_TO_LID]);
+				 p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_GUID_TO_LID]);
 
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "PORT records:\n");
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "PORT field definitions:\n");
-	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_PORT_FIELD_DEF],
+	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->p_smdb->pp_field_tables[SSA_TABLE_ID_PORT],
 				   SSA_FIELD_ID_PORT_MAX);
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "Added records:\n");
 	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_port_tbl_added,
 				 ssa, ssa_db_diff_dump_port_rec,
-				 p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_PORT]);
+				 p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_PORT]);
 	ssa_log(ssa_log_level, "Removed records:\n");
 	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_port_tbl_removed,
 				 ssa, ssa_db_diff_dump_port_rec,
-				 p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_PORT]);
+				 p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_PORT]);
 
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "LFT block records:\n");
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "LFT block field definitions:\n");
-	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF],
+	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->p_smdb->pp_field_tables[SSA_TABLE_ID_LFT_BLOCK],
 				   SSA_FIELD_ID_LFT_BLOCK_MAX);
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_lft_block_tbl,
 				 ssa, ssa_db_diff_dump_lft_block_rec,
-				 p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_LFT_BLOCK]);
+				 p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_LFT_BLOCK]);
 
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "LFT top records:\n");
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "LFT top field definitions:\n");
-	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_LFT_TOP_FIELD_DEF],
+	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->p_smdb->pp_field_tables[SSA_TABLE_ID_LFT_TOP],
 				   SSA_FIELD_ID_LFT_TOP_MAX);
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_lft_top_tbl,
 				 ssa, ssa_db_diff_dump_lft_top_rec,
-				 p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_LFT_TOP]);
+				 p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_LFT_TOP]);
 
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "Link Records:\n");
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "LINK field definitions:\n");
-	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_LINK_FIELD_DEF],
+	ssa_db_diff_dump_field_rec(ssa, p_ssa_db_diff->p_smdb->pp_field_tables[SSA_TABLE_ID_LINK],
 				   SSA_FIELD_ID_LINK_MAX);
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "Added records:\n");
 	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_link_tbl_added,
 				 ssa, ssa_db_diff_dump_link_rec,
-				 p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_LINK]);
+				 p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_LINK]);
 	ssa_log(ssa_log_level, "Removed records:\n");
 	ssa_db_diff_dump_qmap_v2(&p_ssa_db_diff->ep_link_tbl_removed,
 				 ssa, ssa_db_diff_dump_link_rec,
-				 p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_LINK]);
+				 p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_LINK]);
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "===================================\n");
 }
@@ -1279,18 +1279,18 @@ struct ssa_db_diff *ssa_db_compare(struct ssa_events * ssa,
 					  ssa_db->p_current_db, p_ssa_db_diff);
 
 	if (first_time_subnet_up) {
-		ep_lft_block_qmap_copy(&p_ssa_db_diff->ep_lft_block_tbl, &p_ssa_db_diff->smdb.db_tables[SSA_TABLE_ID_LFT_BLOCK],
-				     p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_LFT_BLOCK], &ssa_db->p_lft_db->ep_db_lft_block_tbl,
+		ep_lft_block_qmap_copy(&p_ssa_db_diff->ep_lft_block_tbl, &p_ssa_db_diff->p_smdb->p_db_tables[SSA_TABLE_ID_LFT_BLOCK],
+				     p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_LFT_BLOCK], &ssa_db->p_lft_db->ep_db_lft_block_tbl,
 				     ssa_db->p_lft_db->p_db_lft_block_tbl);
-		ep_lft_top_qmap_copy(&p_ssa_db_diff->ep_lft_top_tbl, &p_ssa_db_diff->smdb.db_tables[SSA_TABLE_ID_LFT_TOP],
-				     p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_LFT_TOP], &ssa_db->p_lft_db->ep_db_lft_top_tbl,
+		ep_lft_top_qmap_copy(&p_ssa_db_diff->ep_lft_top_tbl, &p_ssa_db_diff->p_smdb->p_db_tables[SSA_TABLE_ID_LFT_TOP],
+				     p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_LFT_TOP], &ssa_db->p_lft_db->ep_db_lft_top_tbl,
 				     ssa_db->p_lft_db->p_db_lft_top_tbl);
 	} else {
-		ep_lft_block_qmap_copy(&p_ssa_db_diff->ep_lft_block_tbl, &p_ssa_db_diff->smdb.db_tables[SSA_TABLE_ID_LFT_BLOCK],
-				     p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_LFT_BLOCK], &ssa_db->p_lft_db->ep_dump_lft_block_tbl,
+		ep_lft_block_qmap_copy(&p_ssa_db_diff->ep_lft_block_tbl, &p_ssa_db_diff->p_smdb->p_db_tables[SSA_TABLE_ID_LFT_BLOCK],
+				     p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_LFT_BLOCK], &ssa_db->p_lft_db->ep_dump_lft_block_tbl,
 				     ssa_db->p_lft_db->p_dump_lft_block_tbl);
-		ep_lft_top_qmap_copy(&p_ssa_db_diff->ep_lft_top_tbl, &p_ssa_db_diff->smdb.db_tables[SSA_TABLE_ID_LFT_TOP],
-				     p_ssa_db_diff->smdb.p_tables[SSA_TABLE_ID_LFT_TOP], &ssa_db->p_lft_db->ep_dump_lft_top_tbl,
+		ep_lft_top_qmap_copy(&p_ssa_db_diff->ep_lft_top_tbl, &p_ssa_db_diff->p_smdb->p_db_tables[SSA_TABLE_ID_LFT_TOP],
+				     p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_LFT_TOP], &ssa_db->p_lft_db->ep_dump_lft_top_tbl,
 				     ssa_db->p_lft_db->p_dump_lft_top_tbl);
 
 		new_recs = ssa_db_diff_new_qmap_recs(&ssa_db->p_lft_db->ep_db_lft_top_tbl,
