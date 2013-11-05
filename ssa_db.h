@@ -318,6 +318,7 @@ struct ssa_db {
         /* data tables */
         struct db_dataset	*p_db_tables;
         void			**pp_tables;
+	uint64_t		data_tbl_cnt;
 
 	/* field definition tables */
         struct db_dataset	*p_db_field_tables;
@@ -327,7 +328,7 @@ struct ssa_db {
 struct ssa_db *ssa_db_create(uint64_t * p_num_recs_arr,
 			     size_t * p_recs_size_arr,
 			     uint64_t * p_num_field_recs_arr,
-			     int len);
+			     uint64_t len);
 
 void ssa_db_init(struct ssa_db * p_ssa_db, char * name, uint8_t db_id,
 		 const struct db_table_def *def_tbl,
